@@ -5,6 +5,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Us',
   slug: 'us-app',
+  owner: 'heridev',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
@@ -38,7 +39,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     firebaseMessagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
     eas: {
-      projectId: process.env.EAS_PROJECT_ID || 'dummy-project-id',
+      projectId: process.env.EAS_PROJECT_ID || '5e82f346-d160-49a2-87eb-43930fb0cdc6',
     },
   },
 });

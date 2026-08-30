@@ -8,7 +8,9 @@ npm-debug.*
 *.key
 *.mobileprovision
 *.orig.*
-web-build/
+# Native build directories (Expo Prebuild / CNG)
+/android/
+/ios/
 
 # macOS
 .DS_Store
