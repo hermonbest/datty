@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Datty - Invite Partner</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500&amp;family=Manrope:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary-fixed-variant": "#4c4547",
+                      "error": "#ba1a1a",
+                      "surface": "#fff8f7",
+                      "on-primary": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "tertiary-fixed": "#ffdad9",
+                      "outline-variant": "#d9c1c4",
+                      "surface-tint": "#984259",
+                      "tertiary-fixed-dim": "#e7bcbc",
+                      "primary-fixed-dim": "#ffb1c1",
+                      "secondary-container": "#e8dddf",
+                      "background": "#fff8f7",
+                      "on-primary-container": "#ff9bb2",
+                      "primary-fixed": "#ffd9df",
+                      "on-error-container": "#93000a",
+                      "on-tertiary": "#ffffff",
+                      "surface-dim": "#e7d6d6",
+                      "on-tertiary-container": "#d8aeae",
+                      "primary-container": "#7d2d44",
+                      "inverse-primary": "#ffb1c1",
+                      "surface-variant": "#f0dfde",
+                      "on-primary-fixed-variant": "#7a2b42",
+                      "surface-container": "#fceae9",
+                      "surface-container-low": "#fff0f0",
+                      "on-tertiary-fixed": "#2d1515",
+                      "on-surface-variant": "#544245",
+                      "secondary": "#645c5e",
+                      "on-error": "#ffffff",
+                      "on-secondary-container": "#696162",
+                      "tertiary-container": "#604141",
+                      "inverse-surface": "#382e2e",
+                      "tertiary": "#472b2c",
+                      "surface-container-high": "#f6e4e4",
+                      "inverse-on-surface": "#feedec",
+                      "surface-container-highest": "#f0dfde",
+                      "outline": "#867275",
+                      "surface-bright": "#fff8f7",
+                      "on-secondary-fixed": "#201a1c",
+                      "on-background": "#221919",
+                      "secondary-fixed-dim": "#cfc4c6",
+                      "on-surface": "#221919",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary-fixed": "#3f0018",
+                      "on-tertiary-fixed-variant": "#5e3f3f",
+                      "secondary-fixed": "#ebe0e2",
+                      "primary": "#60162e",
+                      "on-secondary": "#ffffff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "margin-desktop": "auto",
+                      "margin-mobile": "20px",
+                      "xxl": "64px",
+                      "gutter": "16px",
+                      "xl": "40px",
+                      "sm": "8px",
+                      "xs": "4px",
+                      "unit": "4px",
+                      "lg": "24px",
+                      "md": "16px"
+              },
+              "fontFamily": {
+                      "body-md": [
+                              "manrope"
+                      ],
+                      "body-lg": [
+                              "manrope"
+                      ],
+                      "label-sm": [
+                              "manrope"
+                      ],
+                      "label-md": [
+                              "manrope"
+                      ],
+                      "headline-lg": [
+                              "ebGaramond"
+                      ],
+                      "headline-md": [
+                              "ebGaramond"
+                      ],
+                      "headline-lg-mobile": [
+                              "ebGaramond"
+                      ],
+                      "display-lg": [
+                              "ebGaramond"
+                      ]
+              },
+              "fontSize": {
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "label-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "28px",
+                              {
+                                      "lineHeight": "36px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background h-full flex flex-col font-body-md overflow-x-hidden">
+<!-- Top Navigation (Suppressed per JSON logic for transactional state, but maintaining structural requirement if needed. We'll render a simplified version for brand consistency) -->
+<header class="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-xl flex justify-center items-center px-margin-mobile md:px-margin-desktop h-16">
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary">Datty</h1>
+</header>
+<!-- Main Content Area -->
+<main class="flex-grow flex flex-col items-center justify-center px-margin-mobile md:px-margin-desktop pt-24 pb-12 w-full max-w-lg mx-auto text-center space-y-xl">
+<!-- Illustration Area -->
+<div class="relative w-48 h-48 mb-lg animate-pulse-slow">
+<img class="object-cover w-full h-full rounded-full shadow-[0_0_40px_rgba(152,66,89,0.15)]" data-alt="A soft, watercolor-style illustration of two halves of a glowing pink and berry-colored heart slowly drifting together. The background is a warm, airy parchment color. The mood is romantic, hopeful, and deeply intimate, fitting a premium couple's journal aesthetic. The lighting is diffused and ethereal." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD3qjsyA8IXIlOWWLPp18E6p0LFAnFzBiBca5SrtjRo7dA9QMLDU93Hn85Jf7R9-ClBn2Vzjn0Xt27EhQzApDIV0QdcXB8x2SuH9jEwVhVcqu1LWtAKQPeojrrmV911U9IiqcajXfylJ6d_u_7q8tkSHehNbUeeTeE_8fnaQT6DjTPwou2EUQ8PuDGInHKEf8KshCgLWTvOVYd1wSvCSA8YooF9IuyNAxPAH7xI1fVXfrFF0VtW0t-A"/>
+</div>
+<!-- Copy -->
+<div class="space-y-md px-4">
+<h2 class="font-display-lg text-display-lg text-on-surface">Almost there.</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-sm mx-auto">
+                Datty is a shared space. Invite your partner to begin your journey together.
+            </p>
+</div>
+<!-- Invite Code Section -->
+<div class="w-full bg-surface-container rounded-xl p-lg space-y-md shadow-[0_8px_32px_rgba(96,22,46,0.05)] border border-outline-variant/30">
+<label class="block font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-sm">Your Unique Invite Code</label>
+<div class="flex items-center justify-between bg-surface-container-lowest border border-outline-variant/50 rounded-lg overflow-hidden focus-within:border-primary transition-colors">
+<span class="font-body-lg text-body-lg text-on-surface tracking-widest pl-4 py-3 select-all" id="invite-code">DATTY-7A9X</span>
+<button class="p-3 text-primary hover:bg-primary-container/10 transition-colors flex items-center justify-center active:scale-95 duration-200" onclick="copyCode()">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">content_copy</span>
+</button>
+</div>
+<p class="text-xs text-primary opacity-0 transition-opacity h-4" id="copy-feedback">Copied to clipboard!</p>
+</div>
+<!-- Primary Action -->
+<button class="w-full bg-primary text-on-primary font-label-md text-label-md rounded-lg py-4 flex items-center justify-center space-x-2 shadow-[0_4px_12px_rgba(96,22,46,0.2)] hover:opacity-90 active:scale-95 duration-200 transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">send</span>
+<span>Share Invite Link</span>
+</button>
+<!-- Skip Action (Optional/Fallback) -->
+<button class="text-on-surface-variant font-label-md text-label-md hover:text-primary transition-colors pt-sm active:scale-95 duration-200">
+            I'll do this later
+        </button>
+</main>
+<!-- Bottom Navigation Suppressed as requested -->
+<style>
+        .animate-pulse-slow {
+            animation: pulse-glow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 0 40px rgba(152,66,89,0.15);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 0 60px rgba(152,66,89,0.25);
+                transform: scale(1.02);
+            }
+        }
+    </style>
+<script>
+        function copyCode() {
+            const code = document.getElementById('invite-code').innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                const feedback = document.getElementById('copy-feedback');
+                feedback.classList.remove('opacity-0');
+                feedback.classList.add('opacity-100');
+                
+                setTimeout(() => {
+                    feedback.classList.remove('opacity-100');
+                    feedback.classList.add('opacity-0');
+                }, 2000);
+            });
+        }
+    </script>
+</body></html>

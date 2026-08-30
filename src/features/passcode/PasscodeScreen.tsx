@@ -8,10 +8,11 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
+  Image,
 } from 'react-native';
 import { usePasscode } from '../../services/passcodeContext';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
-import { Lock, ShieldCheck, KeyRound, Delete, Heart, X } from 'lucide-react-native';
+import { Lock, ShieldCheck, KeyRound, Delete, X } from 'lucide-react-native';
 
 const PIN_LENGTH = 4;
 
@@ -37,8 +38,6 @@ export const PasscodeScreen: React.FC<PasscodeScreenProps> = ({
     resetPasscodeForDebug,
   } = usePasscode();
 
-  // For setup mode: 'create' | 'confirm'
-  // For change mode: 'current' | 'new' | 'confirm'
   const [step, setStep] = useState<'create' | 'confirm' | 'current' | 'new'>(
     mode === 'setup' ? 'create' : mode === 'change' ? 'current' : 'create'
   );
@@ -51,11 +50,8 @@ export const PasscodeScreen: React.FC<PasscodeScreenProps> = ({
 
   const isLockedOut = lockoutRemainingSeconds > 0;
 
-  // Animation values
   const shakeAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Trigger shake animation on error
   const triggerShake = (msg: string) => {
     setErrorMessage(msg);
     Animated.sequence([
@@ -83,7 +79,6 @@ export const PasscodeScreen: React.FC<PasscodeScreenProps> = ({
     }
   };
 
-  // Evaluate complete PIN
   useEffect(() => {
     if (enteredPin.length === PIN_LENGTH && !isLockedOut) {
       handleCompletePin(enteredPin);
@@ -167,182 +162,197 @@ export const PasscodeScreen: React.FC<PasscodeScreenProps> = ({
     }
   };
 
-  // Helper titles and descriptions
-  let title = 'Enter Passcode';
+  let title = 'Datty';
   let subtitle = isLockedOut
-    ? `Too many failed attempts. Locked for ${lockoutRemainingSeconds}s`
-    : 'Enter your 4-digit passcode to unlock Us';
-  let iconComponent = <Lock size={32} color={isLockedOut ? colors.error : colors.primary} />;
+    ? `Locked for ${lockoutRemainingSeconds}s`
+    : 'Enter Passcode to Unlock';
+  let iconComponent = <Lock size={36} color={isLockedOut ? colors.error : colors.primary} />;
 
   if (mode === 'setup') {
     if (step === 'create') {
-      title = 'Create App Passcode';
-      subtitle = 'Set a 4-digit passcode to secure your private space';
-      iconComponent = <KeyRound size={32} color={colors.primary} />;
+      title = 'Create Passcode';
+      subtitle = 'Set a 4-digit passcode for your space';
+      iconComponent = <KeyRound size={36} color={colors.primary} />;
     } else {
       title = 'Confirm Passcode';
-      subtitle = 'Re-enter your 4-digit passcode to confirm';
-      iconComponent = <ShieldCheck size={32} color={colors.primary} />;
+      subtitle = 'Re-enter your 4-digit passcode';
+      iconComponent = <ShieldCheck size={36} color={colors.primary} />;
     }
   } else if (mode === 'change') {
     if (step === 'current') {
       title = 'Current Passcode';
       subtitle = 'Enter your current 4-digit passcode';
-      iconComponent = <KeyRound size={32} color={colors.primary} />;
+      iconComponent = <KeyRound size={36} color={colors.primary} />;
     } else if (step === 'new') {
       title = 'New Passcode';
-      subtitle = 'Choose your new 4-digit passcode';
-      iconComponent = <KeyRound size={32} color={colors.primary} />;
+      subtitle = 'Choose your new passcode';
+      iconComponent = <KeyRound size={36} color={colors.primary} />;
     } else {
       title = 'Confirm New Passcode';
-      subtitle = 'Re-enter your new passcode to verify';
-      iconComponent = <ShieldCheck size={32} color={colors.primary} />;
+      subtitle = 'Re-enter your new passcode';
+      iconComponent = <ShieldCheck size={36} color={colors.primary} />;
     }
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      
+      {/* Blurred Mock App Background */}
+      <Image
+        source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCwxRCMQ0cqLy9kL23lc6uPqWurzp56r0GcPXIuNE5Uhvp3TisdM64kjCEVCguhnQKT-RZ3JdwzZHRwRXElV_L_gfcMVq9FieSwJsU5tty4JiXP-r83pb5VEGeXd4jg0lI7YaDBfnjtkjQkwFuTWcEEu3n1TLRySoGNhGOe7a8-07c43VD_FqlQXFGw4T09wCSfFvwesiFyBE9Wv2ITAYgoAy0P6Sxdueq08BYeHr5Z-gqihkolzecx' }}
+        style={styles.bgImage}
+        blurRadius={12}
+      />
+      
+      {/* Glassmorphism Overlay */}
+      <View style={styles.overlay} />
 
-      {/* Top action button (Cancel in modal/change mode) */}
-      {onCancel && (
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={onCancel} style={styles.cancelBtn}>
-            <X size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <View style={styles.container}>
-        {/* Header section with badge */}
-        <View style={styles.header}>
-          <View style={styles.iconCircle}>{iconComponent}</View>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
-        </View>
-
-        {/* PIN Dot Indicators */}
-        <Animated.View
-          style={[
-            styles.dotsContainer,
-            { transform: [{ translateX: shakeAnim }] },
-          ]}
-        >
-          {Array.from({ length: PIN_LENGTH }).map((_, index) => {
-            const isFilled = index < enteredPin.length;
-            return (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  isFilled && styles.dotFilled,
-                  errorMessage.length > 0 && isFilled && styles.dotError,
-                ]}
-              />
-            );
-          })}
-        </Animated.View>
-
-        {/* Error message text */}
-        <View style={styles.errorContainer}>
-          {errorMessage ? (
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          ) : (
-            <Text style={styles.hintText}>
-              {mode === 'setup' && step === 'create'
-                ? 'Your passcode will be required whenever the app opens'
-                : ' '}
-            </Text>
-          )}
-        </View>
-
-        {/* Numeric Keypad */}
-        <View style={styles.keypad}>
-          {[
-            [1, 2, 3],
-            [4, 5, 6],
-            [7, 8, 9],
-          ].map((row, rowIndex) => (
-            <View key={rowIndex} style={styles.keypadRow}>
-              {row.map((num) => (
-                <TouchableOpacity
-                  key={num}
-                  style={styles.keyButton}
-                  activeOpacity={0.65}
-                  onPress={() => handleKeyPress(num)}
-                  disabled={isVerifying}
-                >
-                  <Text style={styles.keyNumber}>{num}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ))}
-
-          {/* Bottom row: Empty / Heart, 0, Backspace */}
-          <View style={styles.keypadRow}>
-            <View style={[styles.keyButton, styles.keyButtonEmpty]}>
-              <Heart size={20} color={colors.primaryLight} fill={colors.primaryLight} />
-            </View>
-
-            <TouchableOpacity
-              style={styles.keyButton}
-              activeOpacity={0.65}
-              onPress={() => handleKeyPress(0)}
-              disabled={isVerifying}
-            >
-              <Text style={styles.keyNumber}>0</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.keyButton, styles.keyButtonAction]}
-              activeOpacity={0.65}
-              onPress={handleDelete}
-              disabled={isVerifying || enteredPin.length === 0}
-            >
-              <Delete
-                size={24}
-                color={enteredPin.length === 0 ? colors.textMuted : colors.textPrimary}
-              />
+      <SafeAreaView style={styles.safeArea}>
+        {onCancel && (
+          <View style={styles.topBar}>
+            <TouchableOpacity onPress={onCancel} style={styles.cancelBtn}>
+              <X size={20} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Forgot / Reset Passcode option */}
-        {mode === 'unlock' && (
-          <TouchableOpacity
-            style={styles.forgotBtn}
-            onPress={() => {
-              Alert.alert(
-                'Reset Passcode',
-                'Reset and clear the current passcode on this device so you can create a new one?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Reset Passcode',
-                    style: 'destructive',
-                    onPress: async () => {
-                      if (resetPasscodeForDebug) {
-                        await resetPasscodeForDebug();
-                      }
-                    },
-                  },
-                ]
-              );
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.forgotBtnText}>Forgot Passcode? Reset</Text>
-          </TouchableOpacity>
         )}
-      </View>
-    </SafeAreaView>
+
+        <View style={styles.content}>
+          
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.iconWrapper}>{iconComponent}</View>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
+          </View>
+
+          {/* PIN Dots */}
+          <Animated.View
+            style={[
+              styles.dotsContainer,
+              { transform: [{ translateX: shakeAnim }] },
+            ]}
+          >
+            {Array.from({ length: PIN_LENGTH }).map((_, index) => {
+              const isFilled = index < enteredPin.length;
+              return (
+                <View
+                  key={index}
+                  style={[
+                    styles.dot,
+                    isFilled && styles.dotFilled,
+                    errorMessage.length > 0 && isFilled && styles.dotError,
+                  ]}
+                />
+              );
+            })}
+          </Animated.View>
+
+          {/* Error Message */}
+          <View style={styles.errorContainer}>
+            {errorMessage ? (
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            ) : null}
+          </View>
+
+          {/* Keypad */}
+          <View style={styles.keypad}>
+            {[
+              [1, 2, 3],
+              [4, 5, 6],
+              [7, 8, 9],
+            ].map((row, rowIndex) => (
+              <View key={rowIndex} style={styles.keypadRow}>
+                {row.map((num) => (
+                  <TouchableOpacity
+                    key={num}
+                    style={styles.keyButton}
+                    activeOpacity={0.7}
+                    onPress={() => handleKeyPress(num)}
+                    disabled={isVerifying}
+                  >
+                    <Text style={styles.keyNumber}>{num}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))}
+
+            <View style={styles.keypadRow}>
+              <View style={[styles.keyButton, styles.keyButtonEmpty]} />
+
+              <TouchableOpacity
+                style={styles.keyButton}
+                activeOpacity={0.7}
+                onPress={() => handleKeyPress(0)}
+                disabled={isVerifying}
+              >
+                <Text style={styles.keyNumber}>0</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.keyButton, styles.keyButtonAction]}
+                activeOpacity={0.7}
+                onPress={handleDelete}
+                disabled={isVerifying || enteredPin.length === 0}
+              >
+                <Delete size={28} color={enteredPin.length === 0 ? colors.outlineVariant : colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Footer */}
+          {mode === 'unlock' && (
+            <View style={styles.footer}>
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    'Reset Passcode',
+                    'Clear the current passcode on this device?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Reset Passcode',
+                        style: 'destructive',
+                        onPress: async () => {
+                          if (resetPasscodeForDebug) {
+                            await resetPasscodeForDebug();
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.forgotBtnText}>Forgot Passcode?</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+        </View>
+      </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background, // Fallback
+  },
+  bgImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    transform: [{ scale: 1.05 }], // Prevent edge bleed
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(252, 234, 233, 0.6)', // surface-container/60
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    zIndex: 10,
   },
   topBar: {
     paddingHorizontal: spacing.lg,
@@ -350,99 +360,74 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   cancelBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.card,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.sm,
   },
-  container: {
+  content: {
     flex: 1,
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.marginMobile,
+    maxWidth: 448, // max-w-md
+    alignSelf: 'center',
+    width: '100%',
   },
   header: {
     alignItems: 'center',
-    marginTop: spacing.md,
+    marginBottom: spacing.xl,
   },
-  iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
+  iconWrapper: {
     marginBottom: spacing.md,
-    ...shadows.md,
   },
   title: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-    letterSpacing: -0.3,
+    ...typography.headlineLgMobile,
+    color: colors.primary,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: typography.sizes.sm,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: spacing.md,
+    ...typography.bodyMd,
+    color: colors.onSurfaceVariant,
   },
   dotsContainer: {
     flexDirection: 'row',
+    gap: spacing.lg,
+    marginBottom: spacing.xxl,
     justifyContent: 'center',
-    alignItems: 'center',
-    gap: 20,
-    marginVertical: spacing.lg,
   },
   dot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: 'transparent',
+    borderColor: colors.outlineVariant,
   },
   dotFilled: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
-    transform: [{ scale: 1.15 }],
-    ...shadows.glowRose,
+    transform: [{ scale: 1.1 }],
   },
   dotError: {
     backgroundColor: colors.error,
     borderColor: colors.error,
   },
   errorContainer: {
-    minHeight: 24,
+    height: 24,
+    marginBottom: spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.sm,
   },
   errorText: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.medium,
+    ...typography.labelSm,
     color: colors.error,
-    textAlign: 'center',
-  },
-  hintText: {
-    fontSize: typography.sizes.xs,
-    color: colors.textMuted,
-    textAlign: 'center',
   },
   keypad: {
     width: '100%',
-    maxWidth: 320,
-    alignSelf: 'center',
-    gap: spacing.md,
+    maxWidth: 280,
+    gap: spacing.lg,
+    marginBottom: spacing.xl,
   },
   keypadRow: {
     flexDirection: 'row',
@@ -450,40 +435,39 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   keyButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.card,
+    width: 64, // w-16
+    height: 64, // h-16
+    borderRadius: 32,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.sm,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   keyButtonEmpty: {
     backgroundColor: 'transparent',
-    borderWidth: 0,
-    elevation: 0,
     shadowOpacity: 0,
+    elevation: 0,
   },
   keyButtonAction: {
-    backgroundColor: colors.surfaceSubtle,
+    backgroundColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   keyNumber: {
-    fontSize: typography.sizes.xxl,
-    fontWeight: typography.weights.semiBold,
-    color: colors.textPrimary,
+    ...typography.headlineMd,
+    color: colors.primary,
   },
-  forgotBtn: {
-    alignSelf: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    marginTop: spacing.xs,
+  footer: {
+    marginTop: 'auto',
+    paddingBottom: spacing.xl,
   },
   forgotBtnText: {
-    fontSize: typography.sizes.xs,
-    color: colors.textSecondary,
-    fontWeight: typography.weights.medium,
-    textDecorationLine: 'underline',
+    ...typography.labelMd,
+    color: colors.primary,
+    opacity: 0.8,
   },
 });

@@ -1,6 +1,6 @@
 # Category: Wellness
 
-## Deck: Wellness (Babe, Drink More Water)
+## Deck: Wellness
 > Subtitle: "Babe, drink more water."
 
 1. How many glasses of water have you actually drank today, and should we go get a full bottle right now?
@@ -41,7 +41,7 @@
 
 ---
 
-## Deck: Wellness (Healthy Minds, Healthy Bodies)
+## Deck: Wellness
 > Subtitle: "Healthy minds, healthy bodies."
 
 1. What is currently taking up the most mental bandwidth and cognitive load in your mind today?

@@ -11,9 +11,8 @@ import {
   serverTimestamp,
   limit,
 } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../services/firebase';
-import { readFileAsUint8Array, getFileSizeBytes } from '../../services/fileToBytes';
+import { db } from '../../services/firebase';
+import { uploadFileToCloudinary, getFileSizeBytes } from '../../services/fileToBytes';
 import { useCouple } from '../../services/coupleContext';
 import { Moment } from '../../types';
 
@@ -87,7 +86,7 @@ export const useMoments = () => {
     }
   }, [coupleId]);
 
-  // Upload image to Firebase Storage with real upload progress tracking
+  // Upload image via Cloudinary (no Firebase Storage)
   const uploadImage = useCallback(
     async (uri: string, pathPrefix: string = 'moments'): Promise<string> => {
       if (!coupleId) throw new Error('Couple not found');
@@ -97,28 +96,10 @@ export const useMoments = () => {
       if (size !== null && size > MAX_UPLOAD_BYTES) {
         throw new Error('Photo is too large to post (max 15MB).');
       }
-      const bytes = await readFileAsUint8Array(uri);
-      const filename = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.jpg`;
-      const storageRef = ref(storage, `couples/${coupleId}/${pathPrefix}/${filename}`);
 
-      const uploadTask = uploadBytesResumable(storageRef, bytes, { contentType: 'image/jpeg' });
-
-      await new Promise<void>((resolve, reject) => {
-        uploadTask.on(
-          'state_changed',
-          (snapshot) => {
-            if (snapshot.totalBytes > 0) {
-              const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-              setUploadProgress(progress);
-            }
-          },
-          (err) => reject(err),
-          () => resolve()
-        );
-      });
-
+      const folder = `couples/${coupleId}/${pathPrefix}`;
+      const downloadURL = await uploadFileToCloudinary(uri, 'image', folder);
       setUploadProgress(100);
-      const downloadURL = await getDownloadURL(storageRef);
       return downloadURL;
     },
     [coupleId]

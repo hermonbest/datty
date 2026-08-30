@@ -1,27 +1,54 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  Platform,
+  Image,
+  Animated
+} from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
-import { Button, Card, useToast } from '../../components';
+import { useToast } from '../../components';
 import { useCouple } from '../../services/coupleContext';
-import { HeartHandshake, Copy, RefreshCw, LogOut, Check } from 'lucide-react-native';
+import { Copy, Send } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const UnlinkedCoupleScreen: React.FC = () => {
   const { userProfile, user, refreshCouple, signOut, loading } = useCouple();
   const [copied, setCopied] = useState(false);
   const toast = useToast();
+  const insets = useSafeAreaInsets();
+  
+  const pulseAnim = useRef(new Animated.Value(0)).current;
 
-  const handleCopyEmail = async () => {
-    const emailToCopy = userProfile?.email || user?.email || '';
-    if (emailToCopy) {
-      try {
-        await Clipboard.setStringAsync(emailToCopy);
-        setCopied(true);
-        toast.info('Copied!', 'Email copied to clipboard');
-        setTimeout(() => setCopied(false), 2000);
-      } catch (e: any) {
-        toast.error('Copy Failed', 'Could not copy to clipboard.');
-      }
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true, // For scale
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [pulseAnim]);
+
+  const handleCopyCode = async () => {
+    const code = `node scripts/setupCouple.js ${userProfile?.email || 'your-email@example.com'} partner@example.com`;
+    try {
+      await Clipboard.setStringAsync(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e: any) {
+      toast.error('Copy Failed', 'Could not copy to clipboard.');
     }
   };
 
@@ -30,58 +57,83 @@ export const UnlinkedCoupleScreen: React.FC = () => {
     await refreshCouple();
   };
 
+  const scale = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.02]
+  });
+
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.iconCircle}>
-          <HeartHandshake size={44} color={colors.primary} />
+      {/* Top Navigation */}
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <Text style={styles.headerTitle}>Datty</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: 64 + spacing.xl }]}>
+        
+        {/* Illustration Area */}
+        <Animated.View style={[styles.illustrationWrapper, { transform: [{ scale }] }]}>
+          {/* We emulate the box-shadow pulsing by just pulsing the image slightly, 
+              as dynamic shadow pulsing is expensive in React Native */}
+          <Image 
+            source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD3qjsyA8IXIlOWWLPp18E6p0LFAnFzBiBca5SrtjRo7dA9QMLDU93Hn85Jf7R9-ClBn2Vzjn0Xt27EhQzApDIV0QdcXB8x2SuH9jEwVhVcqu1LWtAKQPeojrrmV911U9IiqcajXfylJ6d_u_7q8tkSHehNbUeeTeE_8fnaQT6DjTPwou2EUQ8PuDGInHKEf8KshCgLWTvOVYd1wSvCSA8YooF9IuyNAxPAH7xI1fVXfrFF0VtW0t-A' }} 
+            style={styles.illustration}
+            resizeMode="cover"
+          />
+        </Animated.View>
+
+        {/* Copy */}
+        <View style={styles.copyArea}>
+          <Text style={styles.title}>Almost there.</Text>
+          <Text style={styles.subtitle}>
+            Datty is a shared space. Invite your partner to begin your journey together.
+          </Text>
         </View>
 
-        <Text style={styles.title}>Almost Ready!</Text>
-        <Text style={styles.subtitle}>
-          Your account is created. To link you with your partner, run the setup script once from the admin console or laptop:
-        </Text>
-
-        <Card style={styles.infoCard}>
-          <Text style={styles.codeLabel}>One-time setup command:</Text>
-          <View style={styles.codeBox}>
-            <Text style={styles.codeText}>
-              node scripts/setupCouple.js {userProfile?.email || 'your-email@example.com'} partner@example.com
+        {/* Invite Code Section */}
+        <View style={styles.inviteSection}>
+          <Text style={styles.inviteLabel}>Your Unique Invite Code</Text>
+          
+          <View style={styles.codeContainer}>
+            <Text style={styles.codeText} numberOfLines={1} ellipsizeMode="tail">
+              {userProfile?.email || user?.email}
             </Text>
-          </View>
-
-          <View style={styles.userBox}>
-            <View style={styles.userBoxInfo}>
-              <Text style={styles.userLabel}>Signed in as:</Text>
-              <Text style={styles.userEmail}>{userProfile?.email || user?.email}</Text>
-              <Text style={styles.userUid}>UID: {user?.uid}</Text>
-            </View>
-            <TouchableOpacity onPress={handleCopyEmail} style={styles.copyBtn}>
-              {copied ? <Check size={18} color={colors.success} /> : <Copy size={18} color={colors.primary} />}
+            <TouchableOpacity 
+              style={styles.copyBtn} 
+              onPress={handleCopyCode}
+              activeOpacity={0.7}
+            >
+              <Copy size={20} color={colors.primary} />
             </TouchableOpacity>
           </View>
-        </Card>
-
-        <View style={styles.actions}>
-          <Button
-            title="Check Link Status"
-            onPress={handleRefresh}
-            loading={loading}
-            size="lg"
-            variant="primary"
-            leftIcon={<RefreshCw size={18} color={colors.textLight} />}
-            style={styles.btn}
-          />
-
-          <Button
-            title="Sign Out"
-            onPress={signOut}
-            size="md"
-            variant="outline"
-            leftIcon={<LogOut size={18} color={colors.primary} />}
-            style={styles.btn}
-          />
+          
+          <Text style={[styles.feedbackText, { opacity: copied ? 1 : 0 }]}>
+            Copied to clipboard!
+          </Text>
         </View>
+
+        {/* Primary Action */}
+        <TouchableOpacity 
+          style={styles.primaryBtn}
+          onPress={handleRefresh}
+          disabled={loading}
+          activeOpacity={0.9}
+        >
+          <Send size={20} color={colors.onPrimary} />
+          <Text style={styles.primaryBtnText}>
+            {loading ? 'Checking...' : 'Share Invite Link'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Skip Action */}
+        <TouchableOpacity 
+          style={styles.skipBtn}
+          onPress={signOut}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.skipBtnText}>I'll do this later</Text>
+        </TouchableOpacity>
+
       </ScrollView>
     </View>
   );
@@ -92,94 +144,137 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  header: {
+    position: 'absolute',
+    top: 0,
+    width: '100%',
+    zIndex: 50,
+    backgroundColor: 'rgba(255, 248, 247, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 64, // plus insets in component
+  },
+  headerTitle: {
+    ...typography.headlineLgMobile,
+    color: colors.primary,
+  },
   content: {
     flexGrow: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.xl,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.marginMobile,
+    paddingBottom: spacing.xxl,
+    maxWidth: 512, // max-w-lg
+    alignSelf: 'center',
+    width: '100%',
   },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primaryLight,
+  illustrationWrapper: {
+    width: 192, // w-48
+    height: 192,
+    marginBottom: spacing.lg,
+    borderRadius: 96,
+    shadowColor: colors.surfaceTint,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 40,
+    elevation: 8,
+  },
+  illustration: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 96,
+  },
+  copyArea: {
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: spacing.sm, // px-4
     marginBottom: spacing.md,
-    ...shadows.md,
   },
   title: {
-    fontSize: typography.sizes.xxl,
-    fontWeight: typography.weights.bold,
-    color: colors.textPrimary,
-    textAlign: 'center',
+    ...typography.displayLg,
+    color: colors.onSurface,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: typography.sizes.sm,
-    color: colors.textSecondary,
+    ...typography.bodyLg,
+    color: colors.onSurfaceVariant,
     textAlign: 'center',
-    marginTop: spacing.xs,
-    marginBottom: spacing.lg,
-    lineHeight: typography.sizes.sm * typography.lineHeights.relaxed,
-    maxWidth: 320,
+    maxWidth: 384, // max-w-sm
   },
-  infoCard: {
+  inviteSection: {
     width: '100%',
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.xl,
     padding: spacing.lg,
     marginBottom: spacing.lg,
-  },
-  codeLabel: {
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.bold,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-    textTransform: 'uppercase',
-  },
-  codeBox: {
-    backgroundColor: colors.surfaceSubtle,
-    borderRadius: radii.sm,
-    padding: spacing.md,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 32,
+    elevation: 2,
     borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
+    borderColor: 'rgba(217, 193, 196, 0.3)', // border-outline-variant/30
   },
-  codeText: {
-    fontSize: typography.sizes.xs,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    color: colors.textPrimary,
+  inviteLabel: {
+    ...typography.labelMd,
+    color: colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
   },
-  userBox: {
+  codeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.cardAlt,
-    borderRadius: radii.md,
-    padding: spacing.md,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: 'rgba(217, 193, 196, 0.5)',
+    borderRadius: radii.lg,
+    overflow: 'hidden',
   },
-  userBoxInfo: {
+  codeText: {
+    ...typography.bodyLg,
+    color: colors.onSurface,
+    letterSpacing: 2, // tracking-widest
+    paddingLeft: spacing.md,
+    paddingVertical: 12,
     flex: 1,
   },
-  userLabel: {
-    fontSize: typography.sizes.xs,
-    color: colors.textMuted,
-  },
-  userEmail: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semiBold,
-    color: colors.textPrimary,
-  },
-  userUid: {
-    fontSize: typography.sizes.xs - 2,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
   copyBtn: {
-    padding: spacing.sm,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  actions: {
+  feedbackText: {
+    fontSize: 12,
+    color: colors.primary,
+    marginTop: spacing.xs,
+    minHeight: 16,
+  },
+  primaryBtn: {
     width: '100%',
-  },
-  btn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.md, // py-4 equivalent
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
     marginBottom: spacing.sm,
+  },
+  primaryBtnText: {
+    ...typography.labelMd,
+    color: colors.onPrimary,
+  },
+  skipBtn: {
+    paddingVertical: spacing.sm,
+  },
+  skipBtnText: {
+    ...typography.labelMd,
+    color: colors.onSurfaceVariant,
   },
 });

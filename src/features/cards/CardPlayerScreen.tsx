@@ -373,10 +373,7 @@ export const CardPlayerScreen: React.FC<CardPlayerScreenProps> = ({
         <View style={[styles.cardSurface, { borderColor: theme.border }]}>
           {/* Card Top Pill & Favorite */}
           <View style={styles.cardHeader}>
-            <View style={[styles.deckPill, { backgroundColor: theme.bgLight }]}>
-              <CategoryIcon size={14} color={theme.color} style={{ marginRight: 5 }} />
-              <Text style={[styles.deckPillText, { color: theme.color }]}>{deck.title}</Text>
-            </View>
+            <CategoryIcon size={20} color={theme.color} />
 
             <TouchableOpacity onPress={toggleFavorite} style={styles.favBtn}>
               <Heart
@@ -387,10 +384,7 @@ export const CardPlayerScreen: React.FC<CardPlayerScreenProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Subtitle / Tagline */}
-          {deck.subtitle ? (
-            <Text style={styles.cardSubtitle}>"{deck.subtitle}"</Text>
-          ) : null}
+
 
           {/* Card Question Text */}
           <View style={styles.questionBody}>

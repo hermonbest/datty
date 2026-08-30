@@ -6,20 +6,19 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Platform,
 } from 'react-native';
 import { CardDeck, DECKS_DATA, CATEGORIES } from './decksData';
 import { getCategoryTheme, ICON_MAP } from './categoryTheme';
 import { CardPlayerScreen } from './CardPlayerScreen';
-import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { colors, radii, shadows, spacing } from '../../theme';
 import { Avatar, ProfileSettingsModal } from '../../components';
 import { useCouple } from '../../services/coupleContext';
 import {
   Sparkles,
   Search,
-  Shuffle,
-  ChevronRight,
-  Layers,
   X,
+  Heart,
 } from 'lucide-react-native';
 import { ChatReplyReference } from '../../types';
 
@@ -34,46 +33,17 @@ const PRE_INDEXED_DECKS = DECKS_DATA.map((deck) => ({
 }));
 
 export const DecksScreen: React.FC<DecksScreenProps> = ({ onNavigateToChat }) => {
-  const { userProfile } = useCouple();
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const { partnerProfile } = useCouple();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeDeck, setActiveDeck] = useState<CardDeck | null>(null);
-  const [showSettings, setShowSettings] = useState<boolean>(false);
 
   // Fast filtered decks using pre-computed search index
   const filteredDecks = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return PRE_INDEXED_DECKS.filter(({ deck, searchIndex }) => {
-      const matchesCategory =
-        selectedCategory === 'All' || deck.category === selectedCategory;
-
-      if (!matchesCategory) return false;
-      if (!q) return true;
-
-      return searchIndex.includes(q);
-    }).map(({ deck }) => deck);
-  }, [selectedCategory, searchQuery]);
-
-// Unbiased Fisher-Yates shuffle
-function shuffleArray<T>(items: T[]): T[] {
-  const arr = [...items];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-  // Quick Random Card from any deck
-  const handleRandomDraw = () => {
-    const randomDeck = DECKS_DATA[Math.floor(Math.random() * DECKS_DATA.length)];
-    // Unbiased shuffle of the random deck
-    const shuffledQuestions = shuffleArray(randomDeck.questions);
-    setActiveDeck({
-      ...randomDeck,
-      questions: shuffledQuestions,
-    });
-  };
+    if (!q) return DECKS_DATA;
+    return PRE_INDEXED_DECKS.filter(({ searchIndex }) => searchIndex.includes(q))
+      .map(({ deck }) => deck);
+  }, [searchQuery]);
 
   // If a deck is open, render CardPlayerScreen
   if (activeDeck) {
@@ -86,195 +56,144 @@ function shuffleArray<T>(items: T[]): T[] {
     );
   }
 
+  const renderHeader = () => (
+    <View style={styles.topAppBar}>
+      <View style={styles.headerLeft}>
+        <Avatar
+          name={partnerProfile?.displayName || 'Partner'}
+          photoURL={partnerProfile?.photoURL}
+          size="sm"
+          style={styles.headerAvatar}
+        />
+      </View>
+      <Text style={styles.headerTitle}>Datty</Text>
+      <TouchableOpacity style={styles.heartBtn} activeOpacity={0.7}>
+        <Heart size={24} color={colors.primary} />
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTitleRow}>
-          <View style={styles.headerLeftWrap}>
-            <View style={styles.headerIconCircle}>
-              <Layers size={22} color={colors.primary} />
-            </View>
-            <View>
-              <Text style={styles.headerTitle}>Card Decks</Text>
-              <Text style={styles.headerSubtitle}>34 bespoke decks • 850 prompts</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            onPress={() => setShowSettings(true)}
-            style={styles.profileBtn}
-            accessibilityLabel="Open profile and settings"
-          >
-            <Avatar
-              name={userProfile?.displayName || 'You'}
-              photoURL={userProfile?.photoURL}
-              size="sm"
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
+      {renderHeader()}
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Quick Draw Banner */}
-        <TouchableOpacity
-          activeOpacity={0.88}
-          onPress={handleRandomDraw}
-          style={styles.randomHeroBanner}
-        >
-          <View style={styles.randomHeroContent}>
-            <View style={styles.randomHeroBadge}>
-              <Shuffle size={13} color="#FFF" />
-              <Text style={styles.randomHeroBadgeText}>Spontaneous Draw</Text>
-            </View>
-            <Text style={styles.randomHeroTitle}>Draw a Random Card</Text>
-            <Text style={styles.randomHeroSub}>
-              Pick an unexpected prompt across all 34 decks for tonight.
-            </Text>
-          </View>
-          <View style={styles.randomHeroAction}>
-            <ChevronRight size={22} color="#FFF" />
-          </View>
-        </TouchableOpacity>
-
         {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
-          <TextInput
-            placeholder="Search decks or questions..."
-            placeholderTextColor={colors.textMuted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={styles.searchInput}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.searchClearBtn}>
-              <X size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Categories Horizontal Scroll */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesScroll}
-        >
-          {CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat;
-            const catTheme = cat === 'All' ? null : getCategoryTheme(cat);
-            const activeColor = catTheme ? catTheme.color : colors.primary;
-            const activeBg = catTheme ? catTheme.color : colors.primary;
-            const emoji = catTheme ? catTheme.emoji : '✨';
-
-            return (
-              <TouchableOpacity
-                key={cat}
-                onPress={() => setSelectedCategory(cat)}
-                activeOpacity={0.8}
-                style={[
-                  styles.categoryPill,
-                  isSelected && {
-                    backgroundColor: activeBg,
-                    borderColor: activeColor,
-                    shadowColor: activeColor,
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 4,
-                    elevation: 3,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.categoryPillText,
-                    isSelected && styles.categoryPillTextSelected,
-                  ]}
-                >
-                  {cat === 'All' ? '✨ All Decks' : `${emoji} ${cat}`}
-                </Text>
+        <View style={styles.searchSection}>
+          <View style={styles.searchContainer}>
+            <Search size={20} color="rgba(84, 66, 69, 0.6)" style={styles.searchIcon} />
+            <TextInput
+              placeholder="Search decks..."
+              placeholderTextColor="rgba(84, 66, 69, 0.5)"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={styles.searchInput}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.searchClearBtn}>
+                <X size={16} color="rgba(84, 66, 69, 0.6)" />
               </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+            )}
+          </View>
+        </View>
 
         {/* Decks Grid / List */}
         <View style={styles.decksSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {selectedCategory === 'All' ? 'All Decks' : selectedCategory}
-            </Text>
-            <Text style={styles.sectionCount}>
-              {filteredDecks.length} {filteredDecks.length === 1 ? 'Deck' : 'Decks'}
-            </Text>
-          </View>
+          <Text style={styles.sectionTitle}>Explore Decks</Text>
 
           {filteredDecks.length === 0 ? (
             <View style={styles.emptyWrap}>
               <Text style={styles.emptyTitle}>No matching decks found</Text>
-              <Text style={styles.emptySub}>Try adjusting your search or category filter.</Text>
+              <Text style={styles.emptySub}>Try adjusting your search.</Text>
             </View>
           ) : (
-            filteredDecks.map((deck) => {
-              const theme = getCategoryTheme(deck.category);
-              const IconComponent = ICON_MAP[deck.iconName] || theme.icon || Sparkles;
+            <View style={styles.decksGrid}>
+              {filteredDecks.map((deck, index) => {
+                const IconComponent = ICON_MAP[deck.iconName] || Sparkles;
+                const styleType = index % 4;
 
-              return (
-                <TouchableOpacity
-                  key={deck.id}
-                  activeOpacity={0.82}
-                  onPress={() => setActiveDeck(deck)}
-                  style={[
-                    styles.deckCard,
-                    { borderLeftColor: theme.color, borderLeftWidth: 4 },
-                  ]}
-                >
-                  <View style={[styles.deckIconCircle, { backgroundColor: theme.bgLight }]}>
-                    <IconComponent size={22} color={theme.color} />
-                  </View>
-
-                  <View style={styles.deckInfo}>
-                    <View style={styles.deckTopRow}>
-                      <Text style={styles.deckTitle}>{deck.title}</Text>
-                      <View style={[styles.cardCountBadge, { backgroundColor: theme.bgLight }]}>
-                        <Text style={[styles.cardCountText, { color: theme.color }]}>
-                          {deck.questions.length} cards
-                        </Text>
-                      </View>
-                    </View>
-
-                    {deck.subtitle ? (
-                      <Text style={styles.deckSubtitle} numberOfLines={2}>
-                        "{deck.subtitle}"
-                      </Text>
-                    ) : null}
-
-                    <View style={styles.categoryTagWrap}>
-                      <View style={[styles.categoryTagPill, { backgroundColor: theme.bgLight }]}>
-                        <Text style={[styles.deckCategoryTag, { color: theme.badgeText }]}>
-                          {theme.emoji} {deck.category}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  <ChevronRight size={18} color={colors.textMuted} />
-                </TouchableOpacity>
-              );
-            })
+                switch (styleType) {
+                  case 0:
+                    // Style 1: Primary Container
+                    return (
+                      <TouchableOpacity
+                        key={deck.id}
+                        activeOpacity={0.9}
+                        onPress={() => setActiveDeck(deck)}
+                        style={styles.cardType0}
+                      >
+                        <View style={styles.card0IconBg}>
+                          <IconComponent size={120} color={colors.onPrimaryContainer} />
+                        </View>
+                        <View style={styles.card0Content}>
+                          <IconComponent size={24} color={colors.onPrimaryContainer} style={{ marginBottom: 8 }} />
+                          <Text style={styles.card0Title}>{deck.title}</Text>
+                          <Text style={styles.card0Subtitle}>{deck.subtitle}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  case 1:
+                    // Style 2: Tertiary Container
+                    return (
+                      <TouchableOpacity
+                        key={deck.id}
+                        activeOpacity={0.9}
+                        onPress={() => setActiveDeck(deck)}
+                        style={styles.cardType1}
+                      >
+                        <IconComponent size={24} color={colors.onTertiaryContainer || '#d8aeae'} style={{ marginBottom: 16 }} />
+                        <View>
+                          <Text style={styles.card1Title}>{deck.title}</Text>
+                          <Text style={styles.card1Subtitle}>{deck.subtitle}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  case 2:
+                    // Style 3: Surface Variant
+                    return (
+                      <TouchableOpacity
+                        key={deck.id}
+                        activeOpacity={0.9}
+                        onPress={() => setActiveDeck(deck)}
+                        style={styles.cardType2}
+                      >
+                        <IconComponent size={24} color={colors.primary} style={{ marginBottom: 16 }} />
+                        <View>
+                          <Text style={styles.card2Title}>{deck.title}</Text>
+                          <Text style={styles.card2Subtitle}>{deck.subtitle}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  case 3:
+                    // Style 4: Spicy (Error themed)
+                    return (
+                      <TouchableOpacity
+                        key={deck.id}
+                        activeOpacity={0.9}
+                        onPress={() => setActiveDeck(deck)}
+                        style={styles.cardType3}
+                      >
+                        <View style={styles.card3IconWrap}>
+                          <IconComponent size={24} color="#93000a" fill="#93000a" />
+                        </View>
+                        <View style={styles.card3Content}>
+                          <Text style={styles.card3Title}>{deck.title}</Text>
+                          <Text style={styles.card3Subtitle}>{deck.subtitle}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  default:
+                    return null;
+                }
+              })}
+            </View>
           )}
         </View>
       </ScrollView>
-
-      {/* Profile and Settings Modal */}
-      <ProfileSettingsModal
-        visible={showSettings}
-        onClose={() => setShowSettings(false)}
-      />
     </View>
   );
 };
@@ -282,251 +201,230 @@ function shuffleArray<T>(items: T[]): T[] {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.background || '#fff8f7',
   },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-    backgroundColor: colors.background,
-  },
-  headerTitleRow: {
+  topAppBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: 12,
+    backgroundColor: 'rgba(255, 248, 247, 0.8)',
+    zIndex: 50,
   },
-  headerLeftWrap: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
-  profileBtn: {
-    borderRadius: radii.full,
-    ...shadows.sm,
-  },
-  headerIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm + 4,
+  headerAvatar: {
+    borderWidth: 1,
+    borderColor: 'rgba(217, 193, 196, 0.3)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceContainerHigh || '#f6e4e4',
   },
   headerTitle: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold,
-    color: colors.textPrimary,
+    fontFamily: 'ebGaramond',
+    fontSize: 28,
+    fontWeight: '500',
+    color: colors.primary,
     letterSpacing: -0.5,
   },
-  headerSubtitle: {
-    fontSize: typography.sizes.xs,
-    color: colors.textSecondary,
-    marginTop: 2,
+  heartBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xxl,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 120, // Space for bottom nav
   },
-  randomHeroBanner: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-    ...shadows.glowRose,
-  },
-  randomHeroContent: {
-    flex: 1,
-    paddingRight: spacing.md,
-  },
-  randomHeroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 3,
-    borderRadius: radii.full,
-    marginBottom: spacing.xs + 2,
-  },
-  randomHeroBadgeText: {
-    fontSize: typography.sizes.xs - 2,
-    fontWeight: typography.weights.bold,
-    color: '#FFFFFF',
-    marginLeft: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  randomHeroTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.bold,
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  randomHeroSub: {
-    fontSize: typography.sizes.xs,
-    color: 'rgba(255, 255, 255, 0.92)',
-    lineHeight: typography.sizes.xs * typography.lineHeights.normal,
-  },
-  randomHeroAction: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  searchSection: {
+    marginBottom: 24, // mb-lg
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
+    backgroundColor: 'rgba(232, 221, 223, 0.3)', // secondary-container/30
+    borderRadius: 24, // rounded-full
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    paddingHorizontal: spacing.md,
+    borderColor: 'rgba(217, 193, 196, 0.5)', // outline-variant/50
+    paddingHorizontal: 16,
     height: 48,
-    marginBottom: spacing.md,
-    ...shadows.sm,
   },
   searchIcon: {
-    marginRight: spacing.sm,
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
-    fontSize: typography.sizes.sm,
-    color: colors.textPrimary,
+    fontSize: 16,
+    fontFamily: 'manrope',
+    color: colors.onSurface || '#221919',
   },
   searchClearBtn: {
-    padding: spacing.xs,
-  },
-  categoriesScroll: {
-    paddingVertical: 4,
-    gap: spacing.xs + 4,
-    marginBottom: spacing.lg,
-  },
-  categoryPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: radii.full,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.sm,
-  },
-  categoryPillText: {
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.medium,
-    color: colors.textSecondary,
-  },
-  categoryPillTextSelected: {
-    color: colors.textLight,
-    fontWeight: typography.weights.bold,
+    padding: 8,
   },
   decksSection: {
-    gap: spacing.md,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    flex: 1,
   },
   sectionTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    color: colors.textPrimary,
+    fontSize: 28, // md:text-headline-lg, let's use 28 for mobile
+    fontFamily: 'ebGaramond',
+    fontWeight: '500',
+    color: colors.primary,
+    marginBottom: 16,
   },
-  sectionCount: {
-    fontSize: typography.sizes.xs,
-    color: colors.textMuted,
-    fontWeight: typography.weights.medium,
+  decksGrid: {
+    gap: 16, // gap-4
   },
-  deckCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing.md + 2,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.sm,
+  
+  // Style 1: Primary Container
+  cardType0: {
+    backgroundColor: colors.primaryContainer || '#7d2d44',
+    borderRadius: 12, // rounded-xl
+    padding: 24, // p-6
+    minHeight: 160,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    shadowColor: colors.primary || '#60162e',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 24,
+    elevation: 3,
   },
-  deckIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
+  card0IconBg: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    opacity: 0.2,
   },
-  deckInfo: {
-    flex: 1,
-    marginRight: spacing.sm,
+  card0Content: {
+    zIndex: 10,
+    width: '80%',
   },
-  deckTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  deckTitle: {
-    fontSize: typography.sizes.md - 1,
-    fontWeight: typography.weights.bold,
-    color: colors.textPrimary,
-    flex: 1,
-    marginRight: 6,
-  },
-  cardCountBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radii.full,
-  },
-  cardCountText: {
-    fontSize: typography.sizes.xs - 2,
-    fontWeight: typography.weights.bold,
-  },
-  deckSubtitle: {
-    fontSize: typography.sizes.xs,
-    fontStyle: 'italic',
-    color: colors.textSecondary,
-    marginTop: 2,
+  card0Title: {
+    fontFamily: 'ebGaramond',
+    fontSize: 24, // headline-md
+    fontWeight: '500',
+    color: colors.onPrimaryContainer || '#ff9bb2',
     marginBottom: 4,
   },
-  categoryTagWrap: {
+  card0Subtitle: {
+    fontFamily: 'manrope',
+    fontSize: 14, // text-sm
+    color: colors.onPrimaryContainer || '#ff9bb2',
+    opacity: 0.8,
+  },
+
+  // Style 2: Tertiary Container
+  cardType1: {
+    backgroundColor: colors.tertiaryContainer || '#604141',
+    borderRadius: 12,
+    padding: 24,
+    minHeight: 180,
+    justifyContent: 'space-between',
+    shadowColor: colors.tertiary || '#472b2c',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 24,
+    elevation: 3,
+  },
+  card1Title: {
+    fontFamily: 'ebGaramond',
+    fontSize: 24,
+    fontWeight: '500',
+    color: colors.onTertiaryContainer || '#d8aeae',
+    marginBottom: 4,
+  },
+  card1Subtitle: {
+    fontFamily: 'manrope',
+    fontSize: 14,
+    color: colors.onTertiaryContainer || '#d8aeae',
+    opacity: 0.8,
+  },
+
+  // Style 3: Surface Variant
+  cardType2: {
+    backgroundColor: colors.surfaceVariant || '#f0dfde',
+    borderRadius: 12,
+    padding: 24,
+    minHeight: 180,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 193, 196, 0.3)', // outline-variant/30
+  },
+  card2Title: {
+    fontFamily: 'ebGaramond',
+    fontSize: 24,
+    fontWeight: '500',
+    color: colors.primary || '#60162e',
+    marginBottom: 4,
+  },
+  card2Subtitle: {
+    fontFamily: 'manrope',
+    fontSize: 14,
+    color: colors.onSurfaceVariant || '#544245',
+    opacity: 0.8,
+  },
+
+  // Style 4: Spicy Theme
+  cardType3: {
+    backgroundColor: colors.surfaceContainerLow || '#fff0f0',
+    borderRadius: 12,
+    padding: 24,
+    minHeight: 160,
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    gap: 16,
+    borderWidth: 1,
+    borderColor: colors.errorContainer || '#ffdad6',
   },
-  categoryTagPill: {
-    paddingHorizontal: spacing.xs + 3,
-    paddingVertical: 1.5,
-    borderRadius: radii.xs,
+  card3IconWrap: {
+    padding: 16,
+    borderRadius: 32, // full
+    backgroundColor: 'rgba(255, 218, 214, 0.5)', // error-container/50
   },
-  deckCategoryTag: {
-    fontSize: typography.sizes.xs - 2,
-    fontWeight: typography.weights.semiBold,
+  card3Content: {
+    flex: 1,
   },
+  card3Title: {
+    fontFamily: 'ebGaramond',
+    fontSize: 24,
+    fontWeight: '500',
+    color: colors.onErrorContainer || '#93000a',
+    marginBottom: 4,
+  },
+  card3Subtitle: {
+    fontFamily: 'manrope',
+    fontSize: 14,
+    color: colors.onErrorContainer || '#93000a',
+    opacity: 0.8,
+  },
+
   emptyWrap: {
-    padding: spacing.xl,
+    padding: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.onSurface,
     marginBottom: 4,
+    fontFamily: 'manrope',
   },
   emptySub: {
-    fontSize: typography.sizes.xs,
-    color: colors.textMuted,
+    fontSize: 14,
+    color: colors.onSurfaceVariant,
     textAlign: 'center',
+    fontFamily: 'manrope',
   },
 });

@@ -1,6 +1,6 @@
 # Category: Hot & Spicy
 
-## Deck: Hot & Spicy (The Popular Questions)
+## Deck: Hot & Spicy
 > Subtitle: "The popular questions."
 
 1. What is the first physical feature you notice about me when I walk into the room?
@@ -41,7 +41,7 @@
 
 ---
 
-## Deck: Hot & Spicy (For Before Things Heat Up)
+## Deck: Hot & Spicy
 > Subtitle: "For before things heat up."
 
 1. If you could have my hands anywhere on your body for the next five minutes, where would they be?
@@ -82,7 +82,7 @@
 
 ---
 
-## Deck: Hot & Spicy (Philosophize and Fantasize)
+## Deck: Hot & Spicy
 > Subtitle: "Philosophize and fantasize."
 
 1. What is the psychological relationship between vulnerability, emotional safety, and sexual desire for you?
@@ -123,7 +123,7 @@
 
 ---
 
-## Deck: Hot & Spicy (The Ones You Want to Ask)
+## Deck: Hot & Spicy
 > Subtitle: "The ones you want to ask."
 
 1. What is something you have always secretly wanted to try in bed, but were afraid I might judge you for?
@@ -164,7 +164,7 @@
 
 ---
 
-## Deck: Hot & Spicy (Raw. Next Question.)
+## Deck: Hot & Spicy
 > Subtitle: "Raw. Next question."
 
 1. Tell me the absolute dirtiest thought you have had about me today.
@@ -205,7 +205,7 @@
 
 ---
 
-## Deck: Hot & Spicy (Foreplay Started Yesterday)
+## Deck: Hot & Spicy
 > Subtitle: "Foreplay started yesterday."
 
 1. What is a subtle micro-touch during a regular morning that lingers on your mind all day?

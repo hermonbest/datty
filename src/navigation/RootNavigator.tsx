@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, BackHandler } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TouchableOpacity } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useCouple } from '../services/coupleContext';
 import { usePasscode } from '../services/passcodeContext';
@@ -70,27 +72,52 @@ function GamesStack({ navigation }: any) {
   );
 }
 
+// Custom Tab Bar replicating HTML design
+function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom }]}>
+      {state.routes.map((route, index) => {
+        const { options } = descriptors[route.key];
+        const label = options.tabBarLabel !== undefined ? options.tabBarLabel : options.title !== undefined ? options.title : route.name;
+        const isFocused = state.index === index;
+        
+        const onPress = () => {
+          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            activeOpacity={0.8}
+            onPress={onPress}
+            style={[styles.tabItem, isFocused && styles.tabItemFocused]}
+          >
+            {options.tabBarIcon?.({ 
+               focused: isFocused, 
+               color: isFocused ? colors.onPrimaryFixedVariant : colors.onSecondaryFixedVariant, 
+               size: 24 
+            })}
+            <Text style={[styles.tabLabel, isFocused ? styles.tabLabelFocused : styles.tabLabelInactive]}>
+              {label as string}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 // Main 6-Tab Navigator
 function MainTabs() {
   return (
     <Tab.Navigator
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopWidth: 1,
-          borderTopColor: colors.borderLight,
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 6,
-          ...shadows.md,
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: typography.weights.medium,
-        },
       }}
     >
       <Tab.Screen
@@ -253,5 +280,41 @@ const styles = StyleSheet.create({
     zIndex: 100,
     elevation: 100,
     backgroundColor: colors.background,
+  },
+  tabBarContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 248, 247, 0.9)',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingTop: spacing.sm,
+    shadowColor: colors.surfaceTint,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+  },
+  tabItemFocused: {
+    backgroundColor: colors.primaryFixed,
+  },
+  tabLabel: {
+    ...typography.labelSm,
+    marginTop: 4,
+  },
+  tabLabelFocused: {
+    color: colors.onPrimaryFixedVariant,
+  },
+  tabLabelInactive: {
+    color: colors.onSecondaryFixedVariant,
   },
 });

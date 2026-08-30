@@ -1,6 +1,6 @@
 # Category: Parenting Perspectives
 
-## Deck: Parenting Perspectives (Future Chaos Coordinators)
+## Deck: Parenting Perspectives
 > Subtitle: "Future chaos coordinators."
 
 1. What is your philosophy on handling toddler tantrums in public: calm ignoring, firm redirection, or immediate exit?
@@ -41,7 +41,7 @@
 
 ---
 
-## Deck: Parenting Perspectives (Legacy Begins at Home)
+## Deck: Parenting Perspectives
 > Subtitle: "Legacy begins at home."
 
 1. What are the top three core moral values that are completely non-negotiable in raising our family?

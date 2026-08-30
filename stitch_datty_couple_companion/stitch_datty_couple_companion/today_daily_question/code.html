@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Datty - Today's Question</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&amp;family=Manrope:wght@200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface-variant": "#544245",
+                        "secondary": "#645c5e",
+                        "on-surface": "#221919",
+                        "primary-fixed-dim": "#ffb1c1",
+                        "surface-variant": "#f0dfde",
+                        "surface-container-lowest": "#ffffff",
+                        "surface": "#fff8f7",
+                        "tertiary-fixed-dim": "#e7bcbc",
+                        "on-background": "#221919",
+                        "on-secondary-fixed": "#201a1c",
+                        "surface-container-high": "#f6e4e4",
+                        "tertiary": "#472b2c",
+                        "outline-variant": "#d9c1c4",
+                        "surface-bright": "#fff8f7",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#2d1515",
+                        "on-secondary-container": "#696162",
+                        "primary-container": "#7d2d44",
+                        "on-primary-fixed": "#3f0018",
+                        "surface-tint": "#984259",
+                        "surface-container-low": "#fff0f0",
+                        "surface-container": "#fceae9",
+                        "secondary-container": "#e8dddf",
+                        "on-primary": "#ffffff",
+                        "inverse-primary": "#ffb1c1",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#604141",
+                        "background": "#fff8f7",
+                        "inverse-surface": "#382e2e",
+                        "on-primary-fixed-variant": "#7a2b42",
+                        "error": "#ba1a1a",
+                        "secondary-fixed": "#ebe0e2",
+                        "inverse-on-surface": "#feedec",
+                        "outline": "#867275",
+                        "on-tertiary-container": "#d8aeae",
+                        "primary-fixed": "#ffd9df",
+                        "tertiary-fixed": "#ffdad9",
+                        "on-secondary-fixed-variant": "#4c4547",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#5e3f3f",
+                        "primary": "#60162e",
+                        "secondary-fixed-dim": "#cfc4c6",
+                        "surface-dim": "#e7d6d6",
+                        "on-error": "#ffffff",
+                        "surface-container-highest": "#f0dfde",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#ff9bb2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "unit": "4px",
+                        "xs": "4px",
+                        "margin-desktop": "auto",
+                        "md": "16px",
+                        "xl": "40px",
+                        "margin-mobile": "20px",
+                        "sm": "8px",
+                        "xxl": "64px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["EB Garamond", "serif"],
+                        "headline-md": ["EB Garamond", "serif"],
+                        "body-md": ["Manrope", "sans-serif"],
+                        "label-md": ["Manrope", "sans-serif"],
+                        "headline-lg-mobile": ["EB Garamond", "serif"],
+                        "body-lg": ["Manrope", "sans-serif"],
+                        "label-sm": ["Manrope", "sans-serif"],
+                        "headline-lg": ["EB Garamond", "serif"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "500" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .pulse-heart {
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.7; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.7; }
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col pt-16 pb-24 md:pb-0">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-xl">
+<div class="flex justify-between items-center px-margin-mobile h-16 w-full max-w-[1024px] mx-auto">
+<div class="w-10 h-10 rounded-full overflow-hidden border border-outline-variant">
+<img alt="Partner Avatar" class="w-full h-full object-cover" data-alt="A close up, soft focus portrait photo of a smiling partner, taken in natural light, with a very warm and inviting editorial style. The background is blurred softly." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCCJMPAO-X7hCLYrSz9RsU_rJqRqeZTbDGHSffcc_ih-qXVbgBT_cxdVF-Cn1aTT19AX9KBqxoD1ncyzI66nZ18gluNRMicwwSSLMRa_XfV5SLNnhSvZDNIRCSVxY9pB8j8WGIQ5vBjxeFGdcupYswZkgDfdr44eWhh4Kq35gk9RcrXfmfuB1GcKDDJ0ltYIQ-SGqJA4inVbyOuTufptoSELegywGuu7ovmWOB9yqGdu4zBbXjiNSIp"/>
+</div>
+<h1 class="font-display-lg text-display-lg text-primary dark:text-primary-fixed-dim">Datty</h1>
+<button class="w-10 h-10 flex items-center justify-center text-primary dark:text-primary-fixed-dim hover:opacity-80 transition-opacity active:scale-95 duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">favorite</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col items-center justify-center w-full max-w-[1024px] mx-auto px-margin-mobile py-xl md:py-xxl">
+<!-- Daily Prompt Card -->
+<div class="w-full max-w-md bg-secondary-container/30 rounded-xl p-lg md:p-xl shadow-[0_8px_32px_rgba(96,22,46,0.05)] relative overflow-hidden flex flex-col items-center text-center">
+<div class="mb-sm text-primary font-label-md uppercase tracking-widest opacity-80">Daily Prompt</div>
+<h2 class="font-headline-lg-mobile md:font-headline-lg text-on-surface mb-lg max-w-sm">
+                What is one small thing I did this week that made you feel loved?
+            </h2>
+<!-- User Response Area -->
+<div class="w-full bg-surface-container-lowest rounded-lg p-md mb-md border border-surface-variant relative">
+<div class="flex items-center gap-sm mb-sm text-on-surface-variant">
+<img alt="User" class="w-6 h-6 rounded-full object-cover" data-alt="A small circular avatar portrait of the user, smiling warmly, softly lit." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBWLx-WSK3gKz4yX1lYIDvcPGjn39lcdlPscWLz6FgGLbvA0-GokAX946bkO_u_g3NmAtB4M32Xi3kH_UAtLAtcaGvTh-dYjvdi46jSzW5OMvljQVMSTUJA25PghTDnUJi7cPSWcICV05w3BnuUDV4eQO__Wkx1hUSBXde0b8UbieQ-ab7FgCM2H51k6qKitvQ9G260aBgRGRNpFvX1bYa2HUPMEU15gAkBr26NRkTrX9OjViPOcpIg"/>
+<span class="font-label-sm">You</span>
+</div>
+<textarea class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-on-surface placeholder:text-outline-variant resize-none h-24" placeholder="Write your thoughts..."></textarea>
+<div class="flex justify-end mt-sm">
+<button class="bg-primary text-on-primary font-label-md rounded-lg px-md py-sm hover:opacity-90 active:scale-95 transition-all">
+                        Save Answer
+                    </button>
+</div>
+</div>
+<!-- Partner Response Area (Waiting State) -->
+<div class="w-full bg-surface-container-highest/50 rounded-lg p-md border border-dashed border-outline-variant/50 flex flex-col items-center justify-center min-h-[120px]">
+<span class="material-symbols-outlined text-primary-container mb-sm pulse-heart" style="font-variation-settings: 'FILL' 1;">favorite</span>
+<p class="font-body-md text-on-surface-variant text-center">
+                    Waiting for Alex to answer...
+                </p>
+<p class="font-label-sm text-outline mt-xs">Your answer is hidden until they respond.</p>
+</div>
+</div>
+<!-- See Past Questions Action -->
+<div class="mt-xl text-center">
+<button class="text-secondary font-label-md flex items-center justify-center gap-xs mx-auto hover:text-primary transition-colors active:scale-95">
+<span class="material-symbols-outlined text-[18px]">history</span>
+                See Past Questions
+            </button>
+</div>
+</main>
+<!-- BottomNavBar (Mobile only, hidden on md+) -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 py-2 bg-surface/90 dark:bg-surface-dim/90 backdrop-blur-xl z-50 pb-safe shadow-[0_-4px_24px_rgba(152,66,89,0.08)] md:hidden">
+<!-- Active Tab: Today -->
+<a class="flex flex-col items-center justify-center bg-primary-fixed dark:bg-primary-container text-on-primary-fixed-variant dark:text-on-primary-container rounded-full px-4 py-1.5 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">today</span>
+<span class="font-label-sm text-label-sm mt-1">Today</span>
+</a>
+<!-- Inactive Tabs -->
+<a class="flex flex-col items-center justify-center text-on-secondary-fixed-variant dark:text-on-secondary-container px-4 py-1.5 hover:bg-secondary-container/50 dark:hover:bg-secondary-container/20 rounded-full transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">style</span>
+<span class="font-label-sm text-label-sm mt-1">Cards</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-fixed-variant dark:text-on-secondary-container px-4 py-1.5 hover:bg-secondary-container/50 dark:hover:bg-secondary-container/20 rounded-full transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">videogame_asset</span>
+<span class="font-label-sm text-label-sm mt-1">Games</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-fixed-variant dark:text-on-secondary-container px-4 py-1.5 hover:bg-secondary-container/50 dark:hover:bg-secondary-container/20 rounded-full transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">auto_awesome_motion</span>
+<span class="font-label-sm text-label-sm mt-1">Moments</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-fixed-variant dark:text-on-secondary-container px-4 py-1.5 hover:bg-secondary-container/50 dark:hover:bg-secondary-container/20 rounded-full transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">chat_bubble</span>
+<span class="font-label-sm text-label-sm mt-1">Chat</span>
+</a>
+</nav>
+</body></html>

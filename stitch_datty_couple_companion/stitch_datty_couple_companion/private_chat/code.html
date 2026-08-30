@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Datty - Chat</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&amp;family=Manrope:wght@200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-surface-variant": "#544245",
+                        "secondary": "#645c5e",
+                        "on-surface": "#221919",
+                        "primary-fixed-dim": "#ffb1c1",
+                        "surface-variant": "#f0dfde",
+                        "surface-container-lowest": "#ffffff",
+                        "surface": "#fff8f7",
+                        "tertiary-fixed-dim": "#e7bcbc",
+                        "on-background": "#221919",
+                        "on-secondary-fixed": "#201a1c",
+                        "surface-container-high": "#f6e4e4",
+                        "tertiary": "#472b2c",
+                        "outline-variant": "#d9c1c4",
+                        "surface-bright": "#fff8f7",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#2d1515",
+                        "on-secondary-container": "#696162",
+                        "primary-container": "#7d2d44",
+                        "on-primary-fixed": "#3f0018",
+                        "surface-tint": "#984259",
+                        "surface-container-low": "#fff0f0",
+                        "surface-container": "#fceae9",
+                        "secondary-container": "#e8dddf",
+                        "on-primary": "#ffffff",
+                        "inverse-primary": "#ffb1c1",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#604141",
+                        "background": "#fff8f7",
+                        "inverse-surface": "#382e2e",
+                        "on-primary-fixed-variant": "#7a2b42",
+                        "error": "#ba1a1a",
+                        "secondary-fixed": "#ebe0e2",
+                        "inverse-on-surface": "#feedec",
+                        "outline": "#867275",
+                        "on-tertiary-container": "#d8aeae",
+                        "primary-fixed": "#ffd9df",
+                        "tertiary-fixed": "#ffdad9",
+                        "on-secondary-fixed-variant": "#4c4547",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#5e3f3f",
+                        "primary": "#60162e",
+                        "secondary-fixed-dim": "#cfc4c6",
+                        "surface-dim": "#e7d6d6",
+                        "on-error": "#ffffff",
+                        "surface-container-highest": "#f0dfde",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#ff9bb2"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "unit": "4px",
+                        "xs": "4px",
+                        "margin-desktop": "auto",
+                        "md": "16px",
+                        "xl": "40px",
+                        "margin-mobile": "20px",
+                        "sm": "8px",
+                        "xxl": "64px"
+                    },
+                    fontFamily: {
+                        "display-lg": ["EB Garamond"],
+                        "headline-md": ["EB Garamond"],
+                        "body-md": ["Manrope"],
+                        "label-md": ["Manrope"],
+                        "headline-lg-mobile": ["EB Garamond"],
+                        "body-lg": ["Manrope"],
+                        "label-sm": ["Manrope"],
+                        "headline-lg": ["EB Garamond"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Manrope', sans-serif; }
+        .waveform-bar {
+            width: 3px;
+            background-color: currentColor;
+            border-radius: 99px;
+            opacity: 0.7;
+            animation: pulse 1s infinite alternate ease-in-out;
+        }
+        @keyframes pulse {
+            0% { transform: scaleY(0.4); }
+            100% { transform: scaleY(1); }
+        }
+        .waveform-bar:nth-child(even) { animation-delay: 0.2s; }
+        .waveform-bar:nth-child(3n) { animation-delay: 0.4s; }
+        .waveform-bar:nth-child(4n) { animation-delay: 0.1s; }
+        .waveform-bar:nth-child(5n) { animation-delay: 0.5s; }
+        
+        /* Hide scrollbar for clean chat look */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen flex flex-col relative overflow-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-xl">
+<div class="flex justify-between items-center px-margin-mobile h-16 w-full max-w-[1024px] mx-auto">
+<div class="flex items-center gap-3">
+<img class="w-10 h-10 rounded-full object-cover shadow-sm border border-outline-variant/30 active:scale-95 transition-transform duration-200" data-alt="A softly lit, intimate portrait photograph of a young woman with a warm, genuine smile. The lighting is natural and bright, evoking a romantic and premium editorial aesthetic consistent with a high-end lifestyle journal. Colors lean towards warm neutral tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCcB-WThs0dSJ31z9XZz8mvX2HjoPSNmMNtCC39xGqUPVsl42N7Dus6EhDGo6g6Jfb5Iaoi3B4KWZ5s7PrjuwBisHBOoaa9KeJUQTtsAWUyNlDnWOalrjTOAYmRtAyn1GZdaQXmlcMZhO4JKibD5x4lZ2Z8QDhSCNZ1sTN2yg9JGdnFkp667S1IGZIV2obyzsNNMjk4DK__dMc4EFsm9E-NeW59RVw8TaooKwQr-b1OxI5zss2Isq0o"/>
+<span class="font-display-lg text-2xl text-primary font-medium tracking-tight">Datty</span>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 active:scale-95 transition-all text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">favorite</span>
+</button>
+</div>
+</header>
+<!-- Chat Canvas -->
+<main class="flex-1 overflow-y-auto no-scrollbar w-full max-w-[1024px] mx-auto pt-24 pb-40 px-margin-mobile flex flex-col gap-6">
+<!-- Date Marker -->
+<div class="text-center w-full flex justify-center my-2">
+<span class="font-label-sm text-label-sm text-secondary bg-surface-variant/50 px-3 py-1 rounded-full backdrop-blur-sm">Today, 10:42 AM</span>
+</div>
+<!-- Partner Message: Text -->
+<div class="flex items-end justify-start gap-3 relative max-w-[85%]">
+<img class="w-8 h-8 rounded-full object-cover flex-shrink-0 shadow-sm border border-outline-variant/30 mb-1" data-alt="A softly lit, intimate portrait photograph of a young woman with a warm, genuine smile. The lighting is natural and bright, evoking a romantic and premium editorial aesthetic consistent with a high-end lifestyle journal. Colors lean towards warm neutral tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNJSeh9ee1r15CLr5g7zuS2ZSGtKfQ9mdA-QStSZahY_66i6V43Jg2r38BqKHF_EGtIcTrFzkLFMaU1uq9Qwwi3vXFTbuII1lr4RZo88LKkqSZWX9-ldjQTXy49b1dO4_sPBmERU64Hp4jWDLjwjgKEp7bn3hTPTyUNw9qMJpPRARnQFxIXInlRMvjIZOXJyRLunKyG5tsTNGVs4pngQE-RZTRsIK_MwH4TKg5WMM1XmSiXM1WvIn0"/>
+<div class="relative group">
+<div class="bg-surface-variant text-on-surface-variant px-4 py-3 rounded-2xl rounded-bl-sm font-body-md shadow-sm">
+                    Just saw the cutest dog on my way home! Reminded me of our walk yesterday.
+                </div>
+<!-- Heart Reaction -->
+<div class="absolute -bottom-2 -right-2 bg-surface p-1 rounded-full shadow-sm border border-outline-variant/20 flex items-center justify-center transform group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-primary text-[14px]" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</div>
+</div>
+</div>
+<!-- Partner Message: Photo -->
+<div class="flex items-end justify-start gap-3 relative max-w-[85%]">
+<div class="w-8 h-8 flex-shrink-0 mb-1"></div> <!-- Spacer for avatar alignment -->
+<div class="relative group">
+<div class="bg-surface-variant p-1 rounded-xl rounded-bl-sm shadow-sm">
+<img class="w-[240px] h-[300px] object-cover rounded-lg" data-alt="A beautifully composed lifestyle photograph of an adorable golden retriever puppy sitting on a sunlit cobblestone path. The aesthetic is bright, warm, and cinematic, reminiscent of high-end editorial photography with a focus on capturing fleeting, joyful moments. The colors are rich but slightly desaturated." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0uzfqjb72QNCYLuLQBJQ-mhfS_5pjIb7d8VgdAiOqxgUFW_MS-kPjpUbYE1comJScEBbIPgIJ2Q6wCU8U1KbGtZwFwzLKpICfPO3Qsu4BcqsKOqdVMLWCpP40MWM-K5DGbs2dzN9afVm1b7D1Bkre_cSQ1EZqr0duLEkHDpiQ7t9-A3-LV095Obj6zbiawzcgGhoIvO-kGUHzVgH3FWK8_ZuWGDRlId74oXQZbCurBtved6vTBXOS"/>
+</div>
+</div>
+</div>
+<!-- User Message: Text -->
+<div class="flex items-end justify-end gap-3 relative max-w-[85%] self-end mt-4">
+<div class="bg-primary text-on-primary px-4 py-3 rounded-2xl rounded-br-sm font-body-md shadow-md shadow-primary/10">
+                Aww, show me! That's so sweet.
+            </div>
+</div>
+<!-- User Message: Voice Note -->
+<div class="flex items-end justify-end gap-3 relative max-w-[85%] self-end mt-2">
+<div class="bg-primary text-on-primary px-4 py-2.5 rounded-2xl rounded-br-sm font-body-md shadow-md shadow-primary/10 flex items-center gap-3">
+<button class="w-8 h-8 flex items-center justify-center bg-on-primary text-primary rounded-full hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<div class="flex items-center gap-1 h-6">
+<div class="waveform-bar h-2"></div>
+<div class="waveform-bar h-4"></div>
+<div class="waveform-bar h-3"></div>
+<div class="waveform-bar h-6"></div>
+<div class="waveform-bar h-3"></div>
+<div class="waveform-bar h-5"></div>
+<div class="waveform-bar h-2"></div>
+<div class="waveform-bar h-4"></div>
+<div class="waveform-bar h-2"></div>
+<div class="waveform-bar h-3"></div>
+<div class="waveform-bar h-1"></div>
+</div>
+<span class="font-label-sm text-[11px] opacity-80 ml-1">0:12</span>
+</div>
+</div>
+</main>
+<!-- Input Bar -->
+<div class="fixed bottom-[88px] w-full z-40 bg-gradient-to-t from-background via-background/90 to-transparent pt-6 pb-2 px-margin-mobile">
+<div class="max-w-[1024px] mx-auto flex items-center gap-2 bg-surface-variant/60 backdrop-blur-md p-1.5 rounded-full border border-outline-variant/40 shadow-sm">
+<button class="w-10 h-10 flex items-center justify-center text-secondary hover:text-primary rounded-full hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">add_circle</span>
+</button>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-on-surface font-body-md placeholder-secondary/70 py-2 px-2" placeholder="Message..." type="text"/>
+<button class="w-10 h-10 flex items-center justify-center text-secondary hover:text-primary rounded-full hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">sentiment_satisfied</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center bg-primary text-on-primary rounded-full shadow-sm hover:opacity-90 active:scale-95 transition-all mr-0.5">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">mic</span>
+</button>
+</div>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface/90 dark:bg-surface-dim/90 backdrop-blur-xl shadow-[0_-4px_24px_rgba(152,66,89,0.08)] border-t border-outline-variant/20 md:hidden">
+<div class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 py-2 pb-6">
+<button class="flex flex-col items-center justify-center text-on-secondary-fixed-variant dark:text-on-secondary-container px-4 py-1.5 hover:bg-secondary-container/50 dark:hover:bg-secondary-container/20 rounded-full transition-colors active:scale-90 transition-transform duration-200">
+<span class="material-symbols-outlined mb-1">today</span>
+<span class="font-label-sm text-label-sm">Today</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-fixed-variant dark:text-on-secondary-container px-4 py-1.5 hover:bg-secondary-container/50 dark:hover:bg-secondary-container/20 rounded-full transition-colors active:scale-90 transition-transform duration-200">
+<span class="material-symbols-outlined mb-1">style</span>
+<span class="font-label-sm text-label-sm">Cards</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-fixed-variant dark:text-on-secondary-container px-4 py-1.5 hover:bg-secondary-container/50 dark:hover:bg-secondary-container/20 rounded-full transition-colors active:scale-90 transition-transform duration-200">
+<span class="material-symbols-outlined mb-1">videogame_asset</span>
+<span class="font-label-sm text-label-sm">Games</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-fixed-variant dark:text-on-secondary-container px-4 py-1.5 hover:bg-secondary-container/50 dark:hover:bg-secondary-container/20 rounded-full transition-colors active:scale-90 transition-transform duration-200">
+<span class="material-symbols-outlined mb-1">auto_awesome_motion</span>
+<span class="font-label-sm text-label-sm">Moments</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-primary-fixed dark:bg-primary-container text-on-primary-fixed-variant dark:text-on-primary-container rounded-full px-4 py-1.5 hover:bg-secondary-container/50 dark:hover:bg-secondary-container/20 rounded-full transition-colors active:scale-90 transition-transform duration-200">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">chat_bubble</span>
+<span class="font-label-sm text-label-sm font-bold">Chat</span>
+</button>
+</div>
+</nav>
+</body></html>

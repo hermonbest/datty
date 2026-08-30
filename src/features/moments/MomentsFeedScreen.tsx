@@ -11,13 +11,15 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
-import { Card, Avatar, EmptyState, CardSkeleton, useToast } from '../../components';
+import { EmptyState, CardSkeleton, useToast } from '../../components';
+import { TopAppBar } from '../../components/TopAppBar';
 import { useCouple } from '../../services/coupleContext';
 import { useMoments } from './useMoments';
 import { NewMomentScreen } from './NewMomentScreen';
-import { Plus, Camera, Trash2, Heart, Sparkles } from 'lucide-react-native';
+import { Plus, Camera, Heart, Trash2 } from 'lucide-react-native';
 import { Moment } from '../../types';
 
 const MomentImage: React.FC<{ uri: string }> = ({ uri }) => {
@@ -45,6 +47,7 @@ export const MomentsFeedScreen: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const toast = useToast();
+  const insets = useSafeAreaInsets();
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -77,57 +80,35 @@ export const MomentsFeedScreen: React.FC = () => {
     );
   };
 
-  const getAuthor = (authorUid: string) => {
-    if (authorUid === myUid) {
-      return {
-        name: userProfile?.displayName || 'You',
-        photo: userProfile?.photoURL,
-        isMe: true,
-      };
-    }
-    return {
-      name: partnerProfile?.displayName || 'Partner',
-      photo: partnerProfile?.photoURL,
-      isMe: false,
-    };
-  };
-
   const formatCreatedAt = (createdAt: any) => {
-    if (!createdAt) return 'Just now';
+    if (!createdAt) return 'Today';
     try {
       const date = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
-      return formatDistanceToNow(date, { addSuffix: true });
+      // HTML format: "EEEE, MMM dd" (e.g. Sunday, Oct 22)
+      return format(date, 'EEEE, MMM dd');
     } catch (e) {
       return 'Recently';
     }
   };
 
+  const renderHeader = () => (
+    <View style={styles.listHeader}>
+      <Text style={styles.title}>Moments</Text>
+      <Text style={styles.subtitle}>Our shared memory lane.</Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      {/* Feed Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Moments</Text>
-          <Text style={styles.subtitle}>Our shared photo diary</Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => setModalVisible(true)}
-          style={styles.addBtnHeader}
-          activeOpacity={0.82}
-          accessibilityLabel="Post new moment"
-        >
-          <Plus size={22} color={colors.textLight} />
-        </TouchableOpacity>
-      </View>
+      <TopAppBar />
 
-      {/* Feed Body */}
       {loading ? (
-        <View style={styles.loadingContainer}>
+        <View style={[styles.loadingContainer, { paddingTop: 64 + insets.top + spacing.lg }]}>
           <CardSkeleton />
           <CardSkeleton />
         </View>
       ) : moments.length === 0 ? (
-        <View style={styles.emptyContainer}>
+        <View style={[styles.emptyContainer, { paddingTop: 64 + insets.top }]}>
           <EmptyState
             icon={<Camera size={32} color={colors.primary} />}
             title="No moments shared yet"
@@ -140,7 +121,9 @@ export const MomentsFeedScreen: React.FC = () => {
         <FlatList
           data={moments}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.feedContent}
+          contentContainerStyle={[styles.feedContent, { paddingTop: 64 + insets.top + spacing.lg }]}
+          ListHeaderComponent={renderHeader}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -149,41 +132,54 @@ export const MomentsFeedScreen: React.FC = () => {
             />
           }
           renderItem={({ item }) => {
-            const author = getAuthor(item.authorUid);
+             const isMe = item.authorUid === myUid;
             return (
-              <Card style={styles.momentCard} variant="elevated">
-                {/* Author row */}
-                <View style={styles.authorRow}>
-                  <Avatar name={author.name} photoURL={author.photo} size="sm" highlighted={!author.isMe} />
-                  <View style={styles.authorTextCol}>
-                    <Text style={styles.authorName}>{author.name}</Text>
-                    <Text style={styles.timeAgo}>{formatCreatedAt(item.createdAt)}</Text>
-                  </View>
-                  {author.isMe && (
-                    <TouchableOpacity
-                      onPress={() => handleDelete(item)}
-                      style={styles.deleteBtn}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      <Trash2 size={16} color={colors.textMuted} />
-                    </TouchableOpacity>
-                  )}
+              <View style={styles.momentCard}>
+                <View style={styles.imageContainer}>
+                  <MomentImage uri={item.imageURL} />
                 </View>
 
-                {/* Photo with smooth progressive loading */}
-                <MomentImage uri={item.imageURL} />
-
-                {/* Caption */}
-                {item.caption ? (
-                  <View style={styles.captionContainer}>
-                    <Text style={styles.captionText}>{item.caption}</Text>
+                <View style={styles.cardFooter}>
+                  <View style={styles.textContainer}>
+                    <Text style={styles.dateText}>{formatCreatedAt(item.createdAt)}</Text>
+                    {item.caption ? (
+                      <Text style={styles.captionText}>{item.caption}</Text>
+                    ) : null}
                   </View>
-                ) : null}
-              </Card>
+
+                  <View style={styles.actionsContainer}>
+                    {isMe && (
+                      <TouchableOpacity
+                        onPress={() => handleDelete(item)}
+                        style={styles.actionBtn}
+                      >
+                        <Trash2 size={20} color={colors.outline} />
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={styles.actionBtn}>
+                      <Heart size={24} color={colors.primary} fill={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
             );
           }}
+          ListFooterComponent={
+            <View style={styles.endMarker}>
+              <Text style={styles.endMarkerText}>~</Text>
+            </View>
+          }
         />
       )}
+
+      {/* FAB */}
+      <TouchableOpacity 
+        style={[styles.fab, { bottom: 80 + spacing.md }]} // accounts for bottom nav
+        onPress={() => setModalVisible(true)}
+        activeOpacity={0.8}
+      >
+        <Plus size={24} color={colors.onPrimary} />
+      </TouchableOpacity>
 
       {/* New Moment Modal */}
       <Modal
@@ -203,103 +199,121 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-    backgroundColor: colors.background,
+  listHeader: {
+    marginBottom: spacing.xl,
+    paddingHorizontal: spacing.sm,
   },
   title: {
-    fontSize: typography.sizes.hero,
-    fontWeight: typography.weights.bold,
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
+    ...typography.headlineLgMobile,
+    color: colors.onSurface,
   },
   subtitle: {
-    fontSize: typography.sizes.sm,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  addBtnHeader: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.sm,
+    ...typography.bodyMd,
+    color: colors.secondary,
+    marginTop: spacing.xs,
   },
   feedContent: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.marginMobile,
     paddingBottom: spacing.xxl,
   },
   loadingContainer: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.marginMobile,
   },
   emptyContainer: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.marginMobile,
     flex: 1,
     justifyContent: 'center',
   },
   momentCard: {
-    padding: 0,
-    overflow: 'hidden',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xxl,
+    flexDirection: 'column',
+  },
+  imageContainer: {
+    width: '100%',
     borderRadius: radii.xl,
-    backgroundColor: colors.card,
-  },
-  authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-  },
-  authorTextCol: {
-    flex: 1,
-    marginLeft: spacing.sm,
-  },
-  authorName: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.bold,
-    color: colors.textPrimary,
-  },
-  timeAgo: {
-    fontSize: typography.sizes.xs - 2,
-    color: colors.textMuted,
-  },
-  deleteBtn: {
-    padding: spacing.xs,
+    backgroundColor: 'rgba(232, 221, 223, 0.2)', // bg-secondary-container/20
+    shadowColor: colors.surfaceTint,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 32,
+    elevation: 2,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
   },
   imageWrapper: {
     width: '100%',
-    height: 340,
-    backgroundColor: colors.cardAlt,
+    aspectRatio: 4 / 5, // Editorial format
+    backgroundColor: colors.surfaceVariant,
     position: 'relative',
   },
   imageSkeletonOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.cardAlt,
+    backgroundColor: colors.surfaceVariant,
     zIndex: 1,
   },
   momentImage: {
     width: '100%',
     height: '100%',
   },
-  captionContainer: {
-    padding: spacing.md,
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: spacing.xs,
+  },
+  textContainer: {
+    flex: 1,
+    flexDirection: 'column',
+    paddingRight: spacing.sm,
+  },
+  dateText: {
+    ...typography.labelSm,
+    color: colors.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
   captionText: {
-    fontSize: typography.sizes.sm + 1,
-    color: colors.textPrimary,
-    lineHeight: (typography.sizes.sm + 1) * typography.lineHeights.normal,
+    ...typography.bodyLg,
+    color: colors.onSurface,
+    marginTop: spacing.xs,
   },
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  actionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  endMarker: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+  },
+  endMarkerText: {
+    ...typography.displayLg,
+    color: colors.outlineVariant,
+    opacity: 0.5,
+  },
+  fab: {
+    position: 'absolute',
+    right: spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: radii.full,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 6,
+  }
 });

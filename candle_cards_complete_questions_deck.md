@@ -15,8 +15,8 @@
 - [Pushing Buttons](#pushing-buttons)
 - [The Unhinged Pile](#the-unhinged-pile)
 - [Oddballs](#oddballs)
-- [Would You Rather? (Choose Wisely or Don't)](#would-you-rather-choose-wisely-or-dont)
-- [Would You Rather? (Hypotheticals and Chaos)](#would-you-rather-hypotheticals-and-chaos)
+- [Would You Rather?](#would-you-rather)
+- [Would You Rather?](#would-you-rather-1)
 - [Tough Love](#tough-love)
 - [Rewind](#rewind)
 - [Heart to Heart](#heart-to-heart)
@@ -29,20 +29,20 @@
 - [Growth Mindset](#growth-mindset)
 - [Attachment Avenue](#attachment-avenue)
 - [Pattern Breakers](#pattern-breakers)
-- [Parenting Perspectives (Future Chaos Coordinators)](#parenting-perspectives-future-chaos-coordinators)
-- [Parenting Perspectives (Legacy Begins at Home)](#parenting-perspectives-legacy-begins-at-home)
-- [Wellness (Babe, Drink More Water)](#wellness-babe-drink-more-water)
-- [Wellness (Healthy Minds, Healthy Bodies)](#wellness-healthy-minds-healthy-bodies)
-- [Photo Prompts (Capture Your Memories)](#photo-prompts-capture-your-memories)
-- [Photo Prompts (Flick Them Up)](#photo-prompts-flick-them-up)
-- [Hot & Spicy (The Popular Questions)](#hot-and-spicy-the-popular-questions)
-- [Hot & Spicy (For Before Things Heat Up)](#hot-and-spicy-for-before-things-heat-up)
-- [Hot & Spicy (Philosophize and Fantasize)](#hot-and-spicy-philosophize-and-fantasize)
-- [Hot & Spicy (The Ones You Want to Ask)](#hot-and-spicy-the-ones-you-want-to-ask)
-- [Hot & Spicy (Raw. Next Question.)](#hot-and-spicy-raw-next-question)
-- [Hot & Spicy (Foreplay Started Yesterday)](#hot-and-spicy-foreplay-started-yesterday)
-- [Future Plans & Dreams (Dream Big Together)](#future-plans-and-dreams-dream-big-together)
-- [Future Plans & Dreams (Write the Next Chapter)](#future-plans-and-dreams-write-the-next-chapter)
+- [Parenting Perspectives](#parenting-perspectives)
+- [Parenting Perspectives](#parenting-perspectives-1)
+- [Wellness](#wellness)
+- [Wellness](#wellness-1)
+- [Photo Prompts](#photo-prompts)
+- [Photo Prompts](#photo-prompts-1)
+- [Hot & Spicy](#hot-spicy)
+- [Hot & Spicy](#hot-spicy-1)
+- [Hot & Spicy](#hot-spicy-2)
+- [Hot & Spicy](#hot-spicy-3)
+- [Hot & Spicy](#hot-spicy-4)
+- [Hot & Spicy](#hot-spicy-5)
+- [Future Plans & Dreams](#future-plans-dreams)
+- [Future Plans & Dreams](#future-plans-dreams-1)
 
 ---
 
@@ -298,7 +298,7 @@
 33. How has being with me made your oddness feel safer or more celebrated?
 34. What’s the most unhinged compliment you could give me right now and mean it?
 35. If our relationship were a cryptid or urban legend, what would the local myths say about us?
-## Would You Rather? (Choose Wisely or Don't)
+## Would You Rather?
 **App Category:** *Would You Rather?*  
 **Card Subtitle:** *"Choose wisely (or don't)."*  
 
@@ -340,7 +340,7 @@
 33. Would you rather I love the realest version of you or the version of you that makes life easiest?
 34. Would you rather fight passionately and make up intensely, or never fight and never quite feel the high?
 35. Would you rather be my safe place or my most exciting risk?
-## Would You Rather? (Hypotheticals and Chaos)
+## Would You Rather?
 **App Category:** *Would You Rather?*  
 **Card Subtitle:** *"Hypotheticals and chaos."*  
 
@@ -886,7 +886,7 @@
 33. Where have you already successfully broken a cycle with me, and what made that possible?
 34. What does the healthier version of our most common conflict actually look and sound like?
 35. If we stopped trying to change each other and focused only on changing the dance between us, what would shift first?
-## Parenting Perspectives (Future Chaos Coordinators)
+## Parenting Perspectives
 **App Category:** *Parenting Perspectives*  
 **Card Subtitle:** *"Future chaos coordinators."*  
 
@@ -928,7 +928,7 @@
 33. How do you want to talk about the hard, messy, non-Instagram parts of raising humans?
 34. What legacy of emotional safety or courage do you hope we create for the next generation?
 35. If we parent the way we currently love each other, what would that give our kids—and what might it still lack?
-## Parenting Perspectives (Legacy Begins at Home)
+## Parenting Perspectives
 **App Category:** *Parenting Perspectives*  
 **Card Subtitle:** *"Legacy begins at home."*  
 
@@ -970,7 +970,7 @@
 33. What kind of emotional vocabulary and permission do you want the next generation to have that you didn’t?
 34. If legacy is built in the small, repeated moments, which small moments matter most to you?
 35. What do you hope people say about the home and partnership we built long after we’re gone?
-## Wellness (Babe, Drink More Water)
+## Wellness
 **App Category:** *Wellness*  
 **Card Subtitle:** *"Babe, drink more water."*  
 
@@ -1012,7 +1012,7 @@
 33. Where is stress currently living in your body, and what does it need?
 34. How do you want us to protect sleep, movement, and basic nourishment when everything else gets demanding?
 35. What’s one kind, non-performative thing you could do for your body this week that you’d actually enjoy?
-## Wellness (Healthy Minds, Healthy Bodies)
+## Wellness
 **App Category:** *Wellness*  
 **Card Subtitle:** *"Healthy minds, healthy bodies."*  
 
@@ -1054,7 +1054,7 @@
 33. How do you want us to talk about mental health without it becoming heavy or clinical?
 34. What’s the difference between supporting each other and becoming each other’s only emotional regulator?
 35. If we treated our minds with the same care we (ideally) give our bodies, what would change first?
-## Photo Prompts (Capture Your Memories)
+## Photo Prompts
 **App Category:** *Photo Prompts*  
 **Card Subtitle:** *"Capture your memories."*  
 
@@ -1096,7 +1096,7 @@
 33. Capture something that represents how safe or free you feel with me.
 34. Photograph the light, object, or corner that feels most like “our” atmosphere.
 35. Take a picture of whatever currently makes you feel most grateful for this chapter.
-## Photo Prompts (Flick Them Up)
+## Photo Prompts
 **App Category:** *Photo Prompts*  
 **Card Subtitle:** *"Flick them up."*  
 
@@ -1138,7 +1138,7 @@
 33. Capture something that feels forbidden, teasing, or just out of reach right now.
 34. Take a picture of the version of yourself you only fully show me when things heat up.
 35. Send a photo that is pure invitation—no explanation required.
-## Hot & Spicy (The Popular Questions)
+## Hot & Spicy
 **App Category:** *Hot & Spicy*  
 **Card Subtitle:** *"The popular questions."*  
 
@@ -1180,7 +1180,7 @@
 33. How do you want me to wake you up when I’m already hard/wet and impatient?
 34. What’s one sensation or pace that reliably ruins you in the best way?
 35. If we only had twenty minutes right now, how would you want me to use them on you?
-## Hot & Spicy (For Before Things Heat Up)
+## Hot & Spicy
 **App Category:** *Hot & Spicy*  
 **Card Subtitle:** *"For before things heat up."*  
 
@@ -1222,7 +1222,7 @@
 33. Do you want me to make you wait, or are you past the point of patience?
 34. What does your body need from me right now that words haven’t covered yet?
 35. Give me one specific instruction for how you want the next hour to begin.
-## Hot & Spicy (Philosophize and Fantasize)
+## Hot & Spicy
 **App Category:** *Hot & Spicy*  
 **Card Subtitle:** *"Philosophize and fantasize."*  
 
@@ -1264,7 +1264,7 @@
 33. How do you want the aftercare and the intensity to talk to each other in our dynamic?
 34. What’s a version of us in bed that we’ve only touched the edge of and you’re hungry to go further into?
 35. If our sex life were a philosophy, what would its core tenet be?
-## Hot & Spicy (The Ones You Want to Ask)
+## Hot & Spicy
 **App Category:** *Hot & Spicy*  
 **Card Subtitle:** *"The ones you want to ask."*  
 
@@ -1306,7 +1306,7 @@
 33. What’s the most possessive or territorial thought you’ve had about me that still turns you on?
 34. How do you want me to handle it when you’re shy or hesitant but your body is clearly saying yes?
 35. What’s one question about my desire for you that you’ve been carrying and finally want answered?
-## Hot & Spicy (Raw. Next Question.)
+## Hot & Spicy
 **App Category:** *Hot & Spicy*  
 **Card Subtitle:** *"Raw. Next question."*  
 
@@ -1348,7 +1348,7 @@
 33. How do you want me to look at you while I’m making you come?
 34. Tell me what you’re going to do to me the second you get the chance—no softening.
 35. Right now, do you want me to make you wait or make you break?
-## Hot & Spicy (Foreplay Started Yesterday)
+## Hot & Spicy
 **App Category:** *Hot & Spicy*  
 **Card Subtitle:** *"Foreplay started yesterday."*  
 
@@ -1390,7 +1390,7 @@
 33. I’ve been replaying the last time you lost control—want me to recreate it or escalate it?
 34. What’s the first thing you’re going to let me do when we finally lock the door again?
 35. Foreplay isn’t starting later. It’s already happening. What do you need from me in this exact moment to keep the current running?
-## Future Plans & Dreams (Dream Big Together)
+## Future Plans & Dreams
 **App Category:** *Future Plans & Dreams*  
 **Card Subtitle:** *"Dream big together."*  
 
@@ -1432,7 +1432,7 @@
 33. What’s one bold, slightly unreasonable future vision that still makes your chest feel open?
 34. How do you want us to keep choosing each other as the dream evolves and life gets more complex?
 35. If we wrote the next decade as a story, what would the emotional tone and major plot points be?
-## Future Plans & Dreams (Write the Next Chapter)
+## Future Plans & Dreams
 **App Category:** *Future Plans & Dreams*  
 **Card Subtitle:** *"Write the next chapter."*  
 

@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Animated,
   PanResponder,
+  Keyboard,
 } from 'react-native';
 import { format, isToday, isYesterday } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
@@ -50,6 +51,8 @@ import {
   Trash2,
   Play,
   Pause,
+  PlusCircle,
+  Smile,
 } from 'lucide-react-native';
 import { ChatMessage, ChatReplyReference, UserProfile } from '../../types';
 import { getCategoryTheme } from '../cards/categoryTheme';
@@ -601,6 +604,23 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingSentRef = useRef(0);
 
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   // Debounced typing indicator — at most one presence write every 3s while typing,
   // cleared after 2.5s of inactivity.
   const handleChangeText = (text: string) => {
@@ -1105,25 +1125,19 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       style={styles.container}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      {/* Instagram-Style Header */}
+      {/* Datty Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Avatar
             name={partnerProfile?.displayName || 'Partner'}
             photoURL={partnerProfile?.photoURL}
-            size="md"
-            highlighted
+            size="sm"
           />
-          <View style={styles.headerText}>
-            <Text style={styles.partnerName}>{partnerProfile?.displayName || 'Partner'}</Text>
-            <View style={styles.statusDotRow}>
-              <View style={[styles.onlineDot, !partnerOnline && !partnerTyping ? styles.offlineDot : null]} />
-              <Text style={styles.partnerStatus}>
-                {partnerTyping ? 'typing…' : partnerOnline ? 'Private Thread' : 'Offline'}
-              </Text>
-            </View>
-          </View>
+          <Text style={styles.headerTitle}>Datty</Text>
         </View>
+        <TouchableOpacity style={styles.headerRightAction} activeOpacity={0.7}>
+          <Heart size={24} color={colors.primary} strokeWidth={2} />
+        </TouchableOpacity>
       </View>
 
       {/* Messages Feed */}
@@ -1206,71 +1220,35 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
         </View>
       )}
 
-      {/* Instagram-Style Message Composer Bar */}
-      <View style={styles.composerContainer}>
-        {isRecording ? (
-          <>
-            <View style={styles.recordingIndicator}>
-              <Animated.View style={[styles.recordingDot, { transform: [{ scale: pulseAnim }] }]} />
-              <Text style={styles.recordingTimer}>
-                {formatVoiceDuration(recordingSec)}
-                <Text style={styles.recordingTimerMax}> / 10:00</Text>
-              </Text>
-            </View>
+      {/* Datty Message Composer Bar */}
+      <View style={[styles.composerWrapper, { paddingBottom: isKeyboardVisible ? 8 : 88 }]}>
+        <View style={styles.composerContainer}>
+          {isRecording ? (
+            <>
+              <View style={styles.recordingIndicator}>
+                <Animated.View style={[styles.recordingDot, { transform: [{ scale: pulseAnim }] }]} />
+                <Text style={styles.recordingTimer}>
+                  {formatVoiceDuration(recordingSec)}
+                  <Text style={styles.recordingTimerMax}> / 10:00</Text>
+                </Text>
+              </View>
 
-            <View style={styles.recordingSpacer} />
+              <View style={styles.recordingSpacer} />
 
-            <TouchableOpacity
-              onPress={cancelRecording}
-              style={styles.iconBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Cancel voice note"
-            >
-              <Trash2 size={22} color={colors.error} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={stopAndSendRecording}
-              disabled={isStoppingRecording || sending}
-              style={[styles.sendBtn, isStoppingRecording || sending ? styles.sendBtnDisabled : null]}
-              accessibilityLabel="Send voice note"
-            >
-              {sending ? (
-                <ActivityIndicator size="small" color={colors.textLight} />
-              ) : (
-                <Send size={17} color={colors.textLight} />
-              )}
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <TouchableOpacity onPress={takePhoto} style={styles.iconBtn}>
-              <Camera size={22} color={colors.textSecondary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={pickImage} style={styles.iconBtn}>
-              <ImageIcon size={22} color={colors.textSecondary} />
-            </TouchableOpacity>
-
-            <TextInput
-              ref={inputRef}
-              style={styles.textInput}
-              placeholder={replyingTo ? 'Write your reply...' : 'Message...'}
-              placeholderTextColor={colors.textMuted}
-              value={inputText}
-              onChangeText={handleChangeText}
-              multiline
-              maxLength={1000}
-            />
-
-            {inputText.trim() || selectedImage ? (
               <TouchableOpacity
-                onPress={handleSend}
-                disabled={(!inputText.trim() && !selectedImage) || sending}
-                style={[
-                  styles.sendBtn,
-                  (!inputText.trim() && !selectedImage) || sending ? styles.sendBtnDisabled : null,
-                ]}
+                onPress={cancelRecording}
+                style={styles.iconBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Cancel voice note"
+              >
+                <Trash2 size={22} color={colors.error} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={stopAndSendRecording}
+                disabled={isStoppingRecording || sending}
+                style={[styles.sendBtn, isStoppingRecording || sending ? styles.sendBtnDisabled : null]}
+                accessibilityLabel="Send voice note"
               >
                 {sending ? (
                   <ActivityIndicator size="small" color={colors.textLight} />
@@ -1278,22 +1256,60 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
                   <Send size={17} color={colors.textLight} />
                 )}
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                onPress={startRecording}
-                disabled={sending}
-                style={[styles.sendBtn, sending ? styles.sendBtnDisabled : null]}
-                accessibilityLabel="Record voice note"
-              >
-                {sending ? (
-                  <ActivityIndicator size="small" color={colors.textLight} />
-                ) : (
-                  <Mic size={19} color={colors.textLight} />
-                )}
+            </>
+          ) : (
+            <>
+              <TouchableOpacity onPress={pickImage} style={styles.iconBtn}>
+                <PlusCircle size={24} color={colors.textMuted} strokeWidth={1.5} />
               </TouchableOpacity>
-            )}
-          </>
-        )}
+
+              <TextInput
+                ref={inputRef}
+                style={styles.textInput}
+                placeholder={replyingTo ? 'Write your reply...' : 'Message...'}
+                placeholderTextColor={colors.textMuted}
+                value={inputText}
+                onChangeText={handleChangeText}
+                multiline
+                maxLength={1000}
+              />
+
+              <TouchableOpacity style={styles.iconBtn}>
+                <Smile size={24} color={colors.textMuted} strokeWidth={1.5} />
+              </TouchableOpacity>
+
+              {inputText.trim() || selectedImage ? (
+                <TouchableOpacity
+                  onPress={handleSend}
+                  disabled={(!inputText.trim() && !selectedImage) || sending}
+                  style={[
+                    styles.sendBtn,
+                    (!inputText.trim() && !selectedImage) || sending ? styles.sendBtnDisabled : null,
+                  ]}
+                >
+                  {sending ? (
+                    <ActivityIndicator size="small" color={colors.textLight} />
+                  ) : (
+                    <Send size={17} color={colors.textLight} />
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={startRecording}
+                  disabled={sending}
+                  style={[styles.sendBtn, sending ? styles.sendBtnDisabled : null]}
+                  accessibilityLabel="Record voice note"
+                >
+                  {sending ? (
+                    <ActivityIndicator size="small" color={colors.textLight} />
+                  ) : (
+                    <Mic size={19} color={colors.textLight} />
+                  )}
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+        </View>
       </View>
 
       {/* Fullscreen Image Viewer Modal */}
@@ -1332,25 +1348,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-    backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-    ...shadows.sm,
+    paddingHorizontal: spacing.marginMobile,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(255, 248, 247, 0.8)',
+    borderBottomWidth: 0,
+    zIndex: 10,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
   },
-  headerText: {
-    marginLeft: spacing.sm + 4,
+  headerAvatar: {
+    borderWidth: 1,
+    borderColor: 'rgba(217, 193, 196, 0.3)',
   },
-  partnerName: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    color: colors.textPrimary,
+  headerTitle: {
+    fontFamily: typography.fonts.serif,
+    fontSize: 24,
+    color: colors.primary,
+    fontWeight: typography.weights.medium,
+    letterSpacing: -0.5,
+  },
+  headerRightAction: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
   },
   statusDotRow: {
     flexDirection: 'row',
@@ -1386,15 +1411,12 @@ const styles = StyleSheet.create({
     marginVertical: spacing.md,
   },
   dateDividerText: {
-    fontSize: typography.sizes.xs - 2,
-    fontWeight: typography.weights.bold,
-    color: colors.textMuted,
-    backgroundColor: colors.surfaceSubtle,
+    fontSize: typography.sizes.xs,
+    color: colors.secondary,
+    backgroundColor: 'rgba(240, 223, 222, 0.5)',
     paddingHorizontal: spacing.md,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: radii.full,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
   },
   swipeableWrapper: {
     position: 'relative',
@@ -1431,22 +1453,21 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   bubble: {
-    maxWidth: '78%',
+    maxWidth: '85%',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radii.xl,
+    paddingVertical: 12,
+    borderRadius: 16,
     position: 'relative',
     ...shadows.sm,
   },
   myBubble: {
     backgroundColor: colors.primary,
-    borderBottomRightRadius: radii.xs,
+    borderBottomRightRadius: 4,
   },
   partnerBubble: {
-    backgroundColor: colors.surfaceSubtle,
-    borderBottomLeftRadius: radii.xs,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+    backgroundColor: colors.surfaceVariant,
+    borderBottomLeftRadius: 4,
+    borderWidth: 0,
   },
   pendingBubble: {
     opacity: 0.75,
@@ -1456,13 +1477,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   bubbleImageWrapper: {
-    borderRadius: radii.lg,
-    overflow: 'hidden',
+    borderRadius: 12,
+    backgroundColor: colors.surfaceVariant,
+    padding: 4,
     marginBottom: spacing.xs,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    ...shadows.sm,
   },
   bubbleImage: {
-    borderRadius: radii.lg,
+    borderRadius: 8,
   },
   imageLoadingOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1471,14 +1493,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
   messageText: {
-    fontSize: typography.sizes.sm + 0.5,
-    lineHeight: (typography.sizes.sm + 0.5) * typography.lineHeights.normal,
+    fontSize: typography.sizes.md,
+    lineHeight: typography.sizes.md * typography.lineHeights.normal,
   },
   myMessageText: {
     color: '#FFFFFF',
   },
   partnerMessageText: {
-    color: colors.textPrimary,
+    color: colors.onSurfaceVariant,
   },
   bubbleMeta: {
     flexDirection: 'row',
@@ -1647,30 +1669,37 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
   },
+  composerWrapper: {
+    paddingHorizontal: spacing.marginMobile,
+    paddingTop: 24,
+    paddingBottom: 8,
+    backgroundColor: 'transparent',
+  },
   composerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.card,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
-    gap: spacing.xs + 2,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(240, 223, 222, 0.6)',
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: 'rgba(217, 193, 196, 0.4)',
+    gap: 4,
   },
   iconBtn: {
-    padding: spacing.xs + 2,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textInput: {
     flex: 1,
-    backgroundColor: colors.surfaceSubtle,
-    borderRadius: radii.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
-    fontSize: typography.sizes.sm,
-    color: colors.textPrimary,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 8,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    fontSize: typography.sizes.md,
+    color: colors.onSurface,
     maxHeight: 100,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
   },
   sendBtn: {
     width: 38,

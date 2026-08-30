@@ -5,7 +5,7 @@ import { colors, radii, shadows, typography } from '../theme';
 interface AvatarProps {
   name?: string;
   photoURL?: string | null;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   style?: StyleProp<ViewStyle>;
   highlighted?: boolean;
   borderColor?: string;
@@ -28,6 +28,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   };
 
   const sizePixels = {
+    xs: 24,
     sm: 34,
     md: 46,
     lg: 64,
@@ -35,6 +36,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   }[size];
 
   const fontSize = {
+    xs: 10,
     sm: typography.sizes.xs,
     md: typography.sizes.sm,
     lg: typography.sizes.lg,

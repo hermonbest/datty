@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Datty - Sign Up</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&amp;family=Manrope:wght@200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary-fixed-variant": "#4c4547",
+                      "error": "#ba1a1a",
+                      "surface": "#fff8f7",
+                      "on-primary": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "tertiary-fixed": "#ffdad9",
+                      "outline-variant": "#d9c1c4",
+                      "surface-tint": "#984259",
+                      "tertiary-fixed-dim": "#e7bcbc",
+                      "primary-fixed-dim": "#ffb1c1",
+                      "secondary-container": "#e8dddf",
+                      "background": "#fff8f7",
+                      "on-primary-container": "#ff9bb2",
+                      "primary-fixed": "#ffd9df",
+                      "on-error-container": "#93000a",
+                      "on-tertiary": "#ffffff",
+                      "surface-dim": "#e7d6d6",
+                      "on-tertiary-container": "#d8aeae",
+                      "primary-container": "#7d2d44",
+                      "inverse-primary": "#ffb1c1",
+                      "surface-variant": "#f0dfde",
+                      "on-primary-fixed-variant": "#7a2b42",
+                      "surface-container": "#fceae9",
+                      "surface-container-low": "#fff0f0",
+                      "on-tertiary-fixed": "#2d1515",
+                      "on-surface-variant": "#544245",
+                      "secondary": "#645c5e",
+                      "on-error": "#ffffff",
+                      "on-secondary-container": "#696162",
+                      "tertiary-container": "#604141",
+                      "inverse-surface": "#382e2e",
+                      "tertiary": "#472b2c",
+                      "surface-container-high": "#f6e4e4",
+                      "inverse-on-surface": "#feedec",
+                      "surface-container-highest": "#f0dfde",
+                      "outline": "#867275",
+                      "surface-bright": "#fff8f7",
+                      "on-secondary-fixed": "#201a1c",
+                      "on-background": "#221919",
+                      "secondary-fixed-dim": "#cfc4c6",
+                      "on-surface": "#221919",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary-fixed": "#3f0018",
+                      "on-tertiary-fixed-variant": "#5e3f3f",
+                      "secondary-fixed": "#ebe0e2",
+                      "primary": "#60162e",
+                      "on-secondary": "#ffffff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "margin-desktop": "auto",
+                      "margin-mobile": "20px",
+                      "xxl": "64px",
+                      "gutter": "16px",
+                      "xl": "40px",
+                      "sm": "8px",
+                      "xs": "4px",
+                      "unit": "4px",
+                      "lg": "24px",
+                      "md": "16px"
+              },
+              "fontFamily": {
+                      "body-md": [
+                              "manrope"
+                      ],
+                      "body-lg": [
+                              "manrope"
+                      ],
+                      "label-sm": [
+                              "manrope"
+                      ],
+                      "label-md": [
+                              "manrope"
+                      ],
+                      "headline-lg": [
+                              "ebGaramond"
+                      ],
+                      "headline-md": [
+                              "ebGaramond"
+                      ],
+                      "headline-lg-mobile": [
+                              "ebGaramond"
+                      ],
+                      "display-lg": [
+                              "ebGaramond"
+                      ]
+              },
+              "fontSize": {
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "label-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "28px",
+                              {
+                                      "lineHeight": "36px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background min-h-screen text-on-background font-body-md selection:bg-primary-container selection:text-on-primary-container">
+<!-- Top Navigation (Onboarding - Minimal) -->
+<header class="fixed top-0 w-full z-50 bg-background/80 dark:bg-background/80 backdrop-blur-xl">
+<div class="flex justify-between items-center px-margin-mobile md:px-margin-desktop w-full h-16 max-w-[1024px] mx-auto">
+<!-- Leading Action: Back (Often present in onboarding, though omitted if this is root) -->
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors group">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">arrow_back</span>
+</button>
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary text-center flex-grow">Datty</h1>
+<!-- Trailing Action: Help/Info -->
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors group">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">help_outline</span>
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="pt-24 pb-xxl px-margin-mobile md:px-margin-desktop max-w-[1024px] mx-auto flex flex-col min-h-screen justify-center items-center">
+<div class="w-full max-w-md mx-auto space-y-xl">
+<!-- Header Section -->
+<div class="text-center space-y-sm">
+<h2 class="font-display-lg text-display-lg text-on-background">Start your journey together</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Create a shared sanctuary for your memories.</p>
+</div>
+<!-- Image Feature (Optional but adds to the editorial feel) -->
+<div class="w-full aspect-[4/3] rounded-xl overflow-hidden relative shadow-[0_8px_30px_rgb(96,22,46,0.06)]">
+<div class="bg-cover bg-center w-full h-full absolute inset-0" data-alt="A soft, romantic still life photo of a leather-bound journal and a steaming cup of tea on a wooden table, bathed in warm, dappled morning sunlight. The scene embodies a premium editorial aesthetic with a serene, intimate mood, aligning with a sophisticated lifestyle publication style. Colors are natural and muted, highlighting subtle textures." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDwAVP9tKO46sHpbkBUALpbmgWFqonFKGkXpTKwqCRVVBrr5C0RtbXXSQg29c4s3Qg-OIocmXsUT5PiQq1NZ2g3nmBLq8JVoetH3J7TPoqVg79rERINw6WsNEwu0OJL7QU58dobB-m9p50VhD2s-J14xKTqSv-8xaAIy0ueFAKKtRlJRbAH0pC4bQBqTNRycisYqeGIG5e01rjWZj3uKcaZM1lmSXl-ceccEUpSKuCQSxewjwlLMjg1')"></div>
+</div>
+<!-- Sign Up Form -->
+<form class="space-y-lg w-full bg-surface-container p-lg rounded-xl shadow-[0_4px_20px_rgb(96,22,46,0.04)] border border-surface-variant/50">
+<div class="space-y-md">
+<!-- Name Field -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-xs" for="name">Your Name</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">person</span>
+<input class="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all font-body-md text-body-md text-on-background placeholder:text-outline" id="name" name="name" placeholder="How should we call you?" type="text"/>
+</div>
+</div>
+<!-- Email Field -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-xs" for="email">Email Address</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">mail</span>
+<input class="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all font-body-md text-body-md text-on-background placeholder:text-outline" id="email" name="email" placeholder="your@email.com" type="email"/>
+</div>
+</div>
+<!-- Password Field -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-xs" for="password">Password</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">lock</span>
+<input class="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all font-body-md text-body-md text-on-background placeholder:text-outline" id="password" name="password" placeholder="Create a secure password" type="password"/>
+</div>
+</div>
+</div>
+<!-- Terms -->
+<div class="flex items-start gap-2">
+<input class="mt-1 w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary bg-background" id="terms" type="checkbox"/>
+<label class="font-label-sm text-label-sm text-on-surface-variant" for="terms">
+                        I agree to the <a class="text-primary hover:underline underline-offset-2" href="#">Terms of Service</a> and <a class="text-primary hover:underline underline-offset-2" href="#">Privacy Policy</a>.
+                    </label>
+</div>
+<!-- Actions -->
+<div class="pt-sm space-y-md text-center">
+<button class="w-full bg-primary text-on-primary font-label-md text-label-md py-4 rounded-lg hover:opacity-90 active:scale-95 transition-all shadow-[0_4px_12px_rgb(96,22,46,0.15)] flex justify-center items-center gap-2" type="submit">
+                        Sign Up
+                        <span class="material-symbols-outlined text-on-primary" style="font-variation-settings: 'FILL' 1;">arrow_forward</span>
+</button>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                        Already have an account? <a class="font-label-md text-primary hover:underline underline-offset-2" href="#">Log In</a>
+</p>
+</div>
+</form>
+</div>
+</main>
+</body></html>

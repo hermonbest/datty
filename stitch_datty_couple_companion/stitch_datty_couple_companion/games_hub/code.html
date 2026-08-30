@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Datty - Games Hub</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=ebGaramond:wght@400;500;600;700&amp;family=manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#4c4547",
+                        "error": "#ba1a1a",
+                        "surface": "#fff8f7",
+                        "on-primary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed": "#ffdad9",
+                        "outline-variant": "#d9c1c4",
+                        "surface-tint": "#984259",
+                        "tertiary-fixed-dim": "#e7bcbc",
+                        "primary-fixed-dim": "#ffb1c1",
+                        "secondary-container": "#e8dddf",
+                        "background": "#fff8f7",
+                        "on-primary-container": "#ff9bb2",
+                        "primary-fixed": "#ffd9df",
+                        "on-error-container": "#93000a",
+                        "on-tertiary": "#ffffff",
+                        "surface-dim": "#e7d6d6",
+                        "on-tertiary-container": "#d8aeae",
+                        "primary-container": "#7d2d44",
+                        "inverse-primary": "#ffb1c1",
+                        "surface-variant": "#f0dfde",
+                        "on-primary-fixed-variant": "#7a2b42",
+                        "surface-container": "#fceae9",
+                        "surface-container-low": "#fff0f0",
+                        "on-tertiary-fixed": "#2d1515",
+                        "on-surface-variant": "#544245",
+                        "secondary": "#645c5e",
+                        "on-error": "#ffffff",
+                        "on-secondary-container": "#696162",
+                        "tertiary-container": "#604141",
+                        "inverse-surface": "#382e2e",
+                        "tertiary": "#472b2c",
+                        "surface-container-high": "#f6e4e4",
+                        "inverse-on-surface": "#feedec",
+                        "surface-container-highest": "#f0dfde",
+                        "outline": "#867275",
+                        "surface-bright": "#fff8f7",
+                        "on-secondary-fixed": "#201a1c",
+                        "on-background": "#221919",
+                        "secondary-fixed-dim": "#cfc4c6",
+                        "on-surface": "#221919",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-fixed": "#3f0018",
+                        "on-tertiary-fixed-variant": "#5e3f3f",
+                        "secondary-fixed": "#ebe0e2",
+                        "primary": "#60162e",
+                        "on-secondary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-desktop": "auto",
+                        "margin-mobile": "20px",
+                        "xxl": "64px",
+                        "gutter": "16px",
+                        "xl": "40px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "unit": "4px",
+                        "lg": "24px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["manrope"],
+                        "body-lg": ["manrope"],
+                        "label-sm": ["manrope"],
+                        "label-md": ["manrope"],
+                        "headline-lg": ["ebGaramond"],
+                        "headline-md": ["ebGaramond"],
+                        "headline-lg-mobile": ["ebGaramond"],
+                        "display-lg": ["ebGaramond"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "500" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+        }
+        
+        .game-card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px -8px rgba(96, 22, 46, 0.15); /* primary color glow */
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md antialiased min-h-screen flex flex-col relative pb-24 md:pb-0 pt-16 md:pt-20">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-background/80 dark:bg-background/80 backdrop-blur-xl flex justify-between items-center px-margin-mobile md:px-margin-desktop h-16 max-w-[1024px] mx-auto left-0 right-0">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-surface-variant flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity scale-95 duration-200">
+<img alt="Partner's Profile Picture" class="w-full h-full object-cover" data-alt="A close-up portrait of a smiling person, warm lighting, soft background focus, conveying intimacy and joy in a sophisticated editorial style. The color palette features warm neutral tones and subtle blush highlights, consistent with a high-end lifestyle aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDAsEAkCuENKdzxIWlbWhUYsiXqkdX1UeILrKd6EpxaaVLgFSEBXC-pKS21uypT3B940mzFBk0R_4FCVtRmMPoUAbMNA00VbT31kSdcT86S0HyinShAaRktvjVCBSJb-NhsdPIuklmJLy5huqES268Q-W0xlKkRFT52NRzKK4opGw8UlYL2BirTT9KqUuExCpA3Kj_8vk4k_8orph9Citk97TkMy832lMGQg6jV_kBJ4QOWVDLqIViO"/>
+</div>
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary dark:text-primary-fixed-dim absolute left-1/2 transform -translate-x-1/2">
+            Datty
+        </h1>
+<button class="flex-shrink-0 text-primary dark:text-primary-fixed-dim hover:opacity-80 transition-opacity scale-95 duration-200 p-2">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</header>
+<!-- Main Content Area -->
+<main class="flex-grow w-full max-w-[1024px] mx-auto px-margin-mobile md:px-margin-desktop py-lg flex flex-col gap-xl md:gap-xxl">
+<!-- Header Section -->
+<section class="flex flex-col gap-sm text-center md:text-left mt-md">
+<h2 class="font-display-lg text-display-lg text-primary">Play Together</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">Discover new ways to connect. Choose a game to spark joy, laughter, and deeper intimacy.</p>
+</section>
+<!-- Bento Grid / Games Grid -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-lg auto-rows-[minmax(250px,auto)]">
+<!-- Game 1: Truth or Dare (Large Featured) -->
+<article class="md:col-span-8 bg-surface-container rounded-xl overflow-hidden relative group cursor-pointer transition-all duration-300 game-card-hover border border-outline-variant/30 flex flex-col md:flex-row shadow-[0_4px_12px_rgba(96,22,46,0.05)]">
+<div class="w-full md:w-1/2 h-48 md:h-full relative overflow-hidden bg-primary-container/10">
+<div class="absolute inset-0 bg-cover bg-center w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out" data-alt="A playful, stylized editorial illustration showing two abstract figures leaning towards each other, surrounded by floating question marks and spark symbols. The art style is sophisticated, using deep berry red (#60162e) and soft blush (#fceae9) colors to convey a warm, intimate, and slightly mysterious mood." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB38wTvT_hqffiQ2dd5BEata4FdbjVM9cihunacLUyUYY70WmV6W5-0kwzZ4WKyAek4D2-Zs8k4zqwDfw_hbmmJpbzqLkZdLciUGY2DXRf-G6lbfoonNSSRDdjHs1pPZqhQ6aemaBAvZuwG1Ef8nrEdEt0stxBS0Aflh1JiQiEkAixGwqGr783Yw4jceCLu3zl4CHuaKPyV5BXwoWfk0uwMbtzPtfdS1-LxS-S9OZaEs1w8jO46ko7d')"></div>
+</div>
+<div class="p-lg md:p-xl flex flex-col justify-center w-full md:w-1/2 h-full z-10 bg-surface-container/90 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none">
+<div class="flex items-center gap-2 mb-4">
+<span class="bg-primary text-on-primary font-label-sm text-label-sm px-3 py-1 rounded-full uppercase tracking-wider">Spicy</span>
+<span class="text-primary"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">local_fire_department</span></span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-2">Truth or Dare</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6 flex-grow">Dive into secrets and bold challenges. Perfect for a cozy night in to test your boundaries playfully.</p>
+<button class="bg-primary text-on-primary font-label-md text-label-md py-3 px-6 rounded-lg self-start hover:scale-[0.97] transition-transform shadow-[0_4px_12px_rgba(96,22,46,0.2)]">Play Now</button>
+</div>
+</article>
+<!-- Game 2: Trivia Night -->
+<article class="md:col-span-4 bg-surface-container-low rounded-xl overflow-hidden relative group cursor-pointer transition-all duration-300 game-card-hover border border-outline-variant/30 flex flex-col shadow-[0_4px_12px_rgba(96,22,46,0.03)]">
+<div class="w-full h-40 relative overflow-hidden bg-secondary-container/20">
+<div class="absolute inset-0 bg-cover bg-center w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out" data-alt="A charming, minimalist illustration of two overlapping thought bubbles containing abstract shapes and a lightbulb icon. The aesthetic is modern and sophisticated, rendered in warm neutrals and soft blush tones (#e8dddf, #ffd9df) to evoke a sense of thoughtful connection and shared memory." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB8Zo8pACJyWsxm0QC3a60o6mNf07ipGXHjv-g7gQ5yaSt_RLkHyrXwlr79aXRnUS3wy-uKDlhVTBOYoC5mVTTGuUs0D4ZJlPsuL1125yrtKfbxBf9zAP7NUdA1VcHb6DJmP2_oYrIxsTzUPJUMP6zboe4KhQO4dB5GNeu01DaOS2SzbsvuHcbN6-0bd2v_kcqLr68X-mXZnQq-e_7C7PvzSwxc_ucKVTzTMmcwoq_1xozIW4ZHLjQ4')"></div>
+</div>
+<div class="p-md md:p-lg flex flex-col flex-grow">
+<div class="flex items-center gap-2 mb-3">
+<span class="bg-secondary-container text-on-secondary-container font-label-sm text-label-sm px-3 py-1 rounded-full uppercase tracking-wider">Brain</span>
+<span class="text-secondary"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">psychology</span></span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-2">Trivia Night</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-4 flex-grow">How well do you really know each other? Test your knowledge on your shared history.</p>
+<div class="mt-auto flex justify-end">
+<span class="text-primary group-hover:translate-x-1 transition-transform"><span class="material-symbols-outlined">arrow_forward</span></span>
+</div>
+</div>
+</article>
+<!-- Game 3: Memory Lane -->
+<article class="md:col-span-4 bg-[#f8ecee] rounded-xl overflow-hidden relative group cursor-pointer transition-all duration-300 game-card-hover border border-outline-variant/30 flex flex-col shadow-[0_4px_12px_rgba(96,22,46,0.03)]">
+<div class="w-full h-40 relative overflow-hidden bg-tertiary-container/10">
+<div class="absolute inset-0 bg-cover bg-center w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out" data-alt="A nostalgic, softly textured illustration of a vintage polaroid camera alongside scattered photo prints. The style is premium editorial, utilizing a palette of muted berry tones (#984259) and warm parchment (#fff8f7) to create a sentimental, timeless mood for recalling shared memories." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB4qvXhnc10BSswQ6auUmXC9jBgqIQoitHuWIRkVVDYdgPvah_W1tifPVYlJwK30JNiO-gR3bKqqMZvCYOTf6vRHZORYnI1Zqs1-_Y35IXIwtii_aCN2UqeLXmxzAgZ8kKcnT-iYYDpHFX86CT7MKEcV0VJBgBoc-sRJxThQ6YDOCzDcEKCves_FlR8LdDs9YBqg7-IwLiREeYOn_6yN5LPwvfTekwPiqMaup7L3IcE5gVWaSrT0dN4')"></div>
+</div>
+<div class="p-md md:p-lg flex flex-col flex-grow">
+<div class="flex items-center gap-2 mb-3">
+<span class="bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-label-sm px-3 py-1 rounded-full uppercase tracking-wider">Sentimental</span>
+<span class="text-tertiary"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">photo_library</span></span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-2">Memory Lane</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-4 flex-grow">Relive your favorite moments. Revisit past photos and share what you felt then.</p>
+<div class="mt-auto flex justify-end">
+<span class="text-primary group-hover:translate-x-1 transition-transform"><span class="material-symbols-outlined">arrow_forward</span></span>
+</div>
+</div>
+</article>
+<!-- Game 4: Drawing Duel -->
+<article class="md:col-span-8 bg-surface-container rounded-xl overflow-hidden relative group cursor-pointer transition-all duration-300 game-card-hover border border-outline-variant/30 flex flex-col md:flex-row-reverse shadow-[0_4px_12px_rgba(96,22,46,0.05)]">
+<div class="w-full md:w-1/2 h-48 md:h-full relative overflow-hidden bg-secondary-container/30">
+<div class="absolute inset-0 bg-cover bg-center w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out" data-alt="A dynamic, abstract editorial illustration depicting overlapping fluid brushstrokes and a stylized pencil. The color scheme is bright yet sophisticated, mixing soft blush (#ffb1c1) with deep berry accents (#7a2b42) on a warm background, suggesting creativity and playful competition." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDRqNF2bWZBi42z54sTArSaJpYLebOUt1U0U6-l7CBO0PVFbK4YndhFsJ5KY51nq0le5K9WT161_Q_07pSGeTR9pFzJF--LF0i3NhYVrYH0au8e4gBjEcoFKrILd1-L-sjEwAp30ytBVBui0ai8hIdH8eJWAtuNEgSEQgce5WQDMm3FiKES2fcoU5sUYH5-FmM_I7Z6V6jJDC280uaCjjrbRJYUeSHUnOvzv7n4gRPPgcfAA6lS-CBK')"></div>
+</div>
+<div class="p-lg md:p-xl flex flex-col justify-center w-full md:w-1/2 h-full z-10 bg-surface-container/90 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none">
+<div class="flex items-center gap-2 mb-4">
+<span class="bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm px-3 py-1 rounded-full uppercase tracking-wider">Creative</span>
+<span class="text-secondary"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">draw</span></span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-2">Drawing Duel</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6 flex-grow">A rapid-fire sketching game. Express yourselves visually and see who can guess fastest.</p>
+<button class="border border-primary text-primary font-label-md text-label-md py-3 px-6 rounded-lg self-start hover:scale-[0.97] hover:bg-primary/5 transition-all">Start Duel</button>
+</div>
+</article>
+</section>
+<!-- Spacer for mobile nav -->
+<div class="h-10 md:hidden w-full"></div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 bg-background/80 dark:bg-background/80 backdrop-blur-xl md:hidden pb-safe">
+<!-- Today (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-secondary-fixed-variant hover:bg-secondary-container/50 transition-colors scale-95 duration-200 active:scale-90 p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined mb-1">favorite</span>
+<span class="font-label-sm text-label-sm">Today</span>
+</a>
+<!-- Cards (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-secondary-fixed-variant hover:bg-secondary-container/50 transition-colors scale-95 duration-200 active:scale-90 p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined mb-1">style</span>
+<span class="font-label-sm text-label-sm">Cards</span>
+</a>
+<!-- Games (Active) -->
+<a class="flex flex-col items-center justify-center bg-primary-fixed text-on-primary-fixed-variant rounded-full px-4 py-1.5 hover:bg-secondary-container/50 transition-colors scale-95 duration-200 active:scale-90" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">videogame_asset</span>
+<span class="font-label-sm text-label-sm">Games</span>
+</a>
+<!-- Moments (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-secondary-fixed-variant hover:bg-secondary-container/50 transition-colors scale-95 duration-200 active:scale-90 p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined mb-1">auto_awesome</span>
+<span class="font-label-sm text-label-sm">Moments</span>
+</a>
+<!-- Chat (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-secondary-fixed-variant hover:bg-secondary-container/50 transition-colors scale-95 duration-200 active:scale-90 p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined mb-1">chat_bubble</span>
+<span class="font-label-sm text-label-sm">Chat</span>
+</a>
+<!-- Calendar (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-secondary-fixed-variant hover:bg-secondary-container/50 transition-colors scale-95 duration-200 active:scale-90 p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined mb-1">calendar_today</span>
+<span class="font-label-sm text-label-sm">Calendar</span>
+</a>
+</nav>
+</body></html>

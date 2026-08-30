@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Datty - Shared Calendar</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&amp;family=Manrope:wght@200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#4c4547",
+                        "error": "#ba1a1a",
+                        "surface": "#fff8f7",
+                        "on-primary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed": "#ffdad9",
+                        "outline-variant": "#d9c1c4",
+                        "surface-tint": "#984259",
+                        "tertiary-fixed-dim": "#e7bcbc",
+                        "primary-fixed-dim": "#ffb1c1",
+                        "secondary-container": "#e8dddf",
+                        "background": "#fff8f7",
+                        "on-primary-container": "#ff9bb2",
+                        "primary-fixed": "#ffd9df",
+                        "on-error-container": "#93000a",
+                        "on-tertiary": "#ffffff",
+                        "surface-dim": "#e7d6d6",
+                        "on-tertiary-container": "#d8aeae",
+                        "primary-container": "#7d2d44",
+                        "inverse-primary": "#ffb1c1",
+                        "surface-variant": "#f0dfde",
+                        "on-primary-fixed-variant": "#7a2b42",
+                        "surface-container": "#fceae9",
+                        "surface-container-low": "#fff0f0",
+                        "on-tertiary-fixed": "#2d1515",
+                        "on-surface-variant": "#544245",
+                        "secondary": "#645c5e",
+                        "on-error": "#ffffff",
+                        "on-secondary-container": "#696162",
+                        "tertiary-container": "#604141",
+                        "inverse-surface": "#382e2e",
+                        "tertiary": "#472b2c",
+                        "surface-container-high": "#f6e4e4",
+                        "inverse-on-surface": "#feedec",
+                        "surface-container-highest": "#f0dfde",
+                        "outline": "#867275",
+                        "surface-bright": "#fff8f7",
+                        "on-secondary-fixed": "#201a1c",
+                        "on-background": "#221919",
+                        "secondary-fixed-dim": "#cfc4c6",
+                        "on-surface": "#221919",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-fixed": "#3f0018",
+                        "on-tertiary-fixed-variant": "#5e3f3f",
+                        "secondary-fixed": "#ebe0e2",
+                        "primary": "#60162e",
+                        "on-secondary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-desktop": "auto",
+                        "margin-mobile": "20px",
+                        "xxl": "64px",
+                        "gutter": "16px",
+                        "xl": "40px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "unit": "4px",
+                        "lg": "24px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Manrope", "sans-serif"],
+                        "body-lg": ["Manrope", "sans-serif"],
+                        "label-sm": ["Manrope", "sans-serif"],
+                        "label-md": ["Manrope", "sans-serif"],
+                        "headline-lg": ["EB Garamond", "serif"],
+                        "headline-md": ["EB Garamond", "serif"],
+                        "headline-lg-mobile": ["EB Garamond", "serif"],
+                        "display-lg": ["EB Garamond", "serif"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "500" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Base styles to ensure consistency */
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-margin-mobile md:px-margin-desktop h-16 bg-background/80 dark:bg-background/80 backdrop-blur-xl transition-all duration-300">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full overflow-hidden border-2 border-surface-container ring-1 ring-outline-variant/30 hover:opacity-80 transition-opacity cursor-pointer">
+<img alt="Partner's Profile Picture" class="w-full h-full object-cover" data-alt="A close-up portrait of a young couple smiling warmly, softly lit with warm, natural sunlight in a cozy indoor setting, embodying a romantic and intimate premium editorial aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMRXTn5p6e3M1k-Ga-Nrwa8h2KmP5VIOC5pEFh2oPnSYs3g3LDmrXVAwjafwlPJbIru3OL7LgyECSqN7-l70elLMg4FvRPI6ghmfqFW4gC2tBHrNOgpTZ3xBXh0rwCvDNLMw_dgWkyK5ts8HPVF_CoUs0A9rAFwHYRx2TvTjb0uWmFNkHIGsrpXIhyRn_ITKFTPAjTfnrus8OUGs2i4sfYAmBV2nDf_4I9txD-XD0rIy9hEdRGDaGa"/>
+</div>
+</div>
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary dark:text-primary-fixed-dim tracking-tight">Datty</h1>
+<button aria-label="Settings" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant/50 transition-colors scale-95 duration-200 transition-transform active:scale-90">
+<span class="material-symbols-outlined" style="font-variation-settings: 'wght' 300;">settings</span>
+</button>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow pt-24 pb-32 px-margin-mobile md:px-margin-desktop max-w-lg mx-auto w-full flex flex-col gap-xl">
+<!-- Calendar Section -->
+<section class="flex flex-col gap-lg">
+<!-- Calendar Header -->
+<div class="flex items-center justify-between px-2">
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<h2 class="font-headline-md text-headline-md-mobile text-primary">October 2024</h2>
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+<!-- Calendar Grid -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_24px_-12px_rgba(96,22,46,0.08)]">
+<!-- Weekdays -->
+<div class="grid grid-cols-7 gap-1 mb-4">
+<div class="text-center font-label-sm text-label-sm text-outline uppercase tracking-wider">S</div>
+<div class="text-center font-label-sm text-label-sm text-outline uppercase tracking-wider">M</div>
+<div class="text-center font-label-sm text-label-sm text-outline uppercase tracking-wider">T</div>
+<div class="text-center font-label-sm text-label-sm text-outline uppercase tracking-wider">W</div>
+<div class="text-center font-label-sm text-label-sm text-outline uppercase tracking-wider">T</div>
+<div class="text-center font-label-sm text-label-sm text-outline uppercase tracking-wider">F</div>
+<div class="text-center font-label-sm text-label-sm text-outline uppercase tracking-wider">S</div>
+</div>
+<!-- Days (Simulated for October 2024, starting on Tuesday) -->
+<div class="grid grid-cols-7 gap-y-3 gap-x-1">
+<!-- Empty slots for previous month -->
+<div class="aspect-square"></div>
+<div class="aspect-square"></div>
+<!-- Days 1-13 -->
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">1</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">2</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">3</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">4</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">5</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">6</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">7</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">8</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">9</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">10</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">11</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">12</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">13</span></button>
+<!-- Highlighted Day: Anniversary -->
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md bg-primary text-on-primary hover:opacity-90 transition-opacity relative shadow-[0_4px_12px_rgba(96,22,46,0.3)]">
+<span class="z-10 font-bold">14</span>
+<span class="material-symbols-outlined absolute -top-1 -right-1 text-[12px] text-primary-fixed bg-surface-container-lowest rounded-full p-[2px]" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">15</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">16</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">17</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">18</span></button>
+<!-- Day with event dot -->
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative flex-col">
+<span class="z-10">19</span>
+<div class="w-1.5 h-1.5 rounded-full bg-primary absolute bottom-1.5"></div>
+</button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative flex-col">
+<span class="z-10">20</span>
+</button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative flex-col">
+<span class="z-10">21</span>
+</button>
+<!-- Day with event dot -->
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative flex-col bg-surface-container ring-1 ring-primary-container/20">
+<span class="z-10 font-medium text-primary">22</span>
+<div class="w-1.5 h-1.5 rounded-full bg-primary absolute bottom-1.5"></div>
+</button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">23</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">24</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">25</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">26</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">27</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">28</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">29</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">30</span></button>
+<button class="aspect-square flex items-center justify-center rounded-full font-body-md text-on-surface hover:bg-surface-container-high transition-colors relative"><span class="z-10">31</span></button>
+</div>
+</div>
+</section>
+<!-- Upcoming Section -->
+<section class="flex flex-col gap-md">
+<h3 class="font-headline-md text-headline-md-mobile text-primary px-1">Upcoming</h3>
+<div class="flex flex-col gap-sm">
+<!-- Event Card 1 (Anniversary) -->
+<div class="flex items-center p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 hover:bg-surface-container transition-colors cursor-pointer group">
+<div class="w-12 h-12 rounded-lg bg-primary-fixed flex items-center justify-center text-on-primary-fixed shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)] shrink-0">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</div>
+<div class="ml-4 flex-grow">
+<h4 class="font-label-md text-label-md text-on-surface">Our 2nd Anniversary</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Monday, Oct 14</p>
+</div>
+<div class="w-8 h-8 rounded-full flex items-center justify-center text-outline group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</div>
+</div>
+<!-- Event Card 2 (Dinner) -->
+<div class="flex items-center p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 hover:bg-surface-container transition-colors cursor-pointer group">
+<div class="w-12 h-12 rounded-lg overflow-hidden shrink-0">
+<div class="bg-cover bg-center w-full h-full opacity-90 group-hover:scale-105 transition-transform duration-500" data-alt="A beautifully plated gourmet dish at an upscale, warmly lit restaurant. The lighting is soft and romantic, reflecting off elegant glassware and polished silverware, evoking a high-end dining experience suitable for a celebratory evening." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC4Ovvm43oVYILUgk75SUeJZ5i3WGL7cd7tfl4xRqxtX_yJDZ4FhG-ZhCjCGf_8QQlb5jP0eHWA2NvxPoTDtx-KK2Tt5xX1zWdph4oHXb9l3PBNtLozpFWTbOPlNljqdpmRTf2hG5E1oNyG0xq1GB1s-6ynKt9HDXJgR5PsWQNlYB1uzgOjgVb5GyFtsCvyl1ZEjp0zmJt8VvBilWk2BzLV64uyzgtZLOLvGfXlYfGBbtdwbjyu-JPx')"></div>
+</div>
+<div class="ml-4 flex-grow">
+<h4 class="font-label-md text-label-md text-on-surface">Dinner at Lucca</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Tuesday, Oct 22 • 7:30 PM</p>
+</div>
+<div class="w-8 h-8 rounded-full flex items-center justify-center text-outline group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</div>
+</div>
+</div>
+<!-- Add Event Button -->
+<button class="mt-4 w-full flex items-center justify-center gap-2 py-3.5 rounded-lg bg-surface-container border border-outline-variant/40 text-primary font-label-md text-label-md hover:bg-surface-variant transition-colors active:scale-[0.98]">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                Add Event
+            </button>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 bg-background/80 dark:bg-background/80 backdrop-blur-xl md:hidden">
+<!-- Tab 1: Today -->
+<button class="flex flex-col items-center justify-center text-on-secondary-fixed-variant hover:bg-secondary-container/50 transition-colors rounded-xl px-3 py-1 scale-95 duration-200 active:scale-90">
+<span class="material-symbols-outlined mb-1">favorite</span>
+<span class="font-label-sm text-label-sm">Today</span>
+</button>
+<!-- Tab 2: Cards -->
+<button class="flex flex-col items-center justify-center text-on-secondary-fixed-variant hover:bg-secondary-container/50 transition-colors rounded-xl px-3 py-1 scale-95 duration-200 active:scale-90">
+<span class="material-symbols-outlined mb-1">style</span>
+<span class="font-label-sm text-label-sm">Cards</span>
+</button>
+<!-- Tab 3: Games -->
+<button class="flex flex-col items-center justify-center text-on-secondary-fixed-variant hover:bg-secondary-container/50 transition-colors rounded-xl px-3 py-1 scale-95 duration-200 active:scale-90">
+<span class="material-symbols-outlined mb-1">videogame_asset</span>
+<span class="font-label-sm text-label-sm">Games</span>
+</button>
+<!-- Tab 4: Moments -->
+<button class="flex flex-col items-center justify-center text-on-secondary-fixed-variant hover:bg-secondary-container/50 transition-colors rounded-xl px-3 py-1 scale-95 duration-200 active:scale-90">
+<span class="material-symbols-outlined mb-1">auto_awesome</span>
+<span class="font-label-sm text-label-sm">Moments</span>
+</button>
+<!-- Tab 5: Chat -->
+<button class="flex flex-col items-center justify-center text-on-secondary-fixed-variant hover:bg-secondary-container/50 transition-colors rounded-xl px-3 py-1 scale-95 duration-200 active:scale-90">
+<span class="material-symbols-outlined mb-1">chat_bubble</span>
+<span class="font-label-sm text-label-sm">Chat</span>
+</button>
+<!-- Tab 6: Calendar (ACTIVE) -->
+<button class="flex flex-col items-center justify-center bg-primary-fixed text-on-primary-fixed-variant rounded-full px-4 py-1.5 hover:bg-secondary-container/50 transition-colors scale-95 duration-200 active:scale-90">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">calendar_today</span>
+<span class="font-label-sm text-label-sm">Calendar</span>
+</button>
+</nav>
+</body></html>

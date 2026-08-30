@@ -305,8 +305,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-7-would-you-rather-choose-wisely-or-don-t-",
-    "title": "Would You Rather? (Choose Wisely or Don't)",
+    "id": "deck-7-would-you-rather-",
+    "title": "Would You Rather?",
     "category": "Would You Rather?",
     "subtitle": "Choose wisely (or don't).",
     "color": "#EA580C",
@@ -351,8 +351,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-8-would-you-rather-hypotheticals-and-chaos-",
-    "title": "Would You Rather? (Hypotheticals and Chaos)",
+    "id": "deck-8-would-you-rather-",
+    "title": "Would You Rather?",
     "category": "Would You Rather?",
     "subtitle": "Hypotheticals and chaos.",
     "color": "#EA580C",
@@ -949,8 +949,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-21-parenting-perspectives-future-chaos-coordinators-",
-    "title": "Parenting Perspectives (Future Chaos Coordinators)",
+    "id": "deck-21-parenting-perspectives",
+    "title": "Parenting Perspectives",
     "category": "Parenting Perspectives",
     "subtitle": "Future chaos coordinators.",
     "color": "#D97706",
@@ -995,8 +995,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-22-parenting-perspectives-legacy-begins-at-home-",
-    "title": "Parenting Perspectives (Legacy Begins at Home)",
+    "id": "deck-22-parenting-perspectives",
+    "title": "Parenting Perspectives",
     "category": "Parenting Perspectives",
     "subtitle": "Legacy begins at home.",
     "color": "#D97706",
@@ -1041,8 +1041,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-23-wellness-babe-drink-more-water-",
-    "title": "Wellness (Babe, Drink More Water)",
+    "id": "deck-23-wellness",
+    "title": "Wellness",
     "category": "Wellness",
     "subtitle": "Babe, drink more water.",
     "color": "#059669",
@@ -1087,8 +1087,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-24-wellness-healthy-minds-healthy-bodies-",
-    "title": "Wellness (Healthy Minds, Healthy Bodies)",
+    "id": "deck-24-wellness",
+    "title": "Wellness",
     "category": "Wellness",
     "subtitle": "Healthy minds, healthy bodies.",
     "color": "#059669",
@@ -1133,8 +1133,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-25-photo-prompts-capture-your-memories-",
-    "title": "Photo Prompts (Capture Your Memories)",
+    "id": "deck-25-photo-prompts",
+    "title": "Photo Prompts",
     "category": "Photo Prompts",
     "subtitle": "Capture your memories.",
     "color": "#0284C7",
@@ -1179,8 +1179,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-26-photo-prompts-flick-them-up-",
-    "title": "Photo Prompts (Flick Them Up)",
+    "id": "deck-26-photo-prompts",
+    "title": "Photo Prompts",
     "category": "Photo Prompts",
     "subtitle": "Flick them up.",
     "color": "#0284C7",
@@ -1225,8 +1225,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-27-hot-spicy-the-popular-questions-",
-    "title": "Hot & Spicy (The Popular Questions)",
+    "id": "deck-27-hot-spicy",
+    "title": "Hot & Spicy",
     "category": "Hot & Spicy",
     "subtitle": "The popular questions.",
     "color": "#DC2626",
@@ -1271,8 +1271,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-28-hot-spicy-for-before-things-heat-up-",
-    "title": "Hot & Spicy (For Before Things Heat Up)",
+    "id": "deck-28-hot-spicy",
+    "title": "Hot & Spicy",
     "category": "Hot & Spicy",
     "subtitle": "For before things heat up.",
     "color": "#DC2626",
@@ -1317,8 +1317,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-29-hot-spicy-philosophize-and-fantasize-",
-    "title": "Hot & Spicy (Philosophize and Fantasize)",
+    "id": "deck-29-hot-spicy",
+    "title": "Hot & Spicy",
     "category": "Hot & Spicy",
     "subtitle": "Philosophize and fantasize.",
     "color": "#DC2626",
@@ -1363,8 +1363,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-30-hot-spicy-the-ones-you-want-to-ask-",
-    "title": "Hot & Spicy (The Ones You Want to Ask)",
+    "id": "deck-30-hot-spicy",
+    "title": "Hot & Spicy",
     "category": "Hot & Spicy",
     "subtitle": "The ones you want to ask.",
     "color": "#DC2626",
@@ -1409,8 +1409,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-31-hot-spicy-raw-next-question-",
-    "title": "Hot & Spicy (Raw. Next Question.)",
+    "id": "deck-31-hot-spicy",
+    "title": "Hot & Spicy",
     "category": "Hot & Spicy",
     "subtitle": "Raw. Next question.",
     "color": "#DC2626",
@@ -1455,8 +1455,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-32-hot-spicy-foreplay-started-yesterday-",
-    "title": "Hot & Spicy (Foreplay Started Yesterday)",
+    "id": "deck-32-hot-spicy",
+    "title": "Hot & Spicy",
     "category": "Hot & Spicy",
     "subtitle": "Foreplay started yesterday.",
     "color": "#DC2626",
@@ -1501,8 +1501,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-33-future-plans-dreams-dream-big-together-",
-    "title": "Future Plans & Dreams (Dream Big Together)",
+    "id": "deck-33-future-plans-dreams",
+    "title": "Future Plans & Dreams",
     "category": "Future Plans & Dreams",
     "subtitle": "Dream big together.",
     "color": "#0D9488",
@@ -1547,8 +1547,8 @@ const RAW_DECKS_DATA: CardDeck[] = [
     ]
   },
   {
-    "id": "deck-34-future-plans-dreams-write-the-next-chapter-",
-    "title": "Future Plans & Dreams (Write the Next Chapter)",
+    "id": "deck-34-future-plans-dreams",
+    "title": "Future Plans & Dreams",
     "category": "Future Plans & Dreams",
     "subtitle": "Write the next chapter.",
     "color": "#0D9488",

@@ -1,6 +1,6 @@
 # Category: Future Plans & Dreams
 
-## Deck: Future Plans & Dreams (Dream Big Together)
+## Deck: Future Plans & Dreams
 > Subtitle: "Dream big together."
 
 1. If money, visas, and obligations were zero object, what does our dream home and location look like?
@@ -41,7 +41,7 @@
 
 ---
 
-## Deck: Future Plans & Dreams (Write the Next Chapter)
+## Deck: Future Plans & Dreams
 > Subtitle: "Write the next chapter."
 
 1. What are the top three concrete milestones we need to achieve together in the next 12 to 24 months?

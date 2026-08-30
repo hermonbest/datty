@@ -1,6 +1,6 @@
 # Category: Would You Rather?
 
-## Deck: Would You Rather? (Choose Wisely or Don't)
+## Deck: Would You Rather?
 > Subtitle: "Choose wisely (or don't)."
 
 1. Would you rather always have to say everything that’s on your mind or never be able to speak again?
@@ -41,7 +41,7 @@
 
 ---
 
-## Deck: Would You Rather? (Hypotheticals and Chaos)
+## Deck: Would You Rather?
 > Subtitle: "Hypotheticals and chaos."
 
 1. Would you rather fight off a zombie horde with a frying pan or survive in Jurassic Park with a laser pointer?

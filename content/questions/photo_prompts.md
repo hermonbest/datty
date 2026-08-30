@@ -1,6 +1,6 @@
 # Category: Photo Prompts
 
-## Deck: Photo Prompts (Capture Your Memories)
+## Deck: Photo Prompts
 > Subtitle: "Capture your memories."
 
 1. Show me the very oldest photo of yourself saved on your current phone, and tell me the story behind it.
@@ -41,7 +41,7 @@
 
 ---
 
-## Deck: Photo Prompts (Flick Them Up)
+## Deck: Photo Prompts
 > Subtitle: "Flick them up."
 
 1. Take a selfie making the most dramatically exaggerated shocked expression you can muster in 3 seconds.
