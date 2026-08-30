@@ -11,3 +11,16 @@ index 3badbf1..d6fb410 100644
            ref.record()
          }
        }
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecorder.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecorder.kt
+index 0572e8e..1f06fc3 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecorder.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecorder.kt
+@@ -116,7 +116,7 @@ class AudioRecorder(
+       return
+     }
+     with(recorder) {
+-      setAudioSource(MediaRecorder.AudioSource.MIC)
++      setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
+       if (options.outputFormat != null) {
+         setOutputFormat(options.outputFormat.toMediaOutputFormat())
+       } else {

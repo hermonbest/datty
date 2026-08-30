@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, BackHandler } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -156,6 +156,21 @@ function AuthStack() {
   return <SignInScreen onNavigateToSignUp={() => setScreen('signup')} />;
 }
 
+// Full-screen overlay that locks the app while keeping MainTabs mounted, so
+// in-progress work (voice recordings, drafts, picked images) survives a lock.
+function LockOverlay() {
+  useEffect(() => {
+    // Android hardware back must not exit the app while locked.
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => sub.remove();
+  }, []);
+  return (
+    <View style={styles.lockOverlay} pointerEvents="auto">
+      <PasscodeScreen mode="unlock" />
+    </View>
+  );
+}
+
 // Root Navigator
 export const RootNavigator: React.FC = () => {
   const { user, isLinked, loading: coupleLoading } = useCouple();
@@ -188,16 +203,18 @@ export const RootNavigator: React.FC = () => {
     return <PasscodeScreen mode="setup" />;
   }
 
-  // 4. Authenticated: App locked
-  if (isLocked) {
-    return <PasscodeScreen mode="unlock" />;
-  }
-
-  // 5. Authenticated & Unlocked -> Main navigation
+  // 4/5. Authenticated & configured: the app stays mounted at all times; the
+  //      passcode locks it via a full-screen overlay. Nothing unmounts on a
+  //      lock trip, so recordings/drafts/picked images are preserved.
   return (
-    <NavigationContainer>
-      {!isLinked ? <UnlinkedCoupleScreen /> : <MainTabs />}
-    </NavigationContainer>
+    <View style={styles.lockedRoot}>
+      <View style={styles.appLayer}>
+        <NavigationContainer>
+          {!isLinked ? <UnlinkedCoupleScreen /> : <MainTabs />}
+        </NavigationContainer>
+      </View>
+      {isLocked && <LockOverlay />}
+    </View>
   );
 };
 
@@ -223,5 +240,18 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginTop: spacing.md,
     letterSpacing: -0.5,
+  },
+  lockedRoot: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  appLayer: {
+    flex: 1,
+  },
+  lockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    elevation: 100,
+    backgroundColor: colors.background,
   },
 });

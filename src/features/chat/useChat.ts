@@ -3,18 +3,18 @@ import {
   ref as dbRef,
   push,
   update,
+  set,
   onValue,
   query,
   orderByKey,
   limitToLast,
   serverTimestamp,
 } from 'firebase/database';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { rtdb, storage } from '../../services/firebase';
-import { readFileAsUint8Array, getFileSizeBytes } from '../../services/fileToBytes';
-import { prepareImageForUpload } from '../../services/imagePrep';
+import { rtdb } from '../../services/firebase';
+import { uploadFileToCloudinary, getFileSizeBytes } from '../../services/fileToBytes';
 import { useCouple } from '../../services/coupleContext';
 import { ChatMessage, ChatReplyReference, MediaState } from '../../types';
+
 
 // Keep the last N messages live; older ones can be lazily loaded later if needed.
 const MESSAGE_LIMIT = 150;
@@ -95,37 +95,27 @@ export const useChat = () => {
     return () => unsubscribe();
   }, [coupleId, chatPath]);
 
-  // Upload chat image helper (compressed before upload to avoid Android OOM crash)
+  // Upload chat image — Cloudinary unsigned upload (free, no Firebase Storage needed).
   const uploadChatImage = useCallback(
     async (uri: string): Promise<string> => {
       if (!coupleId) throw new Error('Couple not found');
-      const preparedUri = await prepareImageForUpload(uri);
-      const size = await getFileSizeBytes(preparedUri);
+      const size = await getFileSizeBytes(uri);
       if (size !== null && size > MAX_UPLOAD_BYTES) {
         throw new Error('Photo is too large to send (max 15MB).');
       }
-      const bytes = await readFileAsUint8Array(preparedUri);
-      const filename = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.jpg`;
-      const storageRefPath = storageRef(storage, `couples/${coupleId}/chat/${filename}`);
-
-      await uploadBytes(storageRefPath, bytes, { contentType: 'image/jpeg' });
-      const downloadURL = await getDownloadURL(storageRefPath);
-      return downloadURL;
+      console.log('[useChat] Uploading image to Cloudinary');
+      return uploadFileToCloudinary(uri, 'image', `datty/${coupleId}/chat`);
     },
     [coupleId]
   );
 
-  // Upload chat voice note helper (.m4a audio)
+  // Upload chat voice note — use 'raw' resource type so Cloudinary stores the
+  // original .m4a without transcoding to .3gp (which expo-audio can't play back).
   const uploadChatAudio = useCallback(
     async (uri: string): Promise<string> => {
       if (!coupleId) throw new Error('Couple not found');
-      const bytes = await readFileAsUint8Array(uri);
-      const filename = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.m4a`;
-      const storageRefPath = storageRef(storage, `couples/${coupleId}/chat/${filename}`);
-
-      await uploadBytes(storageRefPath, bytes, { contentType: 'audio/mp4' });
-      const downloadURL = await getDownloadURL(storageRefPath);
-      return downloadURL;
+      console.log('[useChat] Uploading audio to Cloudinary');
+      return uploadFileToCloudinary(uri, 'raw', `datty/${coupleId}/chat`);
     },
     [coupleId]
   );
@@ -142,14 +132,16 @@ export const useChat = () => {
       if (!coupleId || !myUid || !chatPath) return;
       if (!text?.trim() && !imageUri && !audio) return;
 
-      const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const newMsgRef = push(dbRef(rtdb, chatPath));
+      const messageId = newMsgRef.key as string;
+
       const hasMedia = Boolean(imageUri || audio);
       const optimisticMsg: ChatMessage = {
-        id: tempId,
+        id: messageId,
         senderUid: myUid,
         text: text?.trim() || null,
-        imageURL: imageUri || null,
-        audioURL: audio?.uri || null,
+        imageURL: null,
+        audioURL: null,
         audioDuration: audio?.duration || null,
         createdAt: new Date(),
         replyTo: replyTo || null,
@@ -178,11 +170,10 @@ export const useChat = () => {
       try {
         // 2. Push to RTDB — local echo means our own list updates instantly,
         //    and the listener keeps the partner in sync.
-        const newMsgRef = push(dbRef(rtdb, chatPath), payload);
-        await newMsgRef;
+        await set(newMsgRef, payload);
 
-        // Remove temp optimistic message once real one arrives
-        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        // Remove temp optimistic message once real one arrives (cleanup just in case)
+        setMessages((prev) => prev.filter((m) => m.id !== messageId || !m.pending));
 
         // 3. Upload media in the background, then patch the node with the URL.
         if (imageUri || audio) {
@@ -203,7 +194,7 @@ export const useChat = () => {
         console.error('[useChat] Send message error:', err);
         // Rollback optimistic message into error state
         setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, pending: false, error: true } : m))
+          prev.map((m) => (m.id === messageId ? { ...m, pending: false, error: true } : m))
         );
         setError('Failed to send message.');
         throw err;

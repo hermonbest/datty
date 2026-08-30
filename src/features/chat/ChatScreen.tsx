@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
+  AppState,
   View,
   Text,
   StyleSheet,
@@ -17,18 +18,20 @@ import {
 import { format, isToday, isYesterday } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  useAudioRecorder,
+  AudioModule,
   useAudioPlayer,
   useAudioPlayerStatus,
   setAudioModeAsync,
   requestRecordingPermissionsAsync,
   IOSOutputFormat,
   AudioQuality,
+  type AudioRecorder,
   type RecordingOptions,
 } from 'expo-audio';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { Avatar, Skeleton, EmptyState, useToast } from '../../components';
 import { useCouple } from '../../services/coupleContext';
+import { usePasscode } from '../../services/passcodeContext';
 import { usePresence } from '../../services/usePresence';
 import { useChat } from './useChat';
 import {
@@ -56,23 +59,28 @@ const MAX_RECORDING_MS = 10 * 60 * 1000; // 10 minutes
 
 const RECORDING_OPTIONS: RecordingOptions = {
   extension: '.m4a',
-  sampleRate: 44100,
+  sampleRate: 48000,
   numberOfChannels: 1,
-  bitRate: 64000,
-  isMeteringEnabled: true,
+  bitRate: 128000,
+  isMeteringEnabled: false,
   android: {
     extension: '.m4a',
     outputFormat: 'mpeg4',
     audioEncoder: 'aac',
-    sampleRate: 44100,
+    sampleRate: 48000,
   },
   ios: {
     extension: '.m4a',
     outputFormat: IOSOutputFormat.MPEG4AAC,
-    audioQuality: AudioQuality.HIGH,
-    sampleRate: 44100,
-    bitRateStrategy: 0,
+    audioQuality: AudioQuality.MAX,
+    sampleRate: 48000,
     linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
+  },
+  web: {
+    mimeType: 'audio/webm',
+    bitsPerSecond: 128000,
   },
 };
 
@@ -118,7 +126,7 @@ const VoiceNoteRow: React.FC<VoiceNoteRowProps> = ({
   const storedDuration = message.audioDuration || 0;
   const totalDuration = isActive && playerDuration > 0 ? playerDuration : storedDuration;
   const progress = isActive && totalDuration > 0 ? Math.min(1, currentTime / totalDuration) : 0;
-  const rowWidth = Math.min(210, Math.max(150, (storedDuration || 30) * 2.2));
+  const rowWidth = Math.min(220, Math.max(160, (storedDuration || 30) * 2.2));
   const activeBarColor = isMe ? '#FFFFFF' : colors.primary;
   const inactiveBarColor = isMe ? 'rgba(255, 255, 255, 0.4)' : colors.border;
 
@@ -126,18 +134,23 @@ const VoiceNoteRow: React.FC<VoiceNoteRowProps> = ({
     <View style={[styles.voiceNoteRow, { width: rowWidth }]}>
       <TouchableOpacity
         onPress={onToggle}
-        activeOpacity={0.8}
+        activeOpacity={0.7}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         style={[styles.voicePlayBtn, isMe ? styles.myVoicePlayBtn : styles.partnerVoicePlayBtn]}
         accessibilityLabel={isPlaying ? 'Pause voice note' : 'Play voice note'}
       >
         {isPlaying ? (
-          <Pause size={14} color={isMe ? colors.primary : '#FFFFFF'} fill={isMe ? colors.primary : '#FFFFFF'} />
+          <Pause size={15} color={isMe ? colors.primary : '#FFFFFF'} fill={isMe ? colors.primary : '#FFFFFF'} />
         ) : (
-          <Play size={14} color={isMe ? '#FFFFFF' : '#FFFFFF'} fill="#FFFFFF" style={{ marginLeft: 1 }} />
+          <Play size={15} color={isMe ? '#FFFFFF' : '#FFFFFF'} fill="#FFFFFF" style={{ marginLeft: 1 }} />
         )}
       </TouchableOpacity>
 
-      <View style={styles.waveformContainer}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={onToggle}
+        style={styles.waveformContainer}
+      >
         {bars.map((frac, i) => {
           const isPlayed = i / bars.length <= progress;
           return (
@@ -153,12 +166,90 @@ const VoiceNoteRow: React.FC<VoiceNoteRowProps> = ({
             />
           );
         })}
-      </View>
+      </TouchableOpacity>
 
       <Text style={[styles.voiceDurationText, isMe ? styles.myVoiceDuration : styles.partnerVoiceDuration]}>
         {isActive && currentTime > 0 ? formatVoiceDuration(currentTime) : formatVoiceDuration(storedDuration)}
       </Text>
     </View>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// ChatImage — renders image preserving natural aspect ratio without cropping
+// ---------------------------------------------------------------------------
+interface ChatImageProps {
+  uri: string;
+  onPress: () => void;
+}
+
+const MAX_IMAGE_WIDTH = 240;
+const MAX_IMAGE_HEIGHT = 320;
+
+const ChatImage: React.FC<ChatImageProps> = ({ uri, onPress }) => {
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    Image.getSize(
+      uri,
+      (width, height) => {
+        if (isMounted && width > 0 && height > 0) {
+          const ratio = Math.max(0.5, Math.min(2.0, width / height));
+          setAspectRatio(ratio);
+          setLoading(false);
+        }
+      },
+      () => {
+        if (isMounted) {
+          setAspectRatio(1);
+          setLoading(false);
+        }
+      }
+    );
+    return () => {
+      isMounted = false;
+    };
+  }, [uri]);
+
+  const dimensions = React.useMemo(() => {
+    if (!aspectRatio) {
+      return { width: MAX_IMAGE_WIDTH, height: 200 };
+    }
+    if (aspectRatio >= 1) {
+      // Landscape or square
+      const width = MAX_IMAGE_WIDTH;
+      const height = Math.min(MAX_IMAGE_HEIGHT, Math.max(120, Math.round(width / aspectRatio)));
+      return { width, height };
+    } else {
+      // Portrait
+      const height = MAX_IMAGE_HEIGHT;
+      const width = Math.min(MAX_IMAGE_WIDTH, Math.max(140, Math.round(height * aspectRatio)));
+      return { width, height };
+    }
+  }, [aspectRatio]);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={onPress}
+      style={[
+        styles.bubbleImageWrapper,
+        { width: dimensions.width, height: dimensions.height },
+      ]}
+    >
+      <Image
+        source={{ uri }}
+        style={[styles.bubbleImage, { width: dimensions.width, height: dimensions.height }]}
+        resizeMode="cover"
+      />
+      {loading && (
+        <View style={styles.imageLoadingOverlay}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      )}
+    </TouchableOpacity>
   );
 };
 
@@ -308,6 +399,18 @@ const MessageRow = React.memo<MessageRowProps>(({
   const hasReply = Boolean(item.replyTo);
   const reply = item.replyTo;
 
+  // Double tap detection on bubble for heart reaction
+  const lastTapRef = useRef<number>(0);
+  const handleBubblePress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      onToggleReaction(item.id, item.reaction);
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  };
+
   return (
     <View>
       {/* Date Divider */}
@@ -318,128 +421,131 @@ const MessageRow = React.memo<MessageRowProps>(({
       )}
 
       <SwipeableMessage onReply={() => onReply(item)}>
-      <View style={[styles.messageRow, isMe ? styles.myMessageRow : styles.partnerMessageRow]}>
-        {!isMe && (
-          <Avatar
-            name={partnerProfile?.displayName || 'Partner'}
-            photoURL={partnerProfile?.photoURL}
-            size="sm"
-            style={styles.messageAvatar}
-          />
-        )}
-
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => onToggleReaction(item.id, item.reaction)}
-          style={[
-            styles.bubble,
-            isMe ? styles.myBubble : styles.partnerBubble,
-            item.pending && styles.pendingBubble,
-            item.error && styles.errorBubble,
-          ]}
-        >
-          {/* Instagram-Style Quoted Reference Attachment */}
-          {hasReply && reply && (() => {
-            const matchedDeck = reply.deckTitle ? DECKS_DATA.find((d) => d.title === reply.deckTitle) : null;
-            const replyTheme = getCategoryTheme(matchedDeck?.category);
-            const accentColor = isMe ? '#FFFFFF' : replyTheme.color;
-
-            return (
-              <View
-                style={[
-                  styles.quoteContainer,
-                  isMe ? styles.myQuoteContainer : styles.partnerQuoteContainer,
-                  !isMe && { borderColor: replyTheme.border, backgroundColor: replyTheme.bgLight },
-                ]}
-              >
-                <View style={[styles.quoteAccentBar, { backgroundColor: accentColor }]} />
-                <View style={styles.quoteBody}>
-                  {reply.deckTitle ? (
-                    <View style={styles.quoteDeckHeader}>
-                      <Layers size={11} color={accentColor} />
-                      <Text style={[styles.quoteDeckTitle, { color: accentColor }]}>
-                        {replyTheme.emoji} {reply.deckTitle}
-                      </Text>
-                    </View>
-                  ) : (
-                    <Text style={[styles.quoteAuthorText, { color: accentColor }]}>
-                      Replying to {reply.authorName || 'Answer'}
-                    </Text>
-                  )}
-
-                  {reply.questionText ? (
-                    <Text style={[styles.quoteQuestionText, isMe ? styles.myQuoteText : styles.partnerQuoteText]}>
-                      "{reply.questionText}"
-                    </Text>
-                  ) : null}
-
-                  {reply.answerText ? (
-                    <Text style={[styles.quoteAnswerText, isMe ? styles.myQuoteText : styles.partnerQuoteText]}>
-                      ↳ {reply.authorName ? `${reply.authorName}: ` : ''}{reply.answerText}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
-            );
-          })()}
-
-          {/* Image Message */}
-          {item.imageURL ? (
-            <TouchableOpacity activeOpacity={0.9} onPress={() => {
-                  if (item.imageURL) onOpenImage(item.imageURL);
-                }}>
-              <Image source={{ uri: item.imageURL }} style={styles.bubbleImage} />
-            </TouchableOpacity>
-          ) : null}
-
-          {/* Voice Note Message */}
-          {item.audioURL ? (
-            <VoiceNoteRow
-              message={item}
-              isMe={isMe}
-              isActive={isActive}
-              isPlaying={isPlaying}
-              currentTime={currentTime}
-              playerDuration={playerDuration}
-              onToggle={() => onToggleAudio(item)}
+        <View style={[styles.messageRow, isMe ? styles.myMessageRow : styles.partnerMessageRow]}>
+          {!isMe && (
+            <Avatar
+              name={partnerProfile?.displayName || 'Partner'}
+              photoURL={partnerProfile?.photoURL}
+              size="sm"
+              style={styles.messageAvatar}
             />
-          ) : null}
+          )}
 
-          {/* Uploading / failed placeholder for non-blocking media sends */}
-          {!item.imageURL && !item.audioURL && item.mediaState === 'uploading' && (
-            <View style={styles.uploadingPlaceholder}>
-              <ActivityIndicator size="small" color={isMe ? 'rgba(255, 255, 255, 0.8)' : colors.textMuted} />
-              <Text style={[styles.uploadingText, isMe ? styles.myUploadingText : null]}>Uploading…</Text>
+          <View
+            style={[
+              styles.bubble,
+              isMe ? styles.myBubble : styles.partnerBubble,
+              item.pending && styles.pendingBubble,
+              item.error && styles.errorBubble,
+            ]}
+          >
+            {/* Instagram-Style Quoted Reference Attachment */}
+            {hasReply && reply && (() => {
+              const matchedDeck = reply.deckTitle ? DECKS_DATA.find((d) => d.title === reply.deckTitle) : null;
+              const replyTheme = getCategoryTheme(matchedDeck?.category);
+              const accentColor = isMe ? '#FFFFFF' : replyTheme.color;
+
+              return (
+                <View
+                  style={[
+                    styles.quoteContainer,
+                    isMe ? styles.myQuoteContainer : styles.partnerQuoteContainer,
+                    !isMe && { borderColor: replyTheme.border, backgroundColor: replyTheme.bgLight },
+                  ]}
+                >
+                  <View style={[styles.quoteAccentBar, { backgroundColor: accentColor }]} />
+                  <View style={styles.quoteBody}>
+                    {reply.deckTitle ? (
+                      <View style={styles.quoteDeckHeader}>
+                        <Layers size={11} color={accentColor} />
+                        <Text style={[styles.quoteDeckTitle, { color: accentColor }]}>
+                          {replyTheme.emoji} {reply.deckTitle}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={[styles.quoteAuthorText, { color: accentColor }]}>
+                        Replying to {reply.authorName || 'Answer'}
+                      </Text>
+                    )}
+
+                    {reply.questionText ? (
+                      <Text style={[styles.quoteQuestionText, isMe ? styles.myQuoteText : styles.partnerQuoteText]}>
+                        "{reply.questionText}"
+                      </Text>
+                    ) : null}
+
+                    {reply.answerText ? (
+                      <Text style={[styles.quoteAnswerText, isMe ? styles.myQuoteText : styles.partnerQuoteText]}>
+                        ↳ {reply.authorName ? `${reply.authorName}: ` : ''}{reply.answerText}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })()}
+
+            {/* Image Message — auto-proportional aspect ratio, tap to fullscreen */}
+            {item.imageURL ? (
+              <ChatImage
+                uri={item.imageURL}
+                onPress={() => item.imageURL && onOpenImage(item.imageURL)}
+              />
+            ) : null}
+
+            {/* Voice Note Message */}
+            {item.audioURL ? (
+              <VoiceNoteRow
+                message={item}
+                isMe={isMe}
+                isActive={isActive}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                playerDuration={playerDuration}
+                onToggle={() => onToggleAudio(item)}
+              />
+            ) : null}
+
+            {/* Uploading / failed placeholder for non-blocking media sends */}
+            {!item.imageURL && !item.audioURL && item.mediaState === 'uploading' && (
+              <View style={styles.uploadingPlaceholder}>
+                <ActivityIndicator size="small" color={isMe ? 'rgba(255, 255, 255, 0.8)' : colors.textMuted} />
+                <Text style={[styles.uploadingText, isMe ? styles.myUploadingText : null]}>Uploading…</Text>
+              </View>
+            )}
+            {!item.imageURL && !item.audioURL && item.mediaState === 'failed' && (
+              <Text style={styles.uploadFailedText}>Upload failed</Text>
+            )}
+
+            {/* Text Message */}
+            {item.text ? (
+              <TouchableOpacity activeOpacity={0.8} onPress={handleBubblePress}>
+                <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.partnerMessageText]}>
+                  {item.text}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {/* Bubble Timestamp & Status */}
+            <View style={styles.bubbleMeta}>
+              <Text style={[styles.messageTime, isMe ? styles.myMessageTime : styles.partnerMessageTime]}>
+                {formatMessageTime(item.createdAt)}
+              </Text>
+              {item.pending && <Clock size={10} color="#FFFFFF" style={{ marginLeft: 4 }} />}
+              {item.error && <AlertCircle size={10} color={colors.error} style={{ marginLeft: 4 }} />}
             </View>
-          )}
-          {!item.imageURL && !item.audioURL && item.mediaState === 'failed' && (
-            <Text style={styles.uploadFailedText}>Upload failed</Text>
-          )}
 
-          {/* Text Message */}
-          {item.text ? (
-            <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.partnerMessageText]}>
-              {item.text}
-            </Text>
-          ) : null}
-
-          {/* Bubble Timestamp & Status */}
-          <View style={styles.bubbleMeta}>
-            <Text style={[styles.messageTime, isMe ? styles.myMessageTime : styles.partnerMessageTime]}>
-              {formatMessageTime(item.createdAt)}
-            </Text>
-            {item.pending && <Clock size={10} color="#FFFFFF" style={{ marginLeft: 4 }} />}
-            {item.error && <AlertCircle size={10} color={colors.error} style={{ marginLeft: 4 }} />}
+            {/* Instagram-Style Heart Reaction Badge */}
+            {item.reaction && (
+              <TouchableOpacity
+                style={styles.reactionBadge}
+                activeOpacity={0.8}
+                onPress={() => onToggleReaction(item.id, item.reaction)}
+              >
+                <Text style={styles.reactionEmoji}>{item.reaction}</Text>
+              </TouchableOpacity>
+            )}
           </View>
-
-          {/* Instagram-Style Heart Reaction Badge */}
-          {item.reaction && (
-            <View style={styles.reactionBadge}>
-              <Text style={styles.reactionEmoji}>{item.reaction}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
+        </View>
       </SwipeableMessage>
     </View>
   );
@@ -514,21 +620,77 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     }
   };
 
-  // Voice notes: recording — the official useAudioRecorder hook owns the
-  // recorder's lifecycle (creates it once with stable options, releases it on
-  // unmount). We no longer construct/release AudioModule.AudioRecorder
-  // manually, which is what produced the "Cannot use shared object that was
-  // already released" errors.
-  const recorder = useAudioRecorder(RECORDING_OPTIONS);
+  // Voice notes: the recorder is created FRESH for every take. expo-audio
+  // 0.3.5 has a bug where the shared recorder object becomes unusable after
+  // stop() — the next record() rejects with "Cannot use shared object that was
+  // already released". A brand-new AudioModule.AudioRecorder per take avoids it.
+  const recorderRef = useRef<AudioRecorder | null>(null);
+  // Guards against re-entrant cancel (AppState + lock can both fire): two
+  // concurrent stop() calls on one recorder can native-crash.
+  const cancellingRef = useRef(false);
+
+  const releaseRecorder = useCallback(() => {
+    const rec = recorderRef.current;
+    if (rec) {
+      try {
+        rec.release();
+      } catch {
+        // already released
+      }
+      recorderRef.current = null;
+    }
+  }, []);
+
+  const getFreshRecorder = useCallback((): AudioRecorder => {
+    releaseRecorder();
+    const rec = new AudioModule.AudioRecorder(RECORDING_OPTIONS);
+    recorderRef.current = rec;
+    return rec;
+  }, [releaseRecorder]);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isStoppingRecording, setIsStoppingRecording] = useState(false);
   const [recordingDurationMillis, setRecordingDurationMillis] = useState(0);
 
-  // Voice notes: single shared player for message playback
-  const player = useAudioPlayer();
+  // Voice notes: player for message playback with reactive source
+  const [activeAudio, setActiveAudio] = useState<{ id: string; url: string } | null>(null);
+  const audioSource = React.useMemo(() => {
+    return activeAudio?.url ? { uri: activeAudio.url } : null;
+  }, [activeAudio?.url]);
+
+  const player = useAudioPlayer(audioSource, 200);
   const playerStatus = useAudioPlayerStatus(player);
-  const [activeAudioId, setActiveAudioId] = useState<string | null>(null);
+  const playRequestedRef = useRef(false);
+
+  // Set audio mode on mount for playback
+  useEffect(() => {
+    setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
+      interruptionMode: 'doNotMix',
+      shouldRouteThroughEarpiece: false,
+    }).catch(() => {});
+  }, []);
+
+  // When activeAudio changes and play was requested, start playback once loaded
+  useEffect(() => {
+    if (activeAudio?.url && playRequestedRef.current) {
+      setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+        interruptionMode: 'doNotMix',
+        shouldRouteThroughEarpiece: false,
+      }).catch(() => {});
+
+      try {
+        player.loop = false;
+        player.play();
+      } catch (e: any) {
+        console.warn('[voice] player.play error:', e?.message);
+      }
+      playRequestedRef.current = false;
+    }
+  }, [activeAudio?.id, player]);
 
   const recordingSec = Math.floor(recordingDurationMillis / 1000);
 
@@ -538,7 +700,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   // already released".
   const safeReadDurationMillis = () => {
     try {
-      return recorder.getStatus().durationMillis;
+      return recorderRef.current?.getStatus().durationMillis ?? 0;
     } catch (e: any) {
       console.warn('[voice] getStatus failed:', e?.message);
       return 0;
@@ -585,28 +747,33 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     return () => loop.stop();
   }, [isRecording]);
 
-  // Reset finished playback back to start
-  useEffect(() => {
-    if (playerStatus.didJustFinish) {
-      player.seekTo(0);
-    }
-  }, [playerStatus.didJustFinish]);
+  // Removed auto-seek on didJustFinish to prevent infinite looping.
+  // Instead, the play button handles seeking to 0 if the user plays it again.
 
   // Best-effort stop of an active recording on unmount; the hook releases the
   // recorder, which may already have happened by the time this cleanup runs —
   // hence the try/catch.
   useEffect(() => {
     return () => {
-      try {
-        if (recorder.isRecording) {
-          console.log('[voice] unmount: stopping active recording');
-          recorder.stop().catch(() => {});
+      const rec = recorderRef.current;
+      if (rec) {
+        try {
+          if (rec.isRecording) {
+            console.log('[voice] unmount: stopping active recording');
+            rec.stop().catch(() => {});
+          }
+        } catch (e) {
+          // ignore
         }
-      } catch (e) {
-        // Recorder already released by useAudioRecorder's own cleanup.
+        try {
+          rec.release();
+        } catch (e) {
+          // ignore
+        }
+        recorderRef.current = null;
       }
     };
-  }, [recorder]);
+  }, []);
 
   const startRecording = async () => {
     if (isRecording || sending) return;
@@ -621,7 +788,9 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
         allowsRecording: true,
         playsInSilentMode: true,
         interruptionMode: 'doNotMix',
+        shouldRouteThroughEarpiece: false,
       });
+      const recorder = getFreshRecorder();
       console.log('[voice] preparing recorder', recorder.id);
       await recorder.prepareToRecordAsync();
       recorder.record();
@@ -664,25 +833,58 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
         allowsRecording: false,
         playsInSilentMode: true,
         interruptionMode: 'doNotMix',
+        shouldRouteThroughEarpiece: false,
       });
     } catch (e) {
       // ignore mode restore failures
     }
   };
 
-  const cancelRecording = async () => {
+  const cancelRecording = useCallback(async () => {
     if (!isRecording) return;
+    if (cancellingRef.current) return;
+    cancellingRef.current = true;
     setIsStoppingRecording(true);
     try {
       console.log('[voice] cancelRecording: stopping');
-      await recorder.stop();
+      const recorder = recorderRef.current;
+      if (recorder) await recorder.stop();
     } catch (e: any) {
       console.warn('[voice] cancelRecording stop failed:', e?.message);
     }
+    // Free the native recorder so the next take starts clean.
+    releaseRecorder();
     setIsRecording(false);
     setIsStoppingRecording(false);
-    await restoreAudioMode();
-  };
+    try {
+      await restoreAudioMode();
+    } finally {
+      cancellingRef.current = false;
+    }
+  }, [isRecording, releaseRecorder, restoreAudioMode]);
+
+  const { isLocked } = usePasscode();
+
+  // With the passcode-as-overlay, ChatScreen stays mounted across lock trips.
+  // Stop any active recording when the app backgrounds or the app locks — mic
+  // privacy: never keep recording behind the lock screen.
+  useEffect(() => {
+    if (!isRecording) return;
+    const sub = AppState.addEventListener('change', (state) => {
+      // Only a real background ends the take (mic privacy). 'inactive' blips
+      // (permission dialogs, notification shade) must NOT kill a recording.
+      if (state === 'background') {
+        cancelRecording();
+      }
+    });
+    return () => sub.remove();
+  }, [isRecording, cancelRecording]);
+
+  useEffect(() => {
+    if (isLocked && isRecording) {
+      cancelRecording();
+    }
+  }, [isLocked, isRecording, cancelRecording]);
 
   const stopAndSendRecording = async () => {
     if (!isRecording || isStoppingRecording) return;
@@ -697,6 +899,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     let uri: string | null = null;
     try {
       console.log('[voice] stopAndSend: stopping, durationSec =', durationSec);
+      const recorder = recorderRef.current;
+      if (!recorder) throw new Error('Recorder not initialized');
       await recorder.stop();
       uri = recorder.uri;
       console.log('[voice] stopAndSend: stopped, uri =', uri);
@@ -704,6 +908,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       console.warn('[voice] stopAndSend: stop failed:', e?.message);
       toast.error('Could not send voice note', e?.message || 'Recording failed.');
     }
+    // Free the native recorder so the next take starts clean.
+    releaseRecorder();
     setIsRecording(false);
     await restoreAudioMode();
 
@@ -739,22 +945,33 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   const handleToggleAudio = useCallback(
     (message: ChatMessage) => {
       if (!message.audioURL) return;
-      if (activeAudioId === message.id) {
+
+      if (activeAudio?.id === message.id) {
         if (playerStatus.playing) {
           player.pause();
         } else {
-          if (playerStatus.didJustFinish || playerStatus.currentTime >= (playerStatus.duration || 0) - 0.2) {
-            player.seekTo(0);
+          if (
+            playerStatus.didJustFinish ||
+            playerStatus.currentTime >= (playerStatus.duration || 0) - 0.2
+          ) {
+            player.seekTo(0).catch(() => {});
           }
+          player.loop = false;
           player.play();
         }
       } else {
-        setActiveAudioId(message.id);
-        player.replace({ uri: message.audioURL });
-        player.play();
+        playRequestedRef.current = true;
+        setActiveAudio({ id: message.id, url: message.audioURL });
       }
     },
-    [activeAudioId, playerStatus, player]
+    [
+      activeAudio?.id,
+      playerStatus.playing,
+      playerStatus.didJustFinish,
+      playerStatus.currentTime,
+      playerStatus.duration,
+      player,
+    ]
   );
 
   // Set reply target from route params if navigated from Card / Daily Question
@@ -861,10 +1078,10 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
             });
             setTimeout(() => inputRef.current?.focus(), 200);
           }}
-          isActive={activeAudioId === item.id}
-          isPlaying={activeAudioId === item.id && playerStatus.playing}
-          currentTime={activeAudioId === item.id ? playerStatus.currentTime : 0}
-          playerDuration={activeAudioId === item.id ? playerStatus.duration : 0}
+          isActive={activeAudio?.id === item.id}
+          isPlaying={activeAudio?.id === item.id && playerStatus.playing}
+          currentTime={activeAudio?.id === item.id ? playerStatus.currentTime : 0}
+          playerDuration={activeAudio?.id === item.id ? playerStatus.duration : 0}
         />
       );
     },
@@ -875,7 +1092,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       partnerProfile,
       toggleReaction,
       handleToggleAudio,
-      activeAudioId,
+      activeAudio?.id,
       playerStatus.playing,
       playerStatus.currentTime,
       playerStatus.duration,
@@ -1238,11 +1455,20 @@ const styles = StyleSheet.create({
     borderColor: colors.error,
     borderWidth: 1,
   },
-  bubbleImage: {
-    width: 220,
-    height: 220,
+  bubbleImageWrapper: {
     borderRadius: radii.lg,
+    overflow: 'hidden',
     marginBottom: spacing.xs,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  bubbleImage: {
+    borderRadius: radii.lg,
+  },
+  imageLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
   messageText: {
     fontSize: typography.sizes.sm + 0.5,

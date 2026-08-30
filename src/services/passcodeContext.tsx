@@ -7,6 +7,9 @@ import { hashPasscode, legacyHashPasscode, generateSalt, validatePasscodeFormat 
 const PASSCODE_HASH_KEY = 'datty_passcode_hash_v2';
 const PASSCODE_SALT_KEY = 'datty_passcode_salt_v2';
 const LOCKOUT_UNTIL_KEY = '@datty_passcode_lockout_until';
+// Auto-lock only after the app was backgrounded at least this long. Keeps
+// quick system flows (image picker, permission dialogs) from locking.
+const LOCK_GRACE_MS = 20000;
 const FAILED_ATTEMPTS_KEY = '@datty_passcode_failed_attempts';
 
 const MAX_FAILED_ATTEMPTS = 5;
@@ -87,6 +90,9 @@ export const PasscodeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [loading, setLoading] = useState<boolean>(true);
   const [lockoutRemainingSeconds, setLockoutRemainingSeconds] = useState<number>(0);
   const appState = useRef<AppStateStatus>(AppState.currentState);
+  // When the app was backgrounded (ms) — used to skip auto-lock for brief
+  // system flows like the image picker / permission dialogs.
+  const backgroundedAtRef = useRef<number | null>(null);
 
   // Periodic timer for active lockout countdown
   useEffect(() => {
@@ -159,11 +165,25 @@ export const PasscodeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Listen to AppState changes (locks app when closed or put to background and reopened)
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      const wasBackground = appState.current === 'background' || appState.current === 'inactive';
+      const wasBackground = appState.current === 'background';
       const isNowActive = nextAppState === 'active';
 
+      if (nextAppState === 'background') {
+        backgroundedAtRef.current = Date.now();
+      }
+
       if (wasBackground && isNowActive) {
-        // App was reopened after being closed / sent to background
+        // Grace period: brief system flows (image picker, permission dialogs)
+        // shouldn't bounce the user to the passcode every time.
+        const elapsedMs = backgroundedAtRef.current ? Date.now() - backgroundedAtRef.current : 0;
+        backgroundedAtRef.current = null;
+
+        if (elapsedMs < LOCK_GRACE_MS) {
+          appState.current = nextAppState;
+          return;
+        }
+
+        // App was closed / backgrounded long enough -> lock on reopen
         secureGet(PASSCODE_HASH_KEY)
           .then((storedHash) => {
             if (storedHash) {
