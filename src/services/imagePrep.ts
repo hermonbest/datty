@@ -3,20 +3,20 @@
 // This is the fix for the Android image-send crash (the app restarted because
 // fetching + uploading full-res images blew the memory budget).
 
-// Lazy dynamic import: if the dev client binary doesn't include the
-// ExpoImageManipulator native module yet, this import rejects — callers catch
+// Lazy require (not a static import): if the dev client binary doesn't include
+// the ExpoImageManipulator native module yet, require() throws — callers catch
 // it and show the "Upload failed" state instead of crashing the app.
-let manipulatorPromise: Promise<typeof import('expo-image-manipulator')> | null = null;
+let manipulator: typeof import('expo-image-manipulator') | null = null;
 
-function getManipulator(): Promise<typeof import('expo-image-manipulator')> {
-  if (!manipulatorPromise) {
-    manipulatorPromise = import('expo-image-manipulator');
+function getManipulator(): typeof import('expo-image-manipulator') {
+  if (!manipulator) {
+    manipulator = require('expo-image-manipulator');
   }
-  return manipulatorPromise;
+  return manipulator!;
 }
 
 export async function prepareImageForUpload(uri: string): Promise<string> {
-  const ImageManipulator = await getManipulator();
+  const ImageManipulator = getManipulator();
   const result = await ImageManipulator.manipulateAsync(
     uri,
     [{ resize: { width: 1280 } }],

@@ -545,16 +545,28 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     }
   };
 
+  // Local recording timer for the UI. We deliberately do NOT poll the native
+  // recorder while recording: repeated getStatus() calls on the expo-audio
+  // shared object are the known trigger for the Android "shared object was
+  // already released" native crash. The exact duration is read once, at stop.
+  const recordingStartedAtRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!isRecording) {
       return;
     }
+    recordingStartedAtRef.current = Date.now();
     const interval = setInterval(() => {
-      setRecordingDurationMillis(safeReadDurationMillis());
+      const elapsed = recordingStartedAtRef.current
+        ? Date.now() - recordingStartedAtRef.current
+        : 0;
+      setRecordingDurationMillis(elapsed);
     }, 200);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRecording, recorder]);
+    return () => {
+      clearInterval(interval);
+      recordingStartedAtRef.current = null;
+    };
+  }, [isRecording]);
 
   // Pulsing red dot while recording
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -845,8 +857,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
                 ? (userProfile?.displayName || 'You')
                 : (partnerProfile?.displayName || 'Partner'),
               answerText: msg.text || (msg.imageURL ? '📷 Photo' : msg.audioURL ? '🎤 Voice note' : ''),
-              questionText: undefined,
-              deckTitle: undefined,
+              // intentionally omit questionText + deckTitle — Firebase rejects undefined values
             });
             setTimeout(() => inputRef.current?.focus(), 200);
           }}
