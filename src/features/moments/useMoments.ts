@@ -13,8 +13,12 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
+import { readFileAsUint8Array, getFileSizeBytes } from '../../services/fileToBytes';
+import { prepareImageForUpload } from '../../services/imagePrep';
 import { useCouple } from '../../services/coupleContext';
 import { Moment } from '../../types';
+
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // mirrors storage.rules cap
 
 export const useMoments = () => {
   const { coupleId, myUid } = useCouple();
@@ -90,12 +94,16 @@ export const useMoments = () => {
       if (!coupleId) throw new Error('Couple not found');
 
       setUploadProgress(0);
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      const preparedUri = await prepareImageForUpload(uri);
+      const size = await getFileSizeBytes(preparedUri);
+      if (size !== null && size > MAX_UPLOAD_BYTES) {
+        throw new Error('Photo is too large to post (max 15MB).');
+      }
+      const bytes = await readFileAsUint8Array(preparedUri);
       const filename = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.jpg`;
       const storageRef = ref(storage, `couples/${coupleId}/${pathPrefix}/${filename}`);
 
-      const uploadTask = uploadBytesResumable(storageRef, blob, { contentType: 'image/jpeg' });
+      const uploadTask = uploadBytesResumable(storageRef, bytes, { contentType: 'image/jpeg' });
 
       await new Promise<void>((resolve, reject) => {
         uploadTask.on(

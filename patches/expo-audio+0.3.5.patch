@@ -1,0 +1,13 @@
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
+index 3badbf1..d6fb410 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
+@@ -332,7 +332,7 @@ class AudioModule : Module() {
+ 
+       Function("record") { ref: AudioRecorder ->
+         checkRecordingPermission()
+-        if (!ref.isPrepared) {
++        if (ref.isPrepared) {
+           ref.record()
+         }
+       }

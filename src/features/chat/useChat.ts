@@ -1,20 +1,39 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  collection,
+  ref as dbRef,
+  push,
+  update,
+  onValue,
   query,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  doc,
-  updateDoc,
+  orderByKey,
+  limitToLast,
   serverTimestamp,
-  limit,
-} from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../services/firebase';
+} from 'firebase/database';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { rtdb, storage } from '../../services/firebase';
+import { readFileAsUint8Array, getFileSizeBytes } from '../../services/fileToBytes';
+import { prepareImageForUpload } from '../../services/imagePrep';
 import { useCouple } from '../../services/coupleContext';
-import { ChatMessage, ChatReplyReference } from '../../types';
+import { ChatMessage, ChatReplyReference, MediaState } from '../../types';
 
+// Keep the last N messages live; older ones can be lazily loaded later if needed.
+const MESSAGE_LIMIT = 150;
+// Storage rules cap uploads at 15MB — enforce it after compression as a safety net.
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+
+// createdAt can be an RTDB ms timestamp, a migrated Firestore Timestamp, or a Date.
+const toMillis = (t: any): number => {
+  if (!t) return 0;
+  if (typeof t === 'number') return t;
+  if (typeof t.toMillis === 'function') return t.toMillis();
+  if (t instanceof Date) return t.getTime();
+  if (typeof t.seconds === 'number') return t.seconds * 1000;
+  return 0;
+};
+
+// Non-blocking media sends: the message node is pushed to RTDB first, uploads
+// run in the background via expo-file-system (no fetch+blob — see fileToBytes),
+// then the node is patched with the storage URL.
 export const useChat = () => {
   const { coupleId, myUid } = useCouple();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -22,24 +41,28 @@ export const useChat = () => {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Realtime subscription
+  const chatPath = coupleId ? `couples/${coupleId}/chat` : null;
+
+  // Realtime subscription (RTDB push IDs are chronological, so orderByKey
+  // gives us the newest messages; we still sort by createdAt for migrated docs).
   useEffect(() => {
-    if (!coupleId) {
+    if (!coupleId || !chatPath) {
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    const messagesCol = collection(db, 'couples', coupleId, 'messages');
-    const q = query(messagesCol, orderBy('createdAt', 'desc'), limit(100));
+    const chatRef = dbRef(rtdb, chatPath);
+    const q = query(chatRef, orderByKey(), limitToLast(MESSAGE_LIMIT));
 
-    const unsubscribe = onSnapshot(
+    const unsubscribe = onValue(
       q,
       (snapshot) => {
-        const items: ChatMessage[] = snapshot.docs.map((docSnap) => {
-          const data = docSnap.data();
-          return {
-            id: docSnap.id,
+        const items: ChatMessage[] = [];
+        snapshot.forEach((child) => {
+          const data = child.val() || {};
+          items.push({
+            id: child.key as string,
             senderUid: data.senderUid,
             text: data.text || null,
             imageURL: data.imageURL || null,
@@ -48,9 +71,12 @@ export const useChat = () => {
             createdAt: data.createdAt,
             replyTo: data.replyTo || null,
             reaction: data.reaction || null,
+            mediaState: (data.mediaState as MediaState) || 'ready',
             pending: false,
-          };
+          });
         });
+        // Newest first
+        items.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
 
         // Merge with pending optimistic messages not yet in snapshot
         setMessages((current) => {
@@ -60,26 +86,30 @@ export const useChat = () => {
         setLoading(false);
       },
       (err) => {
-        console.warn('[useChat] Snapshot error:', err);
+        console.warn('[useChat] RTDB snapshot error:', err);
         setError(err.message);
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [coupleId]);
+  }, [coupleId, chatPath]);
 
-  // Upload chat image helper
+  // Upload chat image helper (compressed before upload to avoid Android OOM crash)
   const uploadChatImage = useCallback(
     async (uri: string): Promise<string> => {
       if (!coupleId) throw new Error('Couple not found');
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      const preparedUri = await prepareImageForUpload(uri);
+      const size = await getFileSizeBytes(preparedUri);
+      if (size !== null && size > MAX_UPLOAD_BYTES) {
+        throw new Error('Photo is too large to send (max 15MB).');
+      }
+      const bytes = await readFileAsUint8Array(preparedUri);
       const filename = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.jpg`;
-      const storageRef = ref(storage, `couples/${coupleId}/chat/${filename}`);
+      const storageRefPath = storageRef(storage, `couples/${coupleId}/chat/${filename}`);
 
-      await uploadBytes(storageRef, blob);
-      const downloadURL = await getDownloadURL(storageRef);
+      await uploadBytes(storageRefPath, bytes, { contentType: 'image/jpeg' });
+      const downloadURL = await getDownloadURL(storageRefPath);
       return downloadURL;
     },
     [coupleId]
@@ -89,19 +119,19 @@ export const useChat = () => {
   const uploadChatAudio = useCallback(
     async (uri: string): Promise<string> => {
       if (!coupleId) throw new Error('Couple not found');
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      const bytes = await readFileAsUint8Array(uri);
       const filename = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.m4a`;
-      const storageRef = ref(storage, `couples/${coupleId}/chat/${filename}`);
+      const storageRefPath = storageRef(storage, `couples/${coupleId}/chat/${filename}`);
 
-      await uploadBytes(storageRef, blob, { contentType: 'audio/mp4' });
-      const downloadURL = await getDownloadURL(storageRef);
+      await uploadBytes(storageRefPath, bytes, { contentType: 'audio/mp4' });
+      const downloadURL = await getDownloadURL(storageRefPath);
       return downloadURL;
     },
     [coupleId]
   );
 
-  // Send message with optimistic update
+  // Send message: RTDB push gives instant local echo; media uploads run in the
+  // background and patch the message node with the URL afterwards.
   const sendMessage = useCallback(
     async (
       text?: string,
@@ -109,10 +139,11 @@ export const useChat = () => {
       replyTo?: ChatReplyReference | null,
       audio?: { uri: string; duration: number }
     ) => {
-      if (!coupleId || !myUid) return;
+      if (!coupleId || !myUid || !chatPath) return;
       if (!text?.trim() && !imageUri && !audio) return;
 
       const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const hasMedia = Boolean(imageUri || audio);
       const optimisticMsg: ChatMessage = {
         id: tempId,
         senderUid: myUid,
@@ -123,6 +154,7 @@ export const useChat = () => {
         createdAt: new Date(),
         replyTo: replyTo || null,
         reaction: null,
+        mediaState: hasMedia ? 'uploading' : 'ready',
         pending: true,
       };
 
@@ -130,35 +162,43 @@ export const useChat = () => {
       setMessages((prev) => [optimisticMsg, ...prev]);
       setSending(true);
 
+      const payload: any = {
+        senderUid: myUid,
+        text: text?.trim() || null,
+        imageURL: null,
+        audioURL: null,
+        audioDuration: audio?.duration || null,
+        mediaState: hasMedia ? 'uploading' : 'ready',
+        createdAt: serverTimestamp(),
+      };
+      if (replyTo) {
+        payload.replyTo = replyTo;
+      }
+
       try {
-        let finalImageURL: string | null = null;
-        if (imageUri) {
-          finalImageURL = await uploadChatImage(imageUri);
-        }
-
-        let finalAudioURL: string | null = null;
-        if (audio) {
-          finalAudioURL = await uploadChatAudio(audio.uri);
-        }
-
-        const messagesCol = collection(db, 'couples', coupleId, 'messages');
-        const docPayload: any = {
-          senderUid: myUid,
-          text: text?.trim() || null,
-          imageURL: finalImageURL,
-          audioURL: finalAudioURL,
-          audioDuration: audio?.duration || null,
-          createdAt: serverTimestamp(),
-        };
-
-        if (replyTo) {
-          docPayload.replyTo = replyTo;
-        }
-
-        await addDoc(messagesCol, docPayload);
+        // 2. Push to RTDB — local echo means our own list updates instantly,
+        //    and the listener keeps the partner in sync.
+        const newMsgRef = push(dbRef(rtdb, chatPath), payload);
+        await newMsgRef;
 
         // Remove temp optimistic message once real one arrives
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
+
+        // 3. Upload media in the background, then patch the node with the URL.
+        if (imageUri || audio) {
+          try {
+            if (imageUri) {
+              const finalImageURL = await uploadChatImage(imageUri);
+              await update(newMsgRef, { imageURL: finalImageURL, mediaState: 'ready' });
+            } else if (audio) {
+              const finalAudioURL = await uploadChatAudio(audio.uri);
+              await update(newMsgRef, { audioURL: finalAudioURL, mediaState: 'ready' });
+            }
+          } catch (mediaErr) {
+            console.error('[useChat] Media upload error:', mediaErr);
+            await update(newMsgRef, { mediaState: 'failed' }).catch(() => {});
+          }
+        }
       } catch (err: any) {
         console.error('[useChat] Send message error:', err);
         // Rollback optimistic message into error state
@@ -171,13 +211,13 @@ export const useChat = () => {
         setSending(false);
       }
     },
-    [coupleId, myUid, uploadChatImage, uploadChatAudio]
+    [coupleId, myUid, chatPath, uploadChatImage, uploadChatAudio]
   );
 
   // Toggle reaction on a message (Instagram double-tap heart)
   const toggleReaction = useCallback(
     async (messageId: string, currentReaction?: string | null) => {
-      if (!coupleId || !messageId || messageId.startsWith('temp_')) return;
+      if (!coupleId || !chatPath || !messageId || messageId.startsWith('temp_')) return;
 
       const newReaction = currentReaction === '❤️' ? null : '❤️';
 
@@ -187,15 +227,13 @@ export const useChat = () => {
       );
 
       try {
-        const msgDocRef = doc(db, 'couples', coupleId, 'messages', messageId);
-        await updateDoc(msgDocRef, {
-          reaction: newReaction,
-        });
+        // Setting null removes the key in RTDB; read side maps undefined → null.
+        await update(dbRef(rtdb, `${chatPath}/${messageId}`), { reaction: newReaction });
       } catch (err) {
         console.error('[useChat] Reaction error:', err);
       }
     },
-    [coupleId]
+    [coupleId, chatPath]
   );
 
   return {

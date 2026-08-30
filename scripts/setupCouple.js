@@ -84,6 +84,35 @@ async function setupCouple(admin, email1, email2, timezone = 'UTC') {
   );
 
   await batch.commit();
+
+  // Set a `coupleId` custom claim on both users so Firestore security rules can
+  // verify membership without a server-side document read on every chat/game
+  // operation. Existing sessions pick the claim up on their next token refresh
+  // (~1h); rules fall back to the couple document lookup until then.
+  console.log('Setting coupleId custom claim for both users...');
+  await Promise.all([
+    auth.setCustomUserClaims(user1.uid, { coupleId }),
+    auth.setCustomUserClaims(user2.uid, { coupleId }),
+  ]);
+  console.log('Custom claims set.');
+
+  // Mirror membership into Realtime Database so RTDB rules can gate reads/writes
+  // with a cheap path check. Admin SDK bypasses rules, but clients need this
+  // node to exist before they can read/write chat/presence/games.
+  try {
+    const rtdb = admin.database();
+    await Promise.all([
+      rtdb.ref(`couples/${coupleId}/members/${user1.uid}`).set(true),
+      rtdb.ref(`couples/${coupleId}/members/${user2.uid}`).set(true),
+    ]);
+    console.log('RTDB members list written.');
+  } catch (err) {
+    console.warn(
+      'Could not write RTDB members list. Is Realtime Database enabled in the Firebase console?',
+      err?.message
+    );
+  }
+
   console.log(`\n🎉 Success! Successfully paired ${email1} and ${email2} under coupleId: ${coupleId}`);
   return { coupleId, user1Uid: user1.uid, user2Uid: user2.uid };
 }
@@ -111,6 +140,8 @@ if (require.main === module) {
   const serviceAccount = require(path.resolve(serviceAccountPath));
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
+    // Needed for admin.database() — resolves to the project's default RTDB instance
+    databaseURL: `https://${serviceAccount.project_id}-default-rtdb.${process.env.FIREBASE_DATABASE_REGION || 'europe-west1'}.firebasedatabase.app`,
   });
 
   setupCouple(admin, email1, email2, timezone || 'UTC')

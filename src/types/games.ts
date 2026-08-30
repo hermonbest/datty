@@ -22,3 +22,22 @@ export interface GameMetadata {
   players: string;
   duration: string;
 }
+
+export type ChessGameMode = 'couple' | 'pass_and_play';
+
+export interface ChessFirestoreDoc {
+  boardJson: string;
+  turn: 'w' | 'b';
+  whiteUid: string;
+  blackUid: string;
+  whiteName: string;
+  blackName: string;
+  capturedByWhite: { type: string; color: string }[];
+  capturedByBlack: { type: string; color: string }[];
+  winner: 'w' | 'b' | 'draw' | null;
+  moveCount: number;
+  lastMove: { from: { row: number; col: number }; to: { row: number; col: number } } | null;
+  lastMoveBy?: string;
+  updatedAt?: any;
+}
+

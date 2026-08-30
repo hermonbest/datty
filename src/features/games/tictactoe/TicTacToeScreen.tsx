@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -16,13 +16,12 @@ import {
   Share2,
   Heart,
   Zap,
+  Users,
+  Smartphone,
 } from 'lucide-react-native';
 import { colors, radii, shadows, spacing, typography } from '../../../theme';
-import {
-  checkTicTacToeWinner,
-  TicTacToeCell,
-  TIC_TAC_TOE_DARES,
-} from './ticTacToeLogic';
+import { useTicTacToe } from './useTicTacToe';
+import { gameLog } from '../gameLogger';
 
 const { width } = Dimensions.get('window');
 const GRID_SIZE = Math.min(width - 48, 330);
@@ -34,46 +33,26 @@ interface TicTacToeScreenProps {
 }
 
 export const TicTacToeScreen: React.FC<TicTacToeScreenProps> = ({ onBack, onShareToChat }) => {
-  const [board, setBoard] = useState<TicTacToeCell[]>(Array(9).fill(null));
-  const [turn, setTurn] = useState<'X' | 'O'>('X');
-  const [scores, setScores] = useState({ X: 0, O: 0, draws: 0 });
-  const [currentDare, setCurrentDare] = useState<string | null>(null);
+  const {
+    board,
+    turn,
+    scores,
+    currentDare,
+    result,
+    gameMode,
+    setGameMode,
+    isLinked,
+    userName,
+    partnerName,
+    mySymbol,
+    isMyTurn,
+    handleCellPress,
+    handleNewRound,
+    handleResetMatch,
+  } = useTicTacToe();
 
-  const result = checkTicTacToeWinner(board);
-
-  const handleCellPress = (index: number) => {
-    if (board[index] || result.winner || result.isDraw) return;
-
-    const nextBoard = [...board];
-    nextBoard[index] = turn;
-    setBoard(nextBoard);
-
-    const nextResult = checkTicTacToeWinner(nextBoard);
-    if (nextResult.winner) {
-      setScores((s) => ({
-        ...s,
-        [nextResult.winner!]: s[nextResult.winner!] + 1,
-      }));
-      const randomDare =
-        TIC_TAC_TOE_DARES[Math.floor(Math.random() * TIC_TAC_TOE_DARES.length)];
-      setCurrentDare(randomDare);
-    } else if (nextResult.isDraw) {
-      setScores((s) => ({ ...s, draws: s.draws + 1 }));
-    } else {
-      setTurn((t) => (t === 'X' ? 'O' : 'X'));
-    }
-  };
-
-  const handleNewRound = () => {
-    setBoard(Array(9).fill(null));
-    setTurn('X');
-    setCurrentDare(null);
-  };
-
-  const handleResetMatch = () => {
-    handleNewRound();
-    setScores({ X: 0, O: 0, draws: 0 });
-  };
+  const isXActive = turn === 'X' && !result.winner && !result.isDraw;
+  const isOActive = turn === 'O' && !result.winner && !result.isDraw;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -81,23 +60,69 @@ export const TicTacToeScreen: React.FC<TicTacToeScreenProps> = ({ onBack, onShar
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
+        <TouchableOpacity
+          onPress={() => {
+            gameLog('TicTacToe', 'NavigateBack');
+            onBack();
+          }}
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
           <ArrowLeft size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Love Tic-Tac-Toe</Text>
-          <Text style={styles.headerSubtitle}>Quick Couple Battle</Text>
+          <Text style={styles.headerSubtitle}>
+            {gameMode === 'couple'
+              ? `Online with ${partnerName}`
+              : 'Pass & Play Battle'}
+          </Text>
         </View>
         <TouchableOpacity onPress={handleResetMatch} style={styles.resetBtn} activeOpacity={0.7}>
           <RotateCcw size={18} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
+      {/* Mode Switcher Pill if linked */}
+      {isLinked && (
+        <View style={styles.modeBar}>
+          <TouchableOpacity
+            style={[styles.modeTab, gameMode === 'couple' && styles.modeTabActive]}
+            onPress={() => {
+              gameLog('TicTacToe', 'SwitchMode', { mode: 'couple' });
+              setGameMode('couple');
+            }}
+            activeOpacity={0.8}
+          >
+            <Users size={14} color={gameMode === 'couple' ? '#FFFFFF' : colors.textSecondary} />
+            <Text style={[styles.modeTabText, gameMode === 'couple' && styles.modeTabTextActive]}>
+              Couple Online
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.modeTab, gameMode === 'pass_and_play' && styles.modeTabActive]}
+            onPress={() => {
+              gameLog('TicTacToe', 'SwitchMode', { mode: 'pass_and_play' });
+              setGameMode('pass_and_play');
+            }}
+            activeOpacity={0.8}
+          >
+            <Smartphone size={14} color={gameMode === 'pass_and_play' ? '#FFFFFF' : colors.textSecondary} />
+            <Text style={[styles.modeTabText, gameMode === 'pass_and_play' && styles.modeTabTextActive]}>
+              Pass & Play
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Scoreboard Bar */}
       <View style={styles.scoreBar}>
-        <View style={[styles.playerCard, turn === 'X' && !result.winner && styles.playerCardActive]}>
+        <View style={[styles.playerCard, isXActive && styles.playerCardActive]}>
           <Text style={styles.playerEmoji}>❤️</Text>
-          <Text style={styles.playerTitle}>You (Hearts)</Text>
+          <Text style={styles.playerTitle}>
+            {userName} {gameMode === 'couple' && mySymbol === 'X' ? '(You)' : ''}
+          </Text>
           <Text style={styles.playerScore}>{scores.X} wins</Text>
         </View>
 
@@ -106,9 +131,11 @@ export const TicTacToeScreen: React.FC<TicTacToeScreenProps> = ({ onBack, onShar
           <Text style={styles.drawsText}>{scores.draws} ties</Text>
         </View>
 
-        <View style={[styles.playerCard, turn === 'O' && !result.winner && styles.playerCardActive]}>
+        <View style={[styles.playerCard, isOActive && styles.playerCardActive]}>
           <Text style={styles.playerEmoji}>💖</Text>
-          <Text style={styles.playerTitle}>Partner (Pink)</Text>
+          <Text style={styles.playerTitle}>
+            {partnerName} {gameMode === 'couple' && mySymbol === 'O' ? '(You)' : ''}
+          </Text>
           <Text style={styles.playerScore}>{scores.O} wins</Text>
         </View>
       </View>
@@ -119,14 +146,24 @@ export const TicTacToeScreen: React.FC<TicTacToeScreenProps> = ({ onBack, onShar
           <View style={styles.winnerCallout}>
             <Trophy size={18} color="#F59E0B" />
             <Text style={styles.winnerText}>
-              {result.winner === 'X' ? '❤️ You won this round!' : '💖 Partner won this round!'}
+              {result.winner === 'X'
+                ? `❤️ ${userName} won this round!`
+                : `💖 ${partnerName} won this round!`}
             </Text>
           </View>
         ) : result.isDraw ? (
           <Text style={styles.statusText}>It's a Tie! Play again 💕</Text>
+        ) : gameMode === 'couple' ? (
+          <Text style={[styles.statusText, isMyTurn ? styles.statusTextMyTurn : styles.statusTextPartnerTurn]}>
+            {isMyTurn
+              ? '🎯 It’s your turn! Tap an empty square.'
+              : `⏳ Waiting for ${turn === 'X' ? userName : partnerName} to make a move...`}
+          </Text>
         ) : (
           <Text style={styles.statusText}>
-            {turn === 'X' ? '❤️ Your turn to place a heart!' : "💖 Partner's turn!"}
+            {turn === 'X'
+              ? `📱 Pass phone to ${userName} (Hearts ❤️)`
+              : `📱 Pass phone to ${partnerName} (Pink 💖)`}
           </Text>
         )}
       </View>
@@ -134,33 +171,46 @@ export const TicTacToeScreen: React.FC<TicTacToeScreenProps> = ({ onBack, onShar
       {/* Tic-Tac-Toe 3x3 Grid */}
       <View style={styles.gridWrapper}>
         <View style={[styles.grid, { width: GRID_SIZE, height: GRID_SIZE }]}>
-          {board.map((cell, idx) => {
-            const isWinningCell = result.winningLine?.includes(idx);
+          {[0, 1, 2].map((rowIdx) => (
+            <View key={rowIdx} style={styles.gridRow}>
+              {[0, 1, 2].map((colIdx) => {
+                const idx = rowIdx * 3 + colIdx;
+                const cell = board[idx];
+                const isWinningCell = result.winningLine?.includes(idx);
+                const isClickable = !cell && !result.winner && !result.isDraw && (gameMode === 'pass_and_play' || isMyTurn);
 
-            return (
-              <TouchableOpacity
-                key={idx}
-                style={[
-                  styles.cell,
-                  { width: CELL_SIZE, height: CELL_SIZE },
-                  isWinningCell && styles.winningCell,
-                ]}
-                onPress={() => handleCellPress(idx)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.cellEmoji}>
-                  {cell === 'X' ? '❤️' : cell === 'O' ? '💖' : ''}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[
+                      styles.cell,
+                      colIdx < 2 && styles.cellBorderRight,
+                      rowIdx < 2 && styles.cellBorderBottom,
+                      isWinningCell && styles.winningCell,
+                      !isClickable && !cell && styles.cellDisabled,
+                    ]}
+                    onPress={() => handleCellPress(idx)}
+                    disabled={!isClickable && !cell}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.cellEmoji}>
+                      {cell === 'X' ? '❤️' : cell === 'O' ? '💖' : ''}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))}
         </View>
       </View>
 
       {/* Dares Card on Victory */}
       {result.winner && currentDare && (
         <View style={styles.dareBanner}>
-          <Text style={styles.dareHeading}>Romantic Forfeit for Loser:</Text>
+          <View style={styles.dareHeaderRow}>
+            <Sparkles size={16} color="#EA580C" />
+            <Text style={styles.dareHeading}>Romantic Forfeit for Loser:</Text>
+          </View>
           <Text style={styles.dareContent}>{currentDare}</Text>
         </View>
       )}
@@ -171,11 +221,12 @@ export const TicTacToeScreen: React.FC<TicTacToeScreenProps> = ({ onBack, onShar
           {onShareToChat && (
             <TouchableOpacity
               style={styles.shareBtn}
-              onPress={() =>
+              onPress={() => {
+                gameLog('TicTacToe', 'ShareResultToChat', { scores, winner: result.winner });
                 onShareToChat(
-                  `⚔️ Love Tic-Tac-Toe match update: You (${scores.X}) vs Partner (${scores.O})! 💕`
-                )
-              }
+                  `⚔️ Love Tic-Tac-Toe match update: ${userName} (${scores.X}) vs ${partnerName} (${scores.O})! 💕`
+                );
+              }}
             >
               <Share2 size={16} color={colors.textPrimary} />
               <Text style={styles.shareBtnText}>Share</Text>
@@ -226,6 +277,36 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSubtle,
     borderRadius: radii.full,
   },
+  modeBar: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radii.full,
+    padding: 3,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.xs,
+  },
+  modeTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+  },
+  modeTabActive: {
+    backgroundColor: colors.primary,
+    ...shadows.sm,
+  },
+  modeTabText: {
+    fontSize: typography.sizes.xs,
+    color: colors.textSecondary,
+    fontWeight: typography.weights.medium,
+  },
+  modeTabTextActive: {
+    color: '#FFFFFF',
+    fontWeight: typography.weights.bold,
+  },
   scoreBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -247,10 +328,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: 'transparent',
+    minWidth: 90,
   },
   playerCardActive: {
     backgroundColor: colors.primarySubtle,
     borderColor: colors.primary,
+    ...shadows.glowRose,
   },
   playerEmoji: {
     fontSize: 22,
@@ -260,6 +343,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.textPrimary,
     marginTop: 2,
+    textAlign: 'center',
   },
   playerScore: {
     fontSize: typography.sizes.xs,
@@ -281,11 +365,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
   },
   statusText: {
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.bold,
     color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  statusTextMyTurn: {
+    color: colors.primary,
+  },
+  statusTextPartnerTurn: {
+    color: '#EA580C',
   },
   winnerCallout: {
     flexDirection: 'row',
@@ -307,8 +399,6 @@ const styles = StyleSheet.create({
     marginVertical: spacing.md,
   },
   grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     backgroundColor: colors.card,
     borderRadius: radii.xl,
     overflow: 'hidden',
@@ -316,12 +406,26 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
     ...shadows.lg,
   },
+  gridRow: {
+    flex: 1,
+    flexDirection: 'row',
+  },
   cell: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
     backgroundColor: '#FFFFFF',
+  },
+  cellBorderRight: {
+    borderRightWidth: 1.5,
+    borderRightColor: colors.borderLight,
+  },
+  cellBorderBottom: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.borderLight,
+  },
+  cellDisabled: {
+    backgroundColor: '#FAFAFA',
   },
   winningCell: {
     backgroundColor: '#FFE4E6',
@@ -338,15 +442,21 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     marginTop: spacing.xs,
   },
+  dareHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
   dareHeading: {
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.bold,
     color: '#EA580C',
-    marginBottom: 2,
   },
   dareContent: {
     fontSize: typography.sizes.sm,
     color: colors.textPrimary,
+    lineHeight: 20,
   },
   actionsRow: {
     flexDirection: 'row',

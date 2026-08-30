@@ -10,7 +10,11 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "seed:questions": "node scripts/seedQuestions.js",
-    "setup:couple": "node scripts/setupCouple.js"
+    "setup:couple": "node scripts/setupCouple.js",
+    "deploy:firestore-rules": "node scripts/deployFirestoreRules.js",
+    "deploy:storage-rules": "node scripts/deployStorageRules.js",
+    "deploy:database-rules": "node scripts/deployDatabaseRules.js",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo/vector-icons": "~14.0.4",
@@ -25,6 +29,8 @@
     "expo-clipboard": "~7.0.1",
     "expo-constants": "~17.0.7",
     "expo-dev-client": "~5.0.20",
+    "expo-file-system": "~18.0.12",
+    "expo-image-manipulator": "~13.0.6",
     "expo-image-picker": "~16.0.6",
     "expo-secure-store": "~14.0.1",
     "expo-status-bar": "~2.0.1",
@@ -45,6 +51,7 @@
     "dotenv": "^16.4.7",
     "firebase-admin": "^13.1.0",
     "jest": "^29.7.0",
+    "patch-package": "^8.0.1",
     "ts-jest": "^29.2.5",
     "typescript": "^5.3.3"
   },

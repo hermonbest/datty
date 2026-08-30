@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,12 @@ import {
   Modal,
   ActivityIndicator,
   Animated,
+  PanResponder,
 } from 'react-native';
 import { format, isToday, isYesterday } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
 import {
   useAudioRecorder,
-  useAudioRecorderState,
   useAudioPlayer,
   useAudioPlayerStatus,
   setAudioModeAsync,
@@ -29,6 +29,7 @@ import {
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { Avatar, Skeleton, EmptyState, useToast } from '../../components';
 import { useCouple } from '../../services/coupleContext';
+import { usePresence } from '../../services/usePresence';
 import { useChat } from './useChat';
 import {
   Send,
@@ -47,7 +48,7 @@ import {
   Play,
   Pause,
 } from 'lucide-react-native';
-import { ChatMessage, ChatReplyReference } from '../../types';
+import { ChatMessage, ChatReplyReference, UserProfile } from '../../types';
 import { getCategoryTheme } from '../cards/categoryTheme';
 import { DECKS_DATA } from '../cards/decksData';
 
@@ -161,7 +162,313 @@ const VoiceNoteRow: React.FC<VoiceNoteRowProps> = ({
   );
 };
 
+// ---------------------------------------------------------------------------
+// SwipeableMessage — wraps a message row with swipe-right-to-reply gesture.
+// Translates the bubble right up to SWIPE_THRESHOLD, then spring-bounces back.
+// A reply icon fades in as the user drags.
+// ---------------------------------------------------------------------------
+const SWIPE_THRESHOLD = 60;
+const SWIPE_MAX = 80;
+
+interface SwipeableMessageProps {
+  onReply: () => void;
+  children: React.ReactNode;
+}
+
+const SwipeableMessage: React.FC<SwipeableMessageProps> = ({ onReply, children }) => {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const iconOpacity = useRef(new Animated.Value(0)).current;
+  const iconScale = useRef(new Animated.Value(0.5)).current;
+  const triggered = useRef(false);
+
+  const springBack = () => {
+    Animated.parallel([
+      Animated.spring(translateX, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 10,
+      }),
+      Animated.timing(iconOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.spring(iconScale, {
+        toValue: 0.5,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 10,
+      }),
+    ]).start();
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Claim gesture only on clear horizontal swipe right
+        return (
+          Math.abs(gestureState.dx) > 8 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5 &&
+          gestureState.dx > 0
+        );
+      },
+      onPanResponderGrant: () => {
+        triggered.current = false;
+        translateX.setValue(0);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const dx = Math.max(0, Math.min(SWIPE_MAX, gestureState.dx));
+        translateX.setValue(dx);
+        const progress = Math.min(1, dx / SWIPE_THRESHOLD);
+        iconOpacity.setValue(progress);
+        iconScale.setValue(0.5 + progress * 0.5);
+
+        if (dx >= SWIPE_THRESHOLD && !triggered.current) {
+          triggered.current = true;
+          // Bounce the icon on threshold hit
+          Animated.sequence([
+            Animated.spring(iconScale, { toValue: 1.3, useNativeDriver: true, tension: 200, friction: 5 }),
+            Animated.spring(iconScale, { toValue: 1.0, useNativeDriver: true, tension: 200, friction: 5 }),
+          ]).start();
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx >= SWIPE_THRESHOLD) {
+          onReply();
+        }
+        springBack();
+        triggered.current = false;
+      },
+      onPanResponderTerminate: () => {
+        springBack();
+        triggered.current = false;
+      },
+    })
+  ).current;
+
+  return (
+    <View style={styles.swipeableWrapper}>
+      {/* Reply icon revealed behind the bubble */}
+      <Animated.View
+        style={[
+          styles.swipeReplyIcon,
+          { opacity: iconOpacity, transform: [{ scale: iconScale }] },
+        ]}
+        pointerEvents="none"
+      >
+        <CornerDownRight size={18} color={colors.primary} />
+      </Animated.View>
+
+      {/* Sliding bubble */}
+      <Animated.View
+        style={{ transform: [{ translateX }] }}
+        {...panResponder.panHandlers}
+      >
+        {children}
+      </Animated.View>
+    </View>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Memoized message row — extracted from the FlatList renderItem so that typing
+// in the composer or playback ticks don't re-render the whole list.
+// ---------------------------------------------------------------------------
+interface MessageRowProps {
+  item: ChatMessage;
+  isMe: boolean;
+  showDateDivider: boolean;
+  partnerProfile: UserProfile | null;
+  onToggleReaction: (messageId: string, currentReaction?: string | null) => void;
+  onOpenImage: (url: string) => void;
+  onToggleAudio: (message: ChatMessage) => void;
+  onReply: (item: ChatMessage) => void;
+  isActive: boolean;
+  isPlaying: boolean;
+  currentTime: number;
+  playerDuration: number;
+}
+
+const MessageRow = React.memo<MessageRowProps>(({
+  item,
+  isMe,
+  showDateDivider,
+  partnerProfile,
+  onToggleReaction,
+  onOpenImage,
+  onToggleAudio,
+  onReply,
+  isActive,
+  isPlaying,
+  currentTime,
+  playerDuration,
+}) => {
+  const hasReply = Boolean(item.replyTo);
+  const reply = item.replyTo;
+
+  return (
+    <View>
+      {/* Date Divider */}
+      {showDateDivider && (
+        <View style={styles.dateDividerWrap}>
+          <Text style={styles.dateDividerText}>{formatDividerDate(item.createdAt)}</Text>
+        </View>
+      )}
+
+      <SwipeableMessage onReply={() => onReply(item)}>
+      <View style={[styles.messageRow, isMe ? styles.myMessageRow : styles.partnerMessageRow]}>
+        {!isMe && (
+          <Avatar
+            name={partnerProfile?.displayName || 'Partner'}
+            photoURL={partnerProfile?.photoURL}
+            size="sm"
+            style={styles.messageAvatar}
+          />
+        )}
+
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => onToggleReaction(item.id, item.reaction)}
+          style={[
+            styles.bubble,
+            isMe ? styles.myBubble : styles.partnerBubble,
+            item.pending && styles.pendingBubble,
+            item.error && styles.errorBubble,
+          ]}
+        >
+          {/* Instagram-Style Quoted Reference Attachment */}
+          {hasReply && reply && (() => {
+            const matchedDeck = reply.deckTitle ? DECKS_DATA.find((d) => d.title === reply.deckTitle) : null;
+            const replyTheme = getCategoryTheme(matchedDeck?.category);
+            const accentColor = isMe ? '#FFFFFF' : replyTheme.color;
+
+            return (
+              <View
+                style={[
+                  styles.quoteContainer,
+                  isMe ? styles.myQuoteContainer : styles.partnerQuoteContainer,
+                  !isMe && { borderColor: replyTheme.border, backgroundColor: replyTheme.bgLight },
+                ]}
+              >
+                <View style={[styles.quoteAccentBar, { backgroundColor: accentColor }]} />
+                <View style={styles.quoteBody}>
+                  {reply.deckTitle ? (
+                    <View style={styles.quoteDeckHeader}>
+                      <Layers size={11} color={accentColor} />
+                      <Text style={[styles.quoteDeckTitle, { color: accentColor }]}>
+                        {replyTheme.emoji} {reply.deckTitle}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={[styles.quoteAuthorText, { color: accentColor }]}>
+                      Replying to {reply.authorName || 'Answer'}
+                    </Text>
+                  )}
+
+                  {reply.questionText ? (
+                    <Text style={[styles.quoteQuestionText, isMe ? styles.myQuoteText : styles.partnerQuoteText]}>
+                      "{reply.questionText}"
+                    </Text>
+                  ) : null}
+
+                  {reply.answerText ? (
+                    <Text style={[styles.quoteAnswerText, isMe ? styles.myQuoteText : styles.partnerQuoteText]}>
+                      ↳ {reply.authorName ? `${reply.authorName}: ` : ''}{reply.answerText}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            );
+          })()}
+
+          {/* Image Message */}
+          {item.imageURL ? (
+            <TouchableOpacity activeOpacity={0.9} onPress={() => {
+                  if (item.imageURL) onOpenImage(item.imageURL);
+                }}>
+              <Image source={{ uri: item.imageURL }} style={styles.bubbleImage} />
+            </TouchableOpacity>
+          ) : null}
+
+          {/* Voice Note Message */}
+          {item.audioURL ? (
+            <VoiceNoteRow
+              message={item}
+              isMe={isMe}
+              isActive={isActive}
+              isPlaying={isPlaying}
+              currentTime={currentTime}
+              playerDuration={playerDuration}
+              onToggle={() => onToggleAudio(item)}
+            />
+          ) : null}
+
+          {/* Uploading / failed placeholder for non-blocking media sends */}
+          {!item.imageURL && !item.audioURL && item.mediaState === 'uploading' && (
+            <View style={styles.uploadingPlaceholder}>
+              <ActivityIndicator size="small" color={isMe ? 'rgba(255, 255, 255, 0.8)' : colors.textMuted} />
+              <Text style={[styles.uploadingText, isMe ? styles.myUploadingText : null]}>Uploading…</Text>
+            </View>
+          )}
+          {!item.imageURL && !item.audioURL && item.mediaState === 'failed' && (
+            <Text style={styles.uploadFailedText}>Upload failed</Text>
+          )}
+
+          {/* Text Message */}
+          {item.text ? (
+            <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.partnerMessageText]}>
+              {item.text}
+            </Text>
+          ) : null}
+
+          {/* Bubble Timestamp & Status */}
+          <View style={styles.bubbleMeta}>
+            <Text style={[styles.messageTime, isMe ? styles.myMessageTime : styles.partnerMessageTime]}>
+              {formatMessageTime(item.createdAt)}
+            </Text>
+            {item.pending && <Clock size={10} color="#FFFFFF" style={{ marginLeft: 4 }} />}
+            {item.error && <AlertCircle size={10} color={colors.error} style={{ marginLeft: 4 }} />}
+          </View>
+
+          {/* Instagram-Style Heart Reaction Badge */}
+          {item.reaction && (
+            <View style={styles.reactionBadge}>
+              <Text style={styles.reactionEmoji}>{item.reaction}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+      </SwipeableMessage>
+    </View>
+  );
+});
+
 import { useNavigation } from '@react-navigation/native';
+
+// Date helpers (module scope so the memoized MessageRow can use them)
+const formatMessageTime = (createdAt: any) => {
+  if (!createdAt) return '';
+  try {
+    const date = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+    return format(date, 'h:mm a');
+  } catch (e) {
+    return '';
+  }
+};
+
+const formatDividerDate = (createdAt: any) => {
+  if (!createdAt) return '';
+  try {
+    const date = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+    if (isToday(date)) return 'Today';
+    if (isYesterday(date)) return 'Yesterday';
+    return format(date, 'EEEE, MMMM d');
+  } catch (e) {
+    return '';
+  }
+};
 
 interface ChatScreenProps {
   route?: {
@@ -174,8 +481,9 @@ interface ChatScreenProps {
 
 export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   const navigation = useNavigation<any>();
-  const { userProfile, partnerProfile, myUid } = useCouple();
+  const { userProfile, partnerProfile, myUid, coupleId, partnerUid } = useCouple();
   const { messages, loading, sending, sendMessage, toggleReaction } = useChat();
+  const { partnerPresence, writePresence } = usePresence(coupleId, myUid, partnerUid);
 
   const [inputText, setInputText] = useState('');
   const [replyingTo, setReplyingTo] = useState<ChatReplyReference | null>(null);
@@ -184,19 +492,69 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   const toast = useToast();
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingSentRef = useRef(0);
 
-  // Voice notes: recording
+  // Debounced typing indicator — at most one presence write every 3s while typing,
+  // cleared after 2.5s of inactivity.
+  const handleChangeText = (text: string) => {
+    setInputText(text);
+    if (!coupleId || !myUid) return;
+    if (text.trim()) {
+      const now = Date.now();
+      if (now - lastTypingSentRef.current > 3000) {
+        lastTypingSentRef.current = now;
+        writePresence({ typing: 'chat', online: true });
+      }
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      typingTimerRef.current = setTimeout(() => writePresence({ typing: null }), 2500);
+    } else {
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      writePresence({ typing: null });
+    }
+  };
+
+  // Voice notes: recording — the official useAudioRecorder hook owns the
+  // recorder's lifecycle (creates it once with stable options, releases it on
+  // unmount). We no longer construct/release AudioModule.AudioRecorder
+  // manually, which is what produced the "Cannot use shared object that was
+  // already released" errors.
   const recorder = useAudioRecorder(RECORDING_OPTIONS);
-  const recorderState = useAudioRecorderState(recorder, 200);
+
   const [isRecording, setIsRecording] = useState(false);
   const [isStoppingRecording, setIsStoppingRecording] = useState(false);
+  const [recordingDurationMillis, setRecordingDurationMillis] = useState(0);
 
   // Voice notes: single shared player for message playback
   const player = useAudioPlayer();
   const playerStatus = useAudioPlayerStatus(player);
   const [activeAudioId, setActiveAudioId] = useState<string | null>(null);
 
-  const recordingSec = Math.floor(recorderState.durationMillis / 1000);
+  const recordingSec = Math.floor(recordingDurationMillis / 1000);
+
+  // Poll the recorder only while recording and guard every native access —
+  // the shared object can be released underneath us (known expo-audio issue),
+  // and unguarded reads would throw "Cannot use shared object that was
+  // already released".
+  const safeReadDurationMillis = () => {
+    try {
+      return recorder.getStatus().durationMillis;
+    } catch (e: any) {
+      console.warn('[voice] getStatus failed:', e?.message);
+      return 0;
+    }
+  };
+
+  useEffect(() => {
+    if (!isRecording) {
+      return;
+    }
+    const interval = setInterval(() => {
+      setRecordingDurationMillis(safeReadDurationMillis());
+    }, 200);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRecording, recorder]);
 
   // Pulsing red dot while recording
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -222,17 +580,25 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     }
   }, [playerStatus.didJustFinish]);
 
-  // Clean up any active recording on screen unmount
+  // Best-effort stop of an active recording on unmount; the hook releases the
+  // recorder, which may already have happened by the time this cleanup runs —
+  // hence the try/catch.
   useEffect(() => {
     return () => {
-      if (recorder.isRecording) {
-        recorder.stop().catch(() => {});
+      try {
+        if (recorder.isRecording) {
+          console.log('[voice] unmount: stopping active recording');
+          recorder.stop().catch(() => {});
+        }
+      } catch (e) {
+        // Recorder already released by useAudioRecorder's own cleanup.
       }
     };
   }, [recorder]);
 
   const startRecording = async () => {
     if (isRecording || sending) return;
+    console.log('[voice] startRecording: requesting mic permission');
     try {
       const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
@@ -244,11 +610,37 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
         playsInSilentMode: true,
         interruptionMode: 'doNotMix',
       });
+      console.log('[voice] preparing recorder', recorder.id);
       await recorder.prepareToRecordAsync();
       recorder.record();
+      // Diagnostic: verify the native recorder actually started. If
+      // isRecording stays false, record() was a native no-op — this happens
+      // with the expo-audio 0.3.5 Android bug that is fixed via
+      // patches/expo-audio+0.3.5.patch (requires a dev client rebuild).
+      const status = (() => {
+        try {
+          return recorder.getStatus();
+        } catch {
+          return null;
+        }
+      })();
+      console.log('[voice] record() called', {
+        id: recorder.id,
+        canRecord: status?.canRecord,
+        isRecording: status?.isRecording,
+        durationMillis: status?.durationMillis,
+      });
+      if (!status?.isRecording) {
+        console.warn(
+          '[voice] native recorder did not start — if this persists, rebuild the dev client so the expo-audio native patch takes effect'
+        );
+      }
+
       setIsStoppingRecording(false);
+      setRecordingDurationMillis(0);
       setIsRecording(true);
     } catch (e: any) {
+      console.warn('[voice] startRecording failed:', e?.message);
       setIsRecording(false);
       toast.error('Could not start recording', e?.message || 'Please try again.');
     }
@@ -270,9 +662,10 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     if (!isRecording) return;
     setIsStoppingRecording(true);
     try {
+      console.log('[voice] cancelRecording: stopping');
       await recorder.stop();
-    } catch (e) {
-      // ignore stop errors on cancel
+    } catch (e: any) {
+      console.warn('[voice] cancelRecording stop failed:', e?.message);
     }
     setIsRecording(false);
     setIsStoppingRecording(false);
@@ -286,14 +679,17 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     // Read fresh duration before stopping (polled state may lag)
     const durationSec = Math.min(
       MAX_RECORDING_MS / 1000,
-      Math.max(1, Math.round(recorder.getStatus().durationMillis / 1000))
+      Math.max(1, Math.round(safeReadDurationMillis() / 1000))
     );
 
     let uri: string | null = null;
     try {
+      console.log('[voice] stopAndSend: stopping, durationSec =', durationSec);
       await recorder.stop();
       uri = recorder.uri;
+      console.log('[voice] stopAndSend: stopped, uri =', uri);
     } catch (e: any) {
+      console.warn('[voice] stopAndSend: stop failed:', e?.message);
       toast.error('Could not send voice note', e?.message || 'Recording failed.');
     }
     setIsRecording(false);
@@ -323,28 +719,31 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
 
   // Hard stop at the 10 minute cap — auto-send
   useEffect(() => {
-    if (isRecording && recorderState.durationMillis >= MAX_RECORDING_MS) {
+    if (isRecording && recordingDurationMillis >= MAX_RECORDING_MS) {
       stopAndSendRecording();
     }
-  }, [isRecording, recorderState.durationMillis]);
+  }, [isRecording, recordingDurationMillis]);
 
-  const handleToggleAudio = (message: ChatMessage) => {
-    if (!message.audioURL) return;
-    if (activeAudioId === message.id) {
-      if (playerStatus.playing) {
-        player.pause();
-      } else {
-        if (playerStatus.didJustFinish || playerStatus.currentTime >= (playerStatus.duration || 0) - 0.2) {
-          player.seekTo(0);
+  const handleToggleAudio = useCallback(
+    (message: ChatMessage) => {
+      if (!message.audioURL) return;
+      if (activeAudioId === message.id) {
+        if (playerStatus.playing) {
+          player.pause();
+        } else {
+          if (playerStatus.didJustFinish || playerStatus.currentTime >= (playerStatus.duration || 0) - 0.2) {
+            player.seekTo(0);
+          }
+          player.play();
         }
+      } else {
+        setActiveAudioId(message.id);
+        player.replace({ uri: message.audioURL });
         player.play();
       }
-    } else {
-      setActiveAudioId(message.id);
-      player.replace({ uri: message.audioURL });
-      player.play();
-    }
-  };
+    },
+    [activeAudioId, playerStatus, player]
+  );
 
   // Set reply target from route params if navigated from Card / Daily Question
   useEffect(() => {
@@ -371,6 +770,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     setInputText('');
     setSelectedImage(null);
     setReplyingTo(null);
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    writePresence({ typing: null, online: true });
 
     try {
       await sendMessage(text, img || undefined, replyRef);
@@ -417,27 +818,58 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     }
   };
 
-  const formatMessageTime = (createdAt: any) => {
-    if (!createdAt) return '';
-    try {
-      const date = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
-      return format(date, 'h:mm a');
-    } catch (e) {
-      return '';
-    }
-  };
+  const partnerTyping = partnerPresence?.typing === 'chat';
+  const partnerOnline = partnerPresence ? Boolean(partnerPresence.online) : true;
 
-  const formatDividerDate = (createdAt: any) => {
-    if (!createdAt) return '';
-    try {
-      const date = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
-      if (isToday(date)) return 'Today';
-      if (isYesterday(date)) return 'Yesterday';
-      return format(date, 'EEEE, MMMM d');
-    } catch (e) {
-      return '';
-    }
-  };
+  // Stable renderer: rows are memoized so typing / playback ticks don't
+  // re-render the whole list.
+  const renderMessage = useCallback(
+    ({ item, index }: { item: ChatMessage; index: number }) => {
+      const isMe = item.senderUid === myUid;
+      const nextMsg = messages[index + 1];
+      const showDateDivider =
+        !nextMsg || formatDividerDate(item.createdAt) !== formatDividerDate(nextMsg.createdAt);
+      return (
+        <MessageRow
+          item={item}
+          isMe={isMe}
+          showDateDivider={showDateDivider}
+          partnerProfile={partnerProfile}
+          onToggleReaction={toggleReaction}
+          onOpenImage={setViewingImage}
+          onToggleAudio={handleToggleAudio}
+          onReply={(msg) => {
+            setReplyingTo({
+              type: 'message',
+              authorName: isMe
+                ? (userProfile?.displayName || 'You')
+                : (partnerProfile?.displayName || 'Partner'),
+              answerText: msg.text || (msg.imageURL ? '📷 Photo' : msg.audioURL ? '🎤 Voice note' : ''),
+              questionText: undefined,
+              deckTitle: undefined,
+            });
+            setTimeout(() => inputRef.current?.focus(), 200);
+          }}
+          isActive={activeAudioId === item.id}
+          isPlaying={activeAudioId === item.id && playerStatus.playing}
+          currentTime={activeAudioId === item.id ? playerStatus.currentTime : 0}
+          playerDuration={activeAudioId === item.id ? playerStatus.duration : 0}
+        />
+      );
+    },
+    [
+      messages,
+      myUid,
+      userProfile,
+      partnerProfile,
+      toggleReaction,
+      handleToggleAudio,
+      activeAudioId,
+      playerStatus.playing,
+      playerStatus.currentTime,
+      playerStatus.duration,
+    ]
+  );
 
   return (
     <KeyboardAvoidingView
@@ -457,8 +889,10 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
           <View style={styles.headerText}>
             <Text style={styles.partnerName}>{partnerProfile?.displayName || 'Partner'}</Text>
             <View style={styles.statusDotRow}>
-              <View style={styles.onlineDot} />
-              <Text style={styles.partnerStatus}>Private Thread</Text>
+              <View style={[styles.onlineDot, !partnerOnline && !partnerTyping ? styles.offlineDot : null]} />
+              <Text style={styles.partnerStatus}>
+                {partnerTyping ? 'typing…' : partnerOnline ? 'Private Thread' : 'Offline'}
+              </Text>
             </View>
           </View>
         </View>
@@ -490,183 +924,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
           inverted
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messagesList}
-          renderItem={({ item, index }) => {
-            const isMe = item.senderUid === myUid;
-            const hasReply = Boolean(item.replyTo);
-            const reply = item.replyTo;
-
-            // Check if date divider is needed
-            const nextMsg = messages[index + 1];
-            const showDateDivider =
-              !nextMsg ||
-              formatDividerDate(item.createdAt) !== formatDividerDate(nextMsg.createdAt);
-
-            return (
-              <View>
-                {/* Date Divider */}
-                {showDateDivider && (
-                  <View style={styles.dateDividerWrap}>
-                    <Text style={styles.dateDividerText}>
-                      {formatDividerDate(item.createdAt)}
-                    </Text>
-                  </View>
-                )}
-
-                <View
-                  style={[
-                    styles.messageRow,
-                    isMe ? styles.myMessageRow : styles.partnerMessageRow,
-                  ]}
-                >
-                  {!isMe && (
-                    <Avatar
-                      name={partnerProfile?.displayName || 'Partner'}
-                      photoURL={partnerProfile?.photoURL}
-                      size="sm"
-                      style={styles.messageAvatar}
-                    />
-                  )}
-
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={() => toggleReaction(item.id, item.reaction)}
-                    style={[
-                      styles.bubble,
-                      isMe ? styles.myBubble : styles.partnerBubble,
-                      item.pending && styles.pendingBubble,
-                      item.error && styles.errorBubble,
-                    ]}
-                  >
-                    {/* Instagram-Style Quoted Reference Attachment */}
-                    {hasReply && reply && (() => {
-                      const matchedDeck = reply.deckTitle ? DECKS_DATA.find((d) => d.title === reply.deckTitle) : null;
-                      const replyTheme = getCategoryTheme(matchedDeck?.category);
-                      const accentColor = isMe ? '#FFFFFF' : replyTheme.color;
-
-                      return (
-                        <View
-                          style={[
-                            styles.quoteContainer,
-                            isMe ? styles.myQuoteContainer : styles.partnerQuoteContainer,
-                            !isMe && { borderColor: replyTheme.border, backgroundColor: replyTheme.bgLight },
-                          ]}
-                        >
-                          <View
-                            style={[
-                              styles.quoteAccentBar,
-                              { backgroundColor: accentColor },
-                            ]}
-                          />
-                          <View style={styles.quoteBody}>
-                            {reply.deckTitle ? (
-                              <View style={styles.quoteDeckHeader}>
-                                <Layers size={11} color={accentColor} />
-                                <Text
-                                  style={[
-                                    styles.quoteDeckTitle,
-                                    { color: accentColor },
-                                  ]}
-                                >
-                                  {replyTheme.emoji} {reply.deckTitle}
-                                </Text>
-                              </View>
-                            ) : (
-                              <Text
-                                style={[
-                                  styles.quoteAuthorText,
-                                  { color: accentColor },
-                                ]}
-                              >
-                                Replying to {reply.authorName || 'Answer'}
-                              </Text>
-                            )}
-
-                            {reply.questionText ? (
-                              <Text
-                                style={[
-                                  styles.quoteQuestionText,
-                                  isMe ? styles.myQuoteText : styles.partnerQuoteText,
-                                ]}
-                              >
-                                "{reply.questionText}"
-                              </Text>
-                            ) : null}
-
-                            {reply.answerText ? (
-                              <Text
-                                style={[
-                                  styles.quoteAnswerText,
-                                  isMe ? styles.myQuoteText : styles.partnerQuoteText,
-                                ]}
-                              >
-                                ↳ {reply.authorName ? `${reply.authorName}: ` : ''}{reply.answerText}
-                              </Text>
-                            ) : null}
-                          </View>
-                        </View>
-                      );
-                    })()}
-
-                    {/* Image Message */}
-                    {item.imageURL ? (
-                      <TouchableOpacity
-                        activeOpacity={0.9}
-                        onPress={() => setViewingImage(item.imageURL)}
-                      >
-                        <Image source={{ uri: item.imageURL }} style={styles.bubbleImage} />
-                      </TouchableOpacity>
-                    ) : null}
-
-                    {/* Voice Note Message */}
-                    {item.audioURL ? (
-                      <VoiceNoteRow
-                        message={item}
-                        isMe={isMe}
-                        isActive={activeAudioId === item.id}
-                        isPlaying={activeAudioId === item.id && playerStatus.playing}
-                        currentTime={activeAudioId === item.id ? playerStatus.currentTime : 0}
-                        playerDuration={activeAudioId === item.id ? playerStatus.duration : 0}
-                        onToggle={() => handleToggleAudio(item)}
-                      />
-                    ) : null}
-
-                    {/* Text Message */}
-                    {item.text ? (
-                      <Text
-                        style={[
-                          styles.messageText,
-                          isMe ? styles.myMessageText : styles.partnerMessageText,
-                        ]}
-                      >
-                        {item.text}
-                      </Text>
-                    ) : null}
-
-                    {/* Bubble Timestamp & Status */}
-                    <View style={styles.bubbleMeta}>
-                      <Text
-                        style={[
-                          styles.messageTime,
-                          isMe ? styles.myMessageTime : styles.partnerMessageTime,
-                        ]}
-                      >
-                        {formatMessageTime(item.createdAt)}
-                      </Text>
-                      {item.pending && <Clock size={10} color="#FFFFFF" style={{ marginLeft: 4 }} />}
-                      {item.error && <AlertCircle size={10} color={colors.error} style={{ marginLeft: 4 }} />}
-                    </View>
-
-                    {/* Instagram-Style Heart Reaction Badge */}
-                    {item.reaction && (
-                      <View style={styles.reactionBadge}>
-                        <Text style={styles.reactionEmoji}>{item.reaction}</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          }}
+          renderItem={renderMessage}
         />
       )}
 
@@ -772,7 +1030,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
               placeholder={replyingTo ? 'Write your reply...' : 'Message...'}
               placeholderTextColor={colors.textMuted}
               value={inputText}
-              onChangeText={setInputText}
+              onChangeText={handleChangeText}
               multiline
               maxLength={1000}
             />
@@ -910,6 +1168,25 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
+  swipeableWrapper: {
+    position: 'relative',
+    overflow: 'visible',
+  },
+  swipeReplyIcon: {
+    position: 'absolute',
+    left: 4,
+    top: '50%',
+    marginTop: -14,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 0,
+  },
   messageRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -999,9 +1276,12 @@ const styles = StyleSheet.create({
   quoteContainer: {
     flexDirection: 'row',
     borderRadius: radii.md,
-    padding: spacing.xs + 2,
+    padding: spacing.sm,
     marginBottom: spacing.xs + 2,
     overflow: 'hidden',
+    // Fixed card-like dimensions so background is always fully visible
+    minHeight: 90,
+    minWidth: 220,
   },
   myQuoteContainer: {
     backgroundColor: 'rgba(0, 0, 0, 0.15)',
@@ -1015,15 +1295,17 @@ const styles = StyleSheet.create({
     width: 3,
     borderRadius: radii.full,
     marginRight: spacing.xs + 2,
+    alignSelf: 'stretch',
   },
   quoteBody: {
     flex: 1,
+    justifyContent: 'space-between',
   },
   quoteDeckHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   quoteDeckTitle: {
     fontSize: typography.sizes.xs - 3,
@@ -1040,10 +1322,12 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.xs - 1,
     fontStyle: 'italic',
     fontWeight: typography.weights.medium,
+    flexShrink: 1,
   },
   quoteAnswerText: {
     fontSize: typography.sizes.xs - 1,
-    marginTop: 2,
+    marginTop: 4,
+    flexShrink: 1,
   },
   myQuoteText: {
     color: 'rgba(255, 255, 255, 0.95)',
@@ -1250,5 +1534,30 @@ const styles = StyleSheet.create({
   fullscreenImage: {
     width: '100%',
     height: '100%',
+  },
+  offlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.textMuted,
+  },
+  uploadingPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: spacing.xs,
+  },
+  uploadingText: {
+    fontSize: typography.sizes.xs - 1,
+    color: colors.textMuted,
+  },
+  myUploadingText: {
+    color: 'rgba(255, 255, 255, 0.75)',
+  },
+  uploadFailedText: {
+    fontSize: typography.sizes.xs - 1,
+    color: colors.error,
+    fontStyle: 'italic',
+    paddingVertical: spacing.xs,
   },
 });

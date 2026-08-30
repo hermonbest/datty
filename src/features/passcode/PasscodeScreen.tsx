@@ -7,6 +7,7 @@ import {
   Animated,
   SafeAreaView,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { usePasscode } from '../../services/passcodeContext';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
@@ -27,7 +28,14 @@ export const PasscodeScreen: React.FC<PasscodeScreenProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const { setupPasscode, verifyPasscode, changePasscode, isConfigured, lockoutRemainingSeconds } = usePasscode();
+  const {
+    setupPasscode,
+    verifyPasscode,
+    changePasscode,
+    isConfigured,
+    lockoutRemainingSeconds,
+    resetPasscodeForDebug,
+  } = usePasscode();
 
   // For setup mode: 'create' | 'confirm'
   // For change mode: 'current' | 'new' | 'confirm'
@@ -298,6 +306,34 @@ export const PasscodeScreen: React.FC<PasscodeScreenProps> = ({
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Forgot / Reset Passcode option */}
+        {mode === 'unlock' && (
+          <TouchableOpacity
+            style={styles.forgotBtn}
+            onPress={() => {
+              Alert.alert(
+                'Reset Passcode',
+                'Reset and clear the current passcode on this device so you can create a new one?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Reset Passcode',
+                    style: 'destructive',
+                    onPress: async () => {
+                      if (resetPasscodeForDebug) {
+                        await resetPasscodeForDebug();
+                      }
+                    },
+                  },
+                ]
+              );
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.forgotBtnText}>Forgot Passcode? Reset</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -437,5 +473,17 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.xxl,
     fontWeight: typography.weights.semiBold,
     color: colors.textPrimary,
+  },
+  forgotBtn: {
+    alignSelf: 'center',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.xs,
+  },
+  forgotBtnText: {
+    fontSize: typography.sizes.xs,
+    color: colors.textSecondary,
+    fontWeight: typography.weights.medium,
+    textDecorationLine: 'underline',
   },
 });

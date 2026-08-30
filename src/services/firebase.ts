@@ -5,6 +5,7 @@ import { getReactNativePersistence } from '@firebase/auth';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
+import { getDatabase, Database } from 'firebase/database';
 import Constants from 'expo-constants';
 
 const extra = Constants.expoConfig?.extra || {};
@@ -22,6 +23,7 @@ const firebaseConfig = {
   apiKey: apiKey || 'mock-api-key',
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || extra.firebaseAuthDomain || 'mock-app.firebaseapp.com',
   projectId: projectId || 'mock-project-id',
+  databaseURL: process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL || extra.firebaseDatabaseURL || undefined,
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || extra.firebaseStorageBucket || 'mock-project-id.appspot.com',
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || extra.firebaseMessagingSenderId || '123456789',
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || extra.firebaseAppId || '1:123456789:web:mockappid',
@@ -46,4 +48,5 @@ try {
 export { auth };
 export const db: Firestore = getFirestore(app);
 export const storage: FirebaseStorage = getStorage(app);
+export const rtdb: Database = getDatabase(app);
 export default app;

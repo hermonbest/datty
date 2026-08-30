@@ -54,6 +54,8 @@ export interface ChatReplyReference {
   authorName?: string;
 }
 
+export type MediaState = 'ready' | 'uploading' | 'failed';
+
 export interface ChatMessage {
   id: string;
   senderUid: string;
@@ -64,9 +66,18 @@ export interface ChatMessage {
   createdAt: any;
   replyTo?: ChatReplyReference | null;
   reaction?: string | null;
+  // Media upload phase for non-blocking sends (image/voice upload in background)
+  mediaState?: MediaState;
   // Local-only state for optimistic UI
   pending?: boolean;
   error?: boolean;
+}
+
+export interface PresenceData {
+  online?: boolean;
+  lastSeen?: any;
+  typing?: string | null; // 'chat' | null — which surface the user is typing in
+  updatedAt?: any;
 }
 
 export interface CoupleEvent {

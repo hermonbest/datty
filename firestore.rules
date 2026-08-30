@@ -14,8 +14,15 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/couples/$(coupleId)).data;
     }
 
+    // Fast path: membership via a `coupleId` custom claim set by
+    // scripts/setupCouple.js at link time. This avoids a server-side
+    // document read per operation. Falls back to the couple-document
+    // lookup until existing sessions refresh their token (~1h).
     function isCoupleMember(coupleId) {
-      return isSignedIn() && request.auth.uid in coupleOf(coupleId).memberUids;
+      return isSignedIn() && (
+        request.auth.token.coupleId == coupleId ||
+        request.auth.uid in coupleOf(coupleId).memberUids
+      );
     }
 
     match /users/{uid} {
@@ -59,9 +66,23 @@ service cloud.firestore {
     match /couples/{coupleId}/messages/{messageId} {
       allow read: if isCoupleMember(coupleId);
       allow create: if isCoupleMember(coupleId) && request.resource.data.senderUid == request.auth.uid;
-      allow update: if isCoupleMember(coupleId) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reaction']);
+      allow update: if isCoupleMember(coupleId) && (
+        // Reactions (double-tap heart)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reaction']) ||
+        // Non-blocking media sends: sender patches the placeholder doc with the
+        // uploaded URL once the background upload finishes
+        (
+          resource.data.senderUid == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['imageURL', 'audioURL', 'mediaState'])
+        )
+      );
       allow delete: if isCoupleMember(coupleId) && resource.data.senderUid == request.auth.uid;
+    }
+
+    match /couples/{coupleId}/presence/{uid} {
+      allow read: if isCoupleMember(coupleId);
+      allow create, update: if isCoupleMember(coupleId) && isMe(uid);
+      allow delete: if isMe(uid);
     }
 
     match /couples/{coupleId}/events/{eventId} {
@@ -73,6 +94,10 @@ service cloud.firestore {
     }
 
     match /couples/{coupleId}/deckProgress/{deckId} {
+      allow read, create, update, delete: if isCoupleMember(coupleId);
+    }
+
+    match /couples/{coupleId}/games/{gameId} {
       allow read, create, update, delete: if isCoupleMember(coupleId);
     }
   }

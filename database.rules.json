@@ -1,0 +1,32 @@
+{
+  "rules": {
+    "couples": {
+      "$coupleId": {
+        "members": {
+          ".read": "auth != null",
+          "$uid": {
+            ".write": false
+          }
+        },
+        "presence": {
+          ".read": "auth != null && root.child('couples/' + $coupleId + '/members/' + auth.uid).exists()",
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid"
+          }
+        },
+        "chat": {
+          ".read": "auth != null && root.child('couples/' + $coupleId + '/members/' + auth.uid).exists()",
+          "$messageId": {
+            ".write": "auth != null && root.child('couples/' + $coupleId + '/members/' + auth.uid).exists() && (newData.child('senderUid').val() == auth.uid || (data.exists() && newData.exists() && newData.child('senderUid').val() == data.child('senderUid').val()))"
+          }
+        },
+        "games": {
+          ".read": "auth != null && root.child('couples/' + $coupleId + '/members/' + auth.uid).exists()",
+          "$gameId": {
+            ".write": "auth != null && root.child('couples/' + $coupleId + '/members/' + auth.uid).exists()"
+          }
+        }
+      }
+    }
+  }
+}

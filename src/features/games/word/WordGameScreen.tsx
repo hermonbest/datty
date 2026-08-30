@@ -28,6 +28,7 @@ import {
   isValidWord,
   LetterFeedback,
 } from './wordGameLogic';
+import { gameLog, startGameTimer } from '../gameLogger';
 
 interface WordGameScreenProps {
   onBack: () => void;
@@ -52,6 +53,7 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
 
   // Start new game
   const initGame = (gameMode: 'daily' | 'practice' | 'custom', customWord?: string) => {
+    const timer = startGameTimer('WordGame', 'InitGame', { gameMode });
     let word = 'HEART';
     if (gameMode === 'daily') {
       const todayStr = new Date().toISOString().slice(0, 10);
@@ -66,6 +68,7 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
     setCurrentGuess('');
     setGameStatus('playing');
     setMode(gameMode);
+    timer.stop({ wordLength: word.length });
   };
 
   useEffect(() => {
@@ -76,11 +79,19 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
     if (gameStatus !== 'playing') return;
 
     if (key === 'ENTER') {
+      const submitTimer = startGameTimer('WordGame', 'SubmitGuess', {
+        guess: currentGuess,
+        targetLength: targetWord.length,
+        guessNumber: guesses.length + 1,
+      });
+
       if (currentGuess.length !== 5) {
+        submitTimer.stop({ rejected: 'Too short' });
         Alert.alert('Too Short', 'Word must be 5 letters long.');
         return;
       }
       if (!isValidWord(currentGuess) && mode !== 'custom') {
+        submitTimer.stop({ rejected: 'Invalid word' });
         Alert.alert('Not in Word List', 'Please enter a valid 5-letter word.');
         return;
       }
@@ -89,11 +100,16 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
       setGuesses(nextGuesses);
       setCurrentGuess('');
 
-      if (currentGuess.toUpperCase() === targetWord.toUpperCase()) {
+      const isWin = currentGuess.toUpperCase() === targetWord.toUpperCase();
+      if (isWin) {
         setGameStatus('won');
         setStreak((s) => s + 1);
+        submitTimer.stop({ status: 'won', guessCount: nextGuesses.length });
       } else if (nextGuesses.length >= 6) {
         setGameStatus('lost');
+        submitTimer.stop({ status: 'lost', targetWord });
+      } else {
+        submitTimer.stop({ status: 'playing', remaining: 6 - nextGuesses.length });
       }
     } else if (key === 'BACK') {
       setCurrentGuess((prev) => prev.slice(0, -1));

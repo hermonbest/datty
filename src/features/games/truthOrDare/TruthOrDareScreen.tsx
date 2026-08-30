@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   ScrollView,
   Animated,
   Easing,
-  Dimensions,
   SafeAreaView,
   StatusBar,
 } from 'react-native';
@@ -22,12 +21,15 @@ import {
   Zap,
   CheckCircle2,
   Share2,
+  Lock,
+  Users,
+  Smartphone,
+  Info,
 } from 'lucide-react-native';
 import { colors, radii, shadows, spacing, typography } from '../../../theme';
-import { TruthOrDareCategory, PromptType, TruthOrDareItem } from '../../../types/games';
-import { TRUTH_OR_DARE_DATA, getRandomPrompt } from './truthOrDareData';
-
-const { width } = Dimensions.get('window');
+import { TruthOrDareCategory, PromptType } from '../../../types/games';
+import { useTruthOrDare } from './useTruthOrDare';
+import { gameLog, startGameTimer } from '../gameLogger';
 
 interface TruthOrDareScreenProps {
   onBack: () => void;
@@ -42,62 +44,103 @@ const CATEGORIES: { id: TruthOrDareCategory; label: string; icon: any; color: st
 ];
 
 export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, onShareToChat }) => {
-  const [category, setCategory] = useState<TruthOrDareCategory>('romantic');
-  const [selectedPrompt, setSelectedPrompt] = useState<TruthOrDareItem | null>(null);
-  const [usedIds, setUsedIds] = useState<string[]>([]);
-  const [activePlayer, setActivePlayer] = useState<'You' | 'Partner'>('You');
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [completedCount, setCompletedCount] = useState(0);
+  const {
+    category,
+    setCategory,
+    selectedPrompt,
+    activePlayerName,
+    isMyTurn,
+    canSpin,
+    canPickCard,
+    phase,
+    completedCount,
+    targetAngle,
+    gameMode,
+    setGameMode,
+    isLinked,
+    userName,
+    partnerName,
+    spinBottle,
+    onSpinAnimationComplete,
+    pickPrompt,
+    completeChallenge,
+    resetGame,
+  } = useTruthOrDare();
+
+  const [feedbackHint, setFeedbackHint] = useState<string | null>(null);
+
+  const showHint = (msg: string) => {
+    setFeedbackHint(msg);
+    setTimeout(() => {
+      setFeedbackHint((c) => (c === msg ? null : c));
+    }, 2800);
+  };
 
   // Animations
   const spinAnim = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
-  const currentAngle = useRef(0);
+  const lastAnimatedAngleRef = useRef<number>(0);
+  const lastPromptIdRef = useRef<string | null>(null);
 
-  const handleSpinBottle = () => {
-    if (isSpinning) return;
-    setIsSpinning(true);
-    setSelectedPrompt(null);
+  // React to targetAngle changes from local spin or remote Firestore update
+  useEffect(() => {
+    if (targetAngle > 0 && targetAngle !== lastAnimatedAngleRef.current) {
+      lastAnimatedAngleRef.current = targetAngle;
+      const animTimer = startGameTimer('TruthOrDare', 'BottleSpinAnimation', {
+        targetAngle,
+        duration: 2600,
+      });
 
-    // Random rotations between 4 to 8 full spins + random offset
-    const randomExtra = Math.random() * 360;
-    const spins = 4 + Math.floor(Math.random() * 4);
-    const targetAngle = currentAngle.current + spins * 360 + randomExtra;
+      Animated.timing(spinAnim, {
+        toValue: targetAngle,
+        duration: 2600,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(() => {
+        animTimer.stop({ finalAngle: targetAngle });
+        onSpinAnimationComplete();
+      });
+    }
+  }, [targetAngle, onSpinAnimationComplete]);
 
-    Animated.timing(spinAnim, {
-      toValue: targetAngle,
-      duration: 2500,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start(() => {
-      currentAngle.current = targetAngle;
-      setIsSpinning(false);
-      // Normalized angle determines player
-      const normalized = (targetAngle % 360 + 360) % 360;
-      const chosenPlayer = normalized >= 90 && normalized < 270 ? 'Partner' : 'You';
-      setActivePlayer(chosenPlayer);
-    });
-  };
+  // Animate card reveal ONLY when a distinct new prompt ID is received
+  useEffect(() => {
+    if (selectedPrompt && selectedPrompt.id !== lastPromptIdRef.current) {
+      lastPromptIdRef.current = selectedPrompt.id;
+      const cardTimer = startGameTimer('TruthOrDare', 'CardRevealAnimation', {
+        promptId: selectedPrompt.id,
+        type: selectedPrompt.type,
+      });
 
-  const handlePickPrompt = (type: PromptType) => {
-    const prompt = getRandomPrompt(category, type, usedIds);
-    setUsedIds((prev) => [...prev, prompt.id]);
+      cardScale.setValue(0.8);
+      Animated.spring(cardScale, {
+        toValue: 1,
+        friction: 6,
+        tension: 50,
+        useNativeDriver: true,
+      }).start(() => {
+        cardTimer.stop();
+      });
+    } else if (!selectedPrompt) {
+      lastPromptIdRef.current = null;
+      cardScale.setValue(1);
+    }
+  }, [selectedPrompt]);
 
-    // Animate card entrance
-    cardScale.setValue(0.8);
-    setSelectedPrompt(prompt);
-    Animated.spring(cardScale, {
-      toValue: 1,
-      friction: 6,
-      tension: 50,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handleComplete = () => {
-    setCompletedCount((c) => c + 1);
-    setSelectedPrompt(null);
-    setActivePlayer((p) => (p === 'You' ? 'Partner' : 'You'));
+  const handleCardPress = (type: PromptType) => {
+    const pressTimer = startGameTimer('TruthOrDare', 'CardPress', { type, phase, isMyTurn });
+    if (phase === 'need_spin') {
+      showHint('🔄 Please spin the bottle first to choose whose turn it is!');
+      pressTimer.stop({ rejected: 'Need spin' });
+      return;
+    }
+    if (gameMode === 'couple' && !isMyTurn) {
+      showHint(`⏳ It's ${activePlayerName}'s turn! Waiting for them to pick.`);
+      pressTimer.stop({ rejected: 'Waiting for partner turn' });
+      return;
+    }
+    pressTimer.stop({ action: 'Proceed with pick' });
+    pickPrompt(type);
   };
 
   const spinInterpolate = spinAnim.interpolate({
@@ -113,18 +156,62 @@ export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, on
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
+        <TouchableOpacity
+          onPress={() => {
+            gameLog('TruthOrDare', 'NavigateBack');
+            onBack();
+          }}
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
           <ArrowLeft size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Truth or Dare</Text>
-          <Text style={styles.headerSubtitle}>Couple Edition • {completedCount} completed</Text>
+          <Text style={styles.headerSubtitle}>
+            {gameMode === 'couple'
+              ? `Online with ${partnerName} • ${completedCount} rounds`
+              : `Pass & Play • ${completedCount} rounds`}
+          </Text>
         </View>
         <View style={styles.streakBadge}>
           <Sparkles size={14} color={colors.primary} />
           <Text style={styles.streakText}>{completedCount}</Text>
         </View>
       </View>
+
+      {/* Mode Switcher Pill if linked */}
+      {isLinked && (
+        <View style={styles.modeBar}>
+          <TouchableOpacity
+            style={[styles.modeTab, gameMode === 'couple' && styles.modeTabActive]}
+            onPress={() => {
+              gameLog('TruthOrDare', 'SwitchMode', { mode: 'couple' });
+              setGameMode('couple');
+            }}
+            activeOpacity={0.8}
+          >
+            <Users size={14} color={gameMode === 'couple' ? '#FFFFFF' : colors.textSecondary} />
+            <Text style={[styles.modeTabText, gameMode === 'couple' && styles.modeTabTextActive]}>
+              Couple Online
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.modeTab, gameMode === 'pass_and_play' && styles.modeTabActive]}
+            onPress={() => {
+              gameLog('TruthOrDare', 'SwitchMode', { mode: 'pass_and_play' });
+              setGameMode('pass_and_play');
+            }}
+            activeOpacity={0.8}
+          >
+            <Smartphone size={14} color={gameMode === 'pass_and_play' ? '#FFFFFF' : colors.textSecondary} />
+            <Text style={[styles.modeTabText, gameMode === 'pass_and_play' && styles.modeTabTextActive]}>
+              Pass & Play
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Category Selector */}
@@ -139,10 +226,7 @@ export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, on
                   styles.categoryPill,
                   isSelected && { backgroundColor: cat.color, borderColor: cat.color },
                 ]}
-                onPress={() => {
-                  setCategory(cat.id);
-                  setSelectedPrompt(null);
-                }}
+                onPress={() => setCategory(cat.id)}
                 activeOpacity={0.7}
               >
                 <Icon size={16} color={isSelected ? '#FFFFFF' : cat.color} />
@@ -154,18 +238,49 @@ export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, on
           })}
         </View>
 
+        {/* Temporary Feedback Hint Toast */}
+        {feedbackHint && (
+          <View style={styles.hintContainer}>
+            <Info size={14} color="#EA580C" />
+            <Text style={styles.hintText}>{feedbackHint}</Text>
+          </View>
+        )}
+
         {/* Turn Indicator & Bottle Spinner */}
         <View style={styles.turnCard}>
+          {/* Players Row */}
           <View style={styles.playerTurnRow}>
-            <View style={[styles.playerBadge, activePlayer === 'You' && styles.playerBadgeActive]}>
-              <Text style={[styles.playerBadgeText, activePlayer === 'You' && styles.playerBadgeTextActive]}>
-                ❤️ You
+            <View
+              style={[
+                styles.playerBadge,
+                activePlayerName === userName && phase !== 'need_spin' && styles.playerBadgeActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.playerBadgeText,
+                  activePlayerName === userName && phase !== 'need_spin' && styles.playerBadgeTextActive,
+                ]}
+              >
+                ❤️ {userName}
               </Text>
             </View>
+
             <Text style={styles.vsText}>VS</Text>
-            <View style={[styles.playerBadge, activePlayer === 'Partner' && styles.playerBadgeActive]}>
-              <Text style={[styles.playerBadgeText, activePlayer === 'Partner' && styles.playerBadgeTextActive]}>
-                💫 Partner
+
+            <View
+              style={[
+                styles.playerBadge,
+                activePlayerName === partnerName && phase !== 'need_spin' && styles.playerBadgeActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.playerBadgeText,
+                  activePlayerName === partnerName && phase !== 'need_spin' && styles.playerBadgeTextActive,
+                ]}
+              >
+                💫 {partnerName}
               </Text>
             </View>
           </View>
@@ -173,67 +288,179 @@ export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, on
           {/* Bottle Arena */}
           <View style={styles.bottleArena}>
             <View style={styles.arenaGlow} />
+
+            {/* Direction Indicators */}
+            <View style={[styles.indicatorPill, styles.indicatorTop]}>
+              <Text style={styles.indicatorText}>❤️ {userName}</Text>
+            </View>
+            <View style={[styles.indicatorPill, styles.indicatorBottom]}>
+              <Text style={styles.indicatorText}>💫 {partnerName}</Text>
+            </View>
+
+            {/* Animated Bottle */}
             <Animated.View
               style={[
                 styles.bottleContainer,
                 { transform: [{ rotate: spinInterpolate }] },
               ]}
             >
-              <View style={styles.bottleTop} />
+              <View style={styles.bottleCap} />
+              <View style={styles.bottleNeck} />
               <View style={styles.bottleBody}>
                 <Heart size={16} color="#FFFFFF" fill="#FFFFFF" />
               </View>
             </Animated.View>
           </View>
 
+          {/* Spin Trigger Button */}
           <TouchableOpacity
-            style={[styles.spinButton, isSpinning && styles.spinButtonDisabled]}
-            onPress={handleSpinBottle}
-            disabled={isSpinning}
+            style={[
+              styles.spinButton,
+              phase === 'spinning' && styles.spinButtonDisabled,
+              phase === 'need_spin' && styles.spinButtonGlow,
+            ]}
+            onPress={spinBottle}
+            disabled={phase === 'spinning'}
             activeOpacity={0.8}
           >
             <RotateCw size={18} color="#FFFFFF" />
             <Text style={styles.spinButtonText}>
-              {isSpinning ? 'Spinning...' : 'Spin the Bottle for Turn'}
+              {phase === 'spinning'
+                ? 'Spinning Bottle...'
+                : phase === 'need_spin'
+                ? 'Spin the Bottle for Turn'
+                : 'Re-Spin Bottle'}
             </Text>
           </TouchableOpacity>
         </View>
 
+        {/* Dynamic Turn Guidance Callout */}
+        <View style={styles.phaseGuidanceCard}>
+          {phase === 'need_spin' ? (
+            <View style={styles.guidanceRow}>
+              <Sparkles size={16} color={colors.primary} />
+              <Text style={styles.guidanceText}>
+                Spin the bottle above to choose who takes the challenge!
+              </Text>
+            </View>
+          ) : phase === 'spinning' ? (
+            <View style={styles.guidanceRow}>
+              <RotateCw size={16} color={colors.primary} />
+              <Text style={styles.guidanceText}>The bottle is spinning...</Text>
+            </View>
+          ) : phase === 'choose_card' ? (
+            <View
+              style={[
+                styles.guidanceRowActive,
+                gameMode === 'couple' && !isMyTurn ? styles.guidanceRowWaiting : null,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.guidanceTextActive,
+                  gameMode === 'couple' && !isMyTurn ? styles.guidanceTextWaiting : null,
+                ]}
+              >
+                {gameMode === 'couple'
+                  ? isMyTurn
+                    ? `🎯 Bottle landed on YOU! Tap Truth or Dare below to choose your challenge.`
+                    : `⏳ Bottle landed on ${partnerName}! Waiting for them to pick a card...`
+                  : `🎯 Bottle landed on ${activePlayerName}! Pass phone to ${activePlayerName} to pick a card.`}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
         {/* Pick Prompt Action Cards */}
-        {!selectedPrompt ? (
+        {phase !== 'prompt_revealed' ? (
           <View style={styles.pickSection}>
-            <Text style={styles.pickTitle}>
-              {activePlayer === 'You' ? 'Your turn!' : "Partner's turn!"} Choose a card:
-            </Text>
+            <View style={styles.pickHeaderRow}>
+              <Text style={styles.pickTitle}>
+                {phase === 'choose_card'
+                  ? `${activePlayerName}'s Turn: Choose a Card`
+                  : 'Truth or Dare Cards'}
+              </Text>
+              {!canPickCard && (
+                <View style={styles.lockedNoticeBadge}>
+                  <Lock size={12} color={colors.textMuted} />
+                  <Text style={styles.lockedNoticeText}>
+                    {phase === 'need_spin'
+                      ? 'Locked until spin'
+                      : `Waiting for ${activePlayerName}`}
+                  </Text>
+                </View>
+              )}
+            </View>
+
             <View style={styles.pickRow}>
               {/* Truth Card */}
               <TouchableOpacity
-                style={[styles.choiceCard, styles.truthCard]}
-                onPress={() => handlePickPrompt('truth')}
+                style={[
+                  styles.choiceCard,
+                  styles.truthCard,
+                  !canPickCard && styles.choiceCardDisabled,
+                ]}
+                onPress={() => handleCardPress('truth')}
                 activeOpacity={0.85}
               >
-                <View style={styles.choiceIconBgTruth}>
-                  <HelpCircle size={28} color="#2563EB" />
+                <View
+                  style={[
+                    styles.choiceIconBgTruth,
+                    !canPickCard && styles.choiceIconBgDisabled,
+                  ]}
+                >
+                  {!canPickCard ? (
+                    <Lock size={24} color={colors.textMuted} />
+                  ) : (
+                    <HelpCircle size={28} color="#2563EB" />
+                  )}
                 </View>
-                <Text style={styles.choiceCardTitle}>TRUTH</Text>
-                <Text style={styles.choiceCardSub}>Reveal a secret or feeling</Text>
+                <Text
+                  style={[
+                    styles.choiceCardTitle,
+                    !canPickCard && styles.choiceTextDisabled,
+                  ]}
+                >
+                  TRUTH
+                </Text>
+                <Text style={styles.choiceCardSub}>Reveal a secret or honest feeling</Text>
               </TouchableOpacity>
 
               {/* Dare Card */}
               <TouchableOpacity
-                style={[styles.choiceCard, styles.dareCard]}
-                onPress={() => handlePickPrompt('dare')}
+                style={[
+                  styles.choiceCard,
+                  styles.dareCard,
+                  !canPickCard && styles.choiceCardDisabled,
+                ]}
+                onPress={() => handleCardPress('dare')}
                 activeOpacity={0.85}
               >
-                <View style={styles.choiceIconBgDare}>
-                  <Zap size={28} color="#EA580C" />
+                <View
+                  style={[
+                    styles.choiceIconBgDare,
+                    !canPickCard && styles.choiceIconBgDisabled,
+                  ]}
+                >
+                  {!canPickCard ? (
+                    <Lock size={24} color={colors.textMuted} />
+                  ) : (
+                    <Zap size={28} color="#EA580C" />
+                  )}
                 </View>
-                <Text style={styles.choiceCardTitle}>DARE</Text>
-                <Text style={styles.choiceCardSub}>Take on a romantic action</Text>
+                <Text
+                  style={[
+                    styles.choiceCardTitle,
+                    !canPickCard && styles.choiceTextDisabled,
+                  ]}
+                >
+                  DARE
+                </Text>
+                <Text style={styles.choiceCardSub}>Take on a romantic challenge</Text>
               </TouchableOpacity>
             </View>
           </View>
-        ) : (
+        ) : selectedPrompt ? (
           /* Revealed Prompt Card */
           <Animated.View style={[styles.revealedCard, { transform: [{ scale: cardScale }] }]}>
             <View
@@ -260,14 +487,19 @@ export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, on
 
               <View style={styles.intensityRow}>
                 {Array.from({ length: selectedPrompt.intensity }).map((_, i) => (
-                  <Flame key={i} size={14} color={activeCategoryMeta.color} fill={activeCategoryMeta.color} />
+                  <Flame
+                    key={i}
+                    size={14}
+                    color={activeCategoryMeta.color}
+                    fill={activeCategoryMeta.color}
+                  />
                 ))}
               </View>
             </View>
 
             <View style={styles.revealedBody}>
               <Text style={styles.revealedPlayerHeader}>
-                {activePlayer === 'You' ? '❤️ Your Challenge:' : "💫 Partner's Challenge:"}
+                🎯 {activePlayerName}'s Challenge:
               </Text>
               <Text style={styles.revealedPromptText}>{selectedPrompt.text}</Text>
             </View>
@@ -276,7 +508,15 @@ export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, on
               {onShareToChat && (
                 <TouchableOpacity
                   style={styles.actionShareBtn}
-                  onPress={() => onShareToChat(selectedPrompt.text)}
+                  onPress={() => {
+                    gameLog('TruthOrDare', 'SharePromptToChat', {
+                      player: activePlayerName,
+                      prompt: selectedPrompt.text,
+                    });
+                    onShareToChat(
+                      `🔥 Truth or Dare prompt for ${activePlayerName}: "${selectedPrompt.text}"`
+                    );
+                  }}
                   activeOpacity={0.7}
                 >
                   <Share2 size={18} color={colors.textSecondary} />
@@ -284,15 +524,15 @@ export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, on
               )}
               <TouchableOpacity
                 style={styles.actionDoneBtn}
-                onPress={handleComplete}
+                onPress={completeChallenge}
                 activeOpacity={0.85}
               >
                 <CheckCircle2 size={20} color="#FFFFFF" />
-                <Text style={styles.actionDoneBtnText}>Completed & Next</Text>
+                <Text style={styles.actionDoneBtnText}>Completed & Next Spin</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
-        )}
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -344,6 +584,36 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.primary,
   },
+  modeBar: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radii.full,
+    padding: 3,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.xs,
+  },
+  modeTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+  },
+  modeTabActive: {
+    backgroundColor: colors.primary,
+    ...shadows.sm,
+  },
+  modeTabText: {
+    fontSize: typography.sizes.xs,
+    color: colors.textSecondary,
+    fontWeight: typography.weights.medium,
+  },
+  modeTabTextActive: {
+    color: '#FFFFFF',
+    fontWeight: typography.weights.bold,
+  },
   scrollContent: {
     padding: spacing.md,
     paddingBottom: spacing.xxl,
@@ -377,12 +647,30 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: typography.weights.bold,
   },
+  hintContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FFFBEB',
+    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.sm,
+    marginBottom: spacing.xs,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  hintText: {
+    fontSize: typography.sizes.xs,
+    color: '#B45309',
+    fontWeight: typography.weights.medium,
+  },
   turnCard: {
     backgroundColor: colors.card,
     borderRadius: radii.xl,
     padding: spacing.md,
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
     borderWidth: 1,
     borderColor: colors.borderLight,
     ...shadows.md,
@@ -393,7 +681,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.md,
     width: '100%',
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
   playerBadge: {
     paddingVertical: 6,
@@ -406,6 +694,7 @@ const styles = StyleSheet.create({
   playerBadgeActive: {
     backgroundColor: colors.primaryLight,
     borderColor: colors.primary,
+    ...shadows.glowRose,
   },
   playerBadgeText: {
     fontSize: typography.sizes.sm,
@@ -422,40 +711,72 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   bottleArena: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
     backgroundColor: colors.surfaceSubtle,
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: spacing.sm,
+    marginVertical: spacing.xs,
     position: 'relative',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   arenaGlow: {
     position: 'absolute',
-    width: 110,
-    height: 110,
-    borderRadius: 55,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
     backgroundColor: colors.primarySubtle,
   },
+  indicatorPill: {
+    position: 'absolute',
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    zIndex: 1,
+  },
+  indicatorTop: {
+    top: 6,
+  },
+  indicatorBottom: {
+    bottom: 6,
+  },
+  indicatorText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.textPrimary,
+  },
   bottleContainer: {
-    width: 28,
-    height: 90,
+    width: 32,
+    height: 110,
     alignItems: 'center',
     justifyContent: 'flex-start',
+    zIndex: 2,
   },
-  bottleTop: {
-    width: 8,
-    height: 20,
+  bottleCap: {
+    width: 10,
+    height: 10,
     backgroundColor: '#881337',
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
+    borderTopLeftRadius: 5,
+    borderTopRightRadius: 5,
+  },
+  bottleNeck: {
+    width: 12,
+    height: 22,
+    backgroundColor: '#BE123C',
   },
   bottleBody: {
-    width: 28,
-    height: 70,
+    width: 32,
+    height: 78,
     backgroundColor: colors.primary,
-    borderRadius: 14,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.md,
@@ -469,8 +790,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: spacing.lg,
     borderRadius: radii.full,
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
     ...shadows.sm,
+  },
+  spinButtonGlow: {
+    ...shadows.glowRose,
   },
   spinButtonDisabled: {
     opacity: 0.6,
@@ -480,15 +804,75 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.bold,
   },
+  phaseGuidanceCard: {
+    marginVertical: spacing.xs,
+    alignItems: 'center',
+  },
+  guidanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.card,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  guidanceRowActive: {
+    backgroundColor: '#FEF3C7',
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  guidanceRowWaiting: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FED7AA',
+  },
+  guidanceText: {
+    fontSize: typography.sizes.xs,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  guidanceTextActive: {
+    fontSize: typography.sizes.xs,
+    color: '#B45309',
+    textAlign: 'center',
+    fontWeight: typography.weights.medium,
+  },
+  guidanceTextWaiting: {
+    color: '#EA580C',
+  },
   pickSection: {
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  pickHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+    paddingHorizontal: 4,
   },
   pickTitle: {
-    fontSize: typography.sizes.md,
+    fontSize: typography.sizes.sm,
     fontWeight: typography.weights.bold,
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
+  },
+  lockedNoticeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surfaceSubtle,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: radii.full,
+  },
+  lockedNoticeText: {
+    fontSize: 10,
+    color: colors.textMuted,
+    fontWeight: typography.weights.medium,
   },
   pickRow: {
     flexDirection: 'row',
@@ -502,6 +886,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     ...shadows.md,
+  },
+  choiceCardDisabled: {
+    opacity: 0.55,
+    backgroundColor: colors.surfaceSubtle,
+    borderColor: colors.borderLight,
+    elevation: 0,
+    shadowOpacity: 0,
   },
   truthCard: {
     borderColor: '#BFDBFE',
@@ -527,11 +918,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.sm,
   },
+  choiceIconBgDisabled: {
+    backgroundColor: colors.borderLight,
+  },
   choiceCardTitle: {
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.heavy,
     color: colors.textPrimary,
     letterSpacing: 1,
+  },
+  choiceTextDisabled: {
+    color: colors.textMuted,
   },
   choiceCardSub: {
     fontSize: typography.sizes.xs,
@@ -545,7 +942,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderLight,
     overflow: 'hidden',
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
     ...shadows.lg,
   },
   revealedHeader: {
