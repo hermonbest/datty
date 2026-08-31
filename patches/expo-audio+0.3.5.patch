@@ -11,8 +11,26 @@ index 3badbf1..d6fb410 100644
            ref.record()
          }
        }
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+index ef9ec3c..2f1ed44 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+@@ -58,7 +58,12 @@ class AudioPlayer(
+   val duration get() = if (player.duration != C.TIME_UNSET) player.duration / 1000f else 0f
+ 
+   init {
+-    player.setAudioAttributes(AudioAttributes.DEFAULT, true)
++    val audioAttributes = AudioAttributes.Builder()
++      .setUsage(C.USAGE_MEDIA)
++      .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
++      .build()
++    player.setAudioAttributes(audioAttributes, true)
++    player.volume = 1.0f
+     addPlayerListeners()
+     source?.let {
+       setMediaSource(source)
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecorder.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecorder.kt
-index 0572e8e..1f06fc3 100644
+index da9196a..8ed5cf2 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecorder.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecorder.kt
 @@ -116,7 +116,7 @@ class AudioRecorder(
@@ -20,7 +38,7 @@ index 0572e8e..1f06fc3 100644
      }
      with(recorder) {
 -      setAudioSource(MediaRecorder.AudioSource.MIC)
-+      setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
++      setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
        if (options.outputFormat != null) {
          setOutputFormat(options.outputFormat.toMediaOutputFormat())
        } else {

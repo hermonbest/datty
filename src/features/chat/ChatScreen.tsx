@@ -62,7 +62,7 @@ const MAX_RECORDING_MS = 10 * 60 * 1000; // 10 minutes
 
 const RECORDING_OPTIONS: RecordingOptions = {
   extension: '.m4a',
-  sampleRate: 48000,
+  sampleRate: 44100,
   numberOfChannels: 1,
   bitRate: 128000,
   isMeteringEnabled: false,
@@ -70,16 +70,13 @@ const RECORDING_OPTIONS: RecordingOptions = {
     extension: '.m4a',
     outputFormat: 'mpeg4',
     audioEncoder: 'aac',
-    sampleRate: 48000,
+    sampleRate: 44100,
   },
   ios: {
     extension: '.m4a',
     outputFormat: IOSOutputFormat.MPEG4AAC,
     audioQuality: AudioQuality.MAX,
-    sampleRate: 48000,
-    linearPCMBitDepth: 16,
-    linearPCMIsBigEndian: false,
-    linearPCMIsFloat: false,
+    sampleRate: 44100,
   },
   web: {
     mimeType: 'audio/webm',
@@ -703,6 +700,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       }).catch(() => {});
 
       try {
+        player.volume = 1.0;
         player.loop = false;
         player.play();
       } catch (e: any) {
@@ -970,12 +968,19 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
         if (playerStatus.playing) {
           player.pause();
         } else {
+          setAudioModeAsync({
+            allowsRecording: false,
+            playsInSilentMode: true,
+            interruptionMode: 'doNotMix',
+            shouldRouteThroughEarpiece: false,
+          }).catch(() => {});
           if (
             playerStatus.didJustFinish ||
             playerStatus.currentTime >= (playerStatus.duration || 0) - 0.2
           ) {
             player.seekTo(0).catch(() => {});
           }
+          player.volume = 1.0;
           player.loop = false;
           player.play();
         }
