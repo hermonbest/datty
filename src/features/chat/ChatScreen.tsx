@@ -675,7 +675,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     return activeAudio?.url ? { uri: activeAudio.url } : null;
   }, [activeAudio?.url]);
 
-  const player = useAudioPlayer(audioSource, 200);
+  const player = useAudioPlayer(audioSource, { updateInterval: 200 });
   const playerStatus = useAudioPlayerStatus(player);
   const playRequestedRef = useRef(false);
 
@@ -812,10 +812,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       console.log('[voice] preparing recorder', recorder.id);
       await recorder.prepareToRecordAsync();
       recorder.record();
-      // Diagnostic: verify the native recorder actually started. If
-      // isRecording stays false, record() was a native no-op — this happens
-      // with the expo-audio 0.3.5 Android bug that is fixed via
-      // patches/expo-audio+0.3.5.patch (requires a dev client rebuild).
+      // Diagnostic: verify the native recorder actually started
       const status = (() => {
         try {
           return recorder.getStatus();
@@ -831,7 +828,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       });
       if (!status?.isRecording) {
         console.warn(
-          '[voice] native recorder did not start — if this persists, rebuild the dev client so the expo-audio native patch takes effect'
+          '[voice] native recorder did not start — verify microphone permissions and dev client native build'
         );
       }
 

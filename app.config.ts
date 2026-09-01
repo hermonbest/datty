@@ -10,8 +10,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
-  newArchEnabled: true,
-  plugins: ['expo-asset', 'expo-audio'],
+  newArchEnabled: false,
+  plugins: ['expo-asset', 'expo-audio', 'expo-font'],
   splash: {
     image: './assets/splash-icon.png',
     resizeMode: 'contain',
