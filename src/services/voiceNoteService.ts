@@ -1,5 +1,8 @@
+import Constants from 'expo-constants';
 import { uploadFileToCloudinary } from './fileToBytes';
 import { auth } from './firebase';
+
+const DEFAULT_AUDIO_BACKEND_URL = 'https://datty.onrender.com';
 
 function normalizeUri(uri: string): string {
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(uri)) return uri;
@@ -26,17 +29,33 @@ export function applyCloudinaryAudioTransformations(
   return cleanUrl.replace('/video/upload/', `/video/upload/${transformations}/`);
 }
 
+function getBackendUrl(): string {
+  const envUrl = process.env.EXPO_PUBLIC_AUDIO_BACKEND_URL;
+  const extra = Constants.expoConfig?.extra || (Constants as any).manifest?.extra || {};
+  const extraUrl = extra.audioBackendUrl;
+
+  const isValid = (u: any): u is string =>
+    typeof u === 'string' &&
+    u.startsWith('http') &&
+    !u.includes('<') &&
+    !u.includes('your-backend-url');
+
+  if (isValid(envUrl)) return envUrl.replace(/\/+$/, '');
+  if (isValid(extraUrl)) return extraUrl.replace(/\/+$/, '');
+  return DEFAULT_AUDIO_BACKEND_URL;
+}
+
 /**
- * Call the remote FFmpeg audio processing microservice (e.g. deployed on OCI).
+ * Call the remote FFmpeg audio processing microservice (e.g. deployed on OCI/Render).
  */
 export async function requestServerDenoise(
   rawUrl: string,
   coupleId: string,
   durationSeconds?: number
 ): Promise<string> {
-  const backendUrl = process.env.EXPO_PUBLIC_AUDIO_BACKEND_URL?.replace(/\/+$/, '');
+  const backendUrl = getBackendUrl();
   if (!backendUrl) {
-    throw new Error('EXPO_PUBLIC_AUDIO_BACKEND_URL is not configured');
+    throw new Error('Audio backend URL is not configured');
   }
 
   const idToken = await auth.currentUser?.getIdToken();
@@ -104,7 +123,8 @@ export async function processAndUploadVoiceNote(
   durationSeconds?: number
 ): Promise<string> {
   const normalized = normalizeUri(localUri);
-  const backendUrl = process.env.EXPO_PUBLIC_AUDIO_BACKEND_URL;
+  const backendUrl = getBackendUrl();
+  console.log('[voiceNoteService] Backend URL resolved:', backendUrl);
 
   if (backendUrl) {
     try {

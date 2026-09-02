@@ -39,7 +39,7 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-// Health Endpoints
+// Root & Health Endpoints
 const handleHealth = (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
@@ -49,8 +49,10 @@ const handleHealth = (_req: Request, res: Response) => {
   });
 };
 
+app.get('/', handleHealth);
 app.get('/health', handleHealth);
 app.post('/health', handleHealth);
+
 
 // Audio Processing Endpoint
 app.post('/v1/audio/process', authenticateFirebaseToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {

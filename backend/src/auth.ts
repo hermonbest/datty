@@ -10,26 +10,41 @@ export function initializeFirebaseAdmin(): admin.app.App {
   }
 
   try {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+    if (rawJson) {
+      let parsed: any;
+      try {
+        parsed = JSON.parse(rawJson);
+      } catch {
+        // Try decoding from base64 if user encoded it
+        parsed = JSON.parse(Buffer.from(rawJson, 'base64').toString('utf8'));
+      }
+
+      if (parsed.private_key) {
+        parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+      }
+
       const app = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+        credential: admin.credential.cert(parsed),
       });
       isFirebaseInitialized = true;
       console.log('[Auth] Firebase Admin initialized from FIREBASE_SERVICE_ACCOUNT_JSON');
       return app;
     }
 
-    if (
-      process.env.FIREBASE_PROJECT_ID &&
-      process.env.FIREBASE_CLIENT_EMAIL &&
-      process.env.FIREBASE_PRIVATE_KEY
-    ) {
+    const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY?.trim();
+
+    if (projectId && clientEmail && privateKey) {
+      // Strip outer quotes if pasted with quotes in cloud UI
+      privateKey = privateKey.replace(/^["']|["']$/g, '').replace(/\\n/g, '\n');
+
       const app = admin.initializeApp({
         credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+          projectId,
+          clientEmail,
+          privateKey,
         }),
       });
       isFirebaseInitialized = true;

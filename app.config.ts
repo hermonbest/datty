@@ -38,6 +38,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     firebaseStorageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
     firebaseMessagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+    audioBackendUrl: process.env.EXPO_PUBLIC_AUDIO_BACKEND_URL,
     eas: {
       projectId: process.env.EAS_PROJECT_ID || '5e82f346-d160-49a2-87eb-43930fb0cdc6',
     },
