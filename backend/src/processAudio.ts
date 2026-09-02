@@ -22,23 +22,23 @@ export interface AudioProcessingOptions {
   lowpassFrequency?: number;
   noiseReductionDb?: number;
   noiseFloorDb?: number;
-  loudnessTarget?: number;
+  volumeBoostDb?: number;
   sampleRate?: number;
   bitrate?: string;
 }
 
 export const DEFAULT_PROCESSING_OPTIONS: AudioProcessingOptions = {
-  highpassFrequency: 100,
-  lowpassFrequency: 7200,
-  noiseReductionDb: 28,
-  noiseFloorDb: -40,
-  loudnessTarget: -25,
+  highpassFrequency: 90,
+  lowpassFrequency: 7500,
+  noiseReductionDb: 22,
+  noiseFloorDb: -35,
+  volumeBoostDb: 1.5,
   sampleRate: 44100,
   bitrate: '96k',
 };
 
 /**
- * Runs the FFmpeg filter chain for broadband hiss reduction and loudness normalization.
+ * Runs the FFmpeg filter chain for broadband hiss reduction and natural volume preservation.
  */
 export function runFFmpegDenoise(
   inputPath: string,
@@ -47,28 +47,30 @@ export function runFFmpegDenoise(
 ): Promise<void> {
   const envNr = process.env.NOISE_REDUCTION_DB ? Number(process.env.NOISE_REDUCTION_DB) : undefined;
   const envNf = process.env.NOISE_FLOOR_DB ? Number(process.env.NOISE_FLOOR_DB) : undefined;
-  const envLoudness = process.env.LOUDNESS_TARGET ? Number(process.env.LOUDNESS_TARGET) : undefined;
+  const envBoost = process.env.VOLUME_BOOST_DB ? Number(process.env.VOLUME_BOOST_DB) : undefined;
 
   const opts = {
     ...DEFAULT_PROCESSING_OPTIONS,
     ...(envNr ? { noiseReductionDb: envNr } : {}),
     ...(envNf ? { noiseFloorDb: envNf } : {}),
-    ...(envLoudness ? { loudnessTarget: envLoudness } : {}),
+    ...(envBoost !== undefined ? { volumeBoostDb: envBoost } : {}),
     ...options,
   };
 
   // Construct audio filter chain:
-  // 1. Highpass (100Hz): Strip low-end mic rumble and wind
-  // 2. Lowpass (7.2kHz): Strip high-frequency static/air hiss
-  // 3. afftdn: Broadband spectral noise suppression
-  // 4. loudnorm (EBU R128): Natural voice normalization to -21 LUFS
-  // 5. agate: Final clean downward gate to keep pauses silent
+  // 1. Highpass (90Hz): Strip low-end handling noise & wind
+  // 2. Lowpass (7.5kHz): Strip high-frequency hiss
+  // 3. afftdn: Pure spectral noise reduction without changing voice volume
+  // 4. volume: Tiny subtle boost (e.g. +1.5dB) preserving natural speaker dynamics
+  // 5. agate: Soft downward gate to keep pauses clean
+  // 6. alimiter: Protect against any peak clipping
   const filters: string[] = [
     `highpass=f=${opts.highpassFrequency}`,
     `lowpass=f=${opts.lowpassFrequency}`,
     `afftdn=nr=${opts.noiseReductionDb}:nf=${opts.noiseFloorDb}:tn=1`,
-    `loudnorm=I=${opts.loudnessTarget}:TP=-2.0:LRA=10`,
-    `agate=range=-35dB:threshold=0.035:ratio=5:attack=10:release=250`,
+    `volume=${opts.volumeBoostDb || 1.5}dB`,
+    `agate=range=-25dB:threshold=0.035:ratio=3:attack=15:release=220`,
+    `alimiter=limit=0.95`,
   ];
 
   return new Promise((resolve, reject) => {
