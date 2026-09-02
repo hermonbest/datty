@@ -56,17 +56,17 @@ export function runFFmpegDenoise(
   };
 
   // Construct audio filter chain:
-  // 1. Highpass (100Hz) to cut rumble & wind
-  // 2. Lowpass (7.2kHz) to cut high-end static/air hiss
-  // 3. afftdn (32dB reduction) for aggressive FFT spectral noise suppression
-  // 4. agate (downward audio gate) to silence background hiss during voice pauses
-  // 5. loudnorm (EBU R128) to balance voice level
+  // 1. Highpass (100Hz): Strip low-end mic rumble and wind
+  // 2. Lowpass (7.2kHz): Strip high-frequency static/air hiss
+  // 3. afftdn: Broadband spectral noise suppression
+  // 4. loudnorm (EBU R128): Natural voice normalization to -21 LUFS
+  // 5. agate: Final clean downward gate to keep pauses silent
   const filters: string[] = [
     `highpass=f=${opts.highpassFrequency}`,
     `lowpass=f=${opts.lowpassFrequency}`,
     `afftdn=nr=${opts.noiseReductionDb}:nf=${opts.noiseFloorDb}:tn=1`,
-    `agate=range=-20dB:threshold=0.035:ratio=3:attack=15:release=220`,
-    `loudnorm=I=${opts.loudnessTarget}:TP=-1.5:LRA=9`,
+    `loudnorm=I=${opts.loudnessTarget}:TP=-2.0:LRA=10`,
+    `agate=range=-35dB:threshold=0.035:ratio=5:attack=10:release=250`,
   ];
 
   return new Promise((resolve, reject) => {
