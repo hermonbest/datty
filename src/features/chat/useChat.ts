@@ -110,17 +110,17 @@ export const useChat = () => {
     [coupleId]
   );
 
-  // Upload chat voice note — server-side post-processing (noise reduction,
-  // highpass/lowpass filters, -16 LUFS loudness normalization) with automatic
-  // fallback to direct raw Cloudinary upload.
+  // Upload chat voice note with volume normalization and automatic fallback
+  // to direct raw Cloudinary upload.
   const uploadChatAudio = useCallback(
-    async (uri: string): Promise<string> => {
+    async (uri: string, duration?: number): Promise<string> => {
       if (!coupleId) throw new Error('Couple not found');
       console.log('[useChat] Processing and uploading voice note');
-      return processAndUploadVoiceNote(uri, `datty/${coupleId}/chat`);
+      return processAndUploadVoiceNote(uri, `datty/${coupleId}/chat`, duration);
     },
     [coupleId]
   );
+
 
 
   // Send message: RTDB push gives instant local echo; media uploads run in the
@@ -170,6 +170,7 @@ export const useChat = () => {
         payload.replyTo = replyTo;
       }
 
+      let uploadedAudioURL: string | null = null;
       try {
         // 2. Push to RTDB — local echo means our own list updates instantly,
         //    and the listener keeps the partner in sync.
@@ -185,7 +186,8 @@ export const useChat = () => {
               const finalImageURL = await uploadChatImage(imageUri);
               await update(newMsgRef, { imageURL: finalImageURL, mediaState: 'ready' });
             } else if (audio) {
-              const finalAudioURL = await uploadChatAudio(audio.uri);
+              const finalAudioURL = await uploadChatAudio(audio.uri, audio.duration);
+              uploadedAudioURL = finalAudioURL;
               await update(newMsgRef, { audioURL: finalAudioURL, mediaState: 'ready' });
             }
           } catch (mediaErr) {
@@ -204,6 +206,8 @@ export const useChat = () => {
       } finally {
         setSending(false);
       }
+
+      return uploadedAudioURL;
     },
     [coupleId, myUid, chatPath, uploadChatImage, uploadChatAudio]
   );

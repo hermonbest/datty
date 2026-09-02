@@ -74,7 +74,9 @@ const RECORDING_OPTIONS: RecordingOptions = {
     outputFormat: 'mpeg4',
     audioEncoder: 'aac',
     sampleRate: 44100,
-    audioSource: 'voice_recognition',
+    // Use the phone's voice-processing path to reduce microphone hiss and
+    // enable hardware echo cancellation / automatic gain control when available.
+    audioSource: 'voice_communication',
   },
   ios: {
     extension: '.m4a',
@@ -720,6 +722,100 @@ const RecordingBar: React.FC<RecordingBarProps> = React.memo(({ onCancel, onSend
   );
 });
 
+interface AudioComparisonProps {
+  localUri: string;
+  remoteUri: string | null;
+  duration: number;
+  onDismiss: () => void;
+}
+
+// Temporary diagnostic player: compares the file captured on-device with the
+// exact URL returned after upload, without changing the normal message player.
+const AudioComparison: React.FC<AudioComparisonProps> = ({
+  localUri,
+  remoteUri,
+  duration,
+  onDismiss,
+}) => {
+  const localPlayer = useAudioPlayer({ uri: localUri }, { updateInterval: 150 });
+  const remotePlayer = useAudioPlayer(remoteUri ? { uri: remoteUri } : null, { updateInterval: 150 });
+  const localStatus = useAudioPlayerStatus(localPlayer);
+  const remoteStatus = useAudioPlayerStatus(remotePlayer);
+
+  useEffect(() => {
+    return () => {
+      try {
+        localPlayer.pause();
+        remotePlayer.pause();
+      } catch {
+        // Players are released by expo-audio after this component unmounts.
+      }
+    };
+  }, [localPlayer, remotePlayer]);
+
+  const togglePlayer = (
+    target: AudioPlayer,
+    other: AudioPlayer,
+    status: ReturnType<typeof useAudioPlayerStatus>
+  ) => {
+    if (status.playing) {
+      target.pause();
+      return;
+    }
+    if (other.playing) other.pause();
+    const totalDuration = status.duration > 0 ? status.duration : duration;
+    if (totalDuration > 0 && status.currentTime >= totalDuration - 0.25) {
+      target.seekTo(0).catch(() => { });
+    }
+    target.play();
+  };
+
+  const renderTrack = (
+    label: string,
+    player: AudioPlayer,
+    otherPlayer: AudioPlayer,
+    status: ReturnType<typeof useAudioPlayerStatus>,
+    disabled = false
+  ) => (
+    <View style={styles.audioComparisonTrack}>
+      <View style={styles.audioComparisonTrackHeader}>
+        <Text style={styles.audioComparisonTrackLabel}>{label}</Text>
+        <Text style={styles.audioComparisonDuration}>
+          {formatVoiceDuration(status.playing ? status.currentTime : duration)}
+        </Text>
+      </View>
+      <TouchableOpacity
+        style={[styles.audioComparisonPlay, disabled && styles.audioComparisonPlayDisabled]}
+        onPress={() => togglePlayer(player, otherPlayer, status)}
+        disabled={disabled}
+        activeOpacity={0.75}
+        accessibilityLabel={status.playing ? `Pause ${label}` : `Play ${label}`}
+      >
+        {status.playing ? <Pause size={15} color={colors.primary} /> : <Play size={15} color={colors.primary} />}
+        <Text style={styles.audioComparisonPlayText}>
+          {disabled ? 'Waiting for upload...' : status.playing ? 'Pause' : 'Play'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <View style={styles.audioComparisonPanel}>
+      <View style={styles.audioComparisonHeader}>
+        <View style={styles.audioComparisonTitleWrap}>
+          <Text style={styles.audioComparisonTitle}>Audio diagnostic</Text>
+          <Text style={styles.audioComparisonSubtitle}>Compare capture vs. uploaded file</Text>
+        </View>
+        <TouchableOpacity onPress={onDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <X size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+      {renderTrack('Captured locally', localPlayer, remotePlayer, localStatus)}
+      {renderTrack('From chat/server', remotePlayer, localPlayer, remoteStatus, !remoteUri)}
+    </View>
+  );
+};
+
 interface ChatScreenProps {
   route?: {
     params?: {
@@ -739,6 +835,11 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   const [replyingTo, setReplyingTo] = useState<ChatReplyReference | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const [audioComparison, setAudioComparison] = useState<{
+    localUri: string;
+    remoteUri: string | null;
+    duration: number;
+  } | null>(null);
   const toast = useToast();
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
@@ -1085,9 +1186,13 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
 
       const replyRef = replyingTo;
       setReplyingTo(null);
+      setAudioComparison({ localUri: uri, remoteUri: null, duration: durationSec });
       try {
         console.log('[voice] sending voice note message...');
-        await sendMessage(undefined, undefined, replyRef, { uri, duration: durationSec });
+        const uploadedAudioURL = await sendMessage(undefined, undefined, replyRef, { uri, duration: durationSec });
+        setAudioComparison((current) =>
+          current ? { ...current, remoteUri: uploadedAudioURL || null } : current
+        );
         console.log('[voice] voice note sent successfully!');
       } catch (e: any) {
         console.error('[voice] sendMessage failed:', e?.message);
@@ -1362,6 +1467,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
             </TouchableOpacity>
           </View>
         </View>
+      )}
+
+      {audioComparison && (
+        <AudioComparison
+          localUri={audioComparison.localUri}
+          remoteUri={audioComparison.remoteUri}
+          duration={audioComparison.duration}
+          onDismiss={() => setAudioComparison(null)}
+        />
       )}
 
       {/* Datty Message Composer Bar */}
@@ -1962,5 +2076,70 @@ const styles = StyleSheet.create({
     color: colors.error,
     fontStyle: 'italic',
     paddingVertical: spacing.xs,
+  },
+  audioComparisonPanel: {
+    marginHorizontal: spacing.marginMobile,
+    marginBottom: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: radii.lg,
+    ...shadows.sm,
+  },
+  audioComparisonHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  audioComparisonTitleWrap: {
+    flex: 1,
+  },
+  audioComparisonTitle: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+    color: colors.textPrimary,
+  },
+  audioComparisonSubtitle: {
+    marginTop: 2,
+    fontSize: typography.sizes.xs,
+    color: colors.textMuted,
+  },
+  audioComparisonTrack: {
+    paddingTop: spacing.xs,
+  },
+  audioComparisonTrackHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  audioComparisonTrackLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semiBold,
+    color: colors.textSecondary,
+  },
+  audioComparisonDuration: {
+    fontSize: typography.sizes.xs,
+    color: colors.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
+  audioComparisonPlay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radii.md,
+  },
+  audioComparisonPlayDisabled: {
+    opacity: 0.55,
+  },
+  audioComparisonPlayText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semiBold,
+    color: colors.primary,
   },
 });

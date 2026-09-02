@@ -18,7 +18,18 @@
 - **ChatScreen Audio Update**: Updated `useAudioPlayer(audioSource, { updateInterval: 200 })` to match Expo SDK 54 API, verified `RECORDING_OPTIONS` (44.1kHz AAC-LC mono at 128kbps), and cleaned up obsolete patch diagnostic comments.
 - **fileToBytes Update**: Updated `expo-file-system` import to `expo-file-system/legacy` for backwards compatibility with `uploadAsync`, `readAsStringAsync`, and `getInfoAsync`.
 
+- **Standalone Voice Denoise Microservice (`backend/`)**:
+  - Implemented standalone Node.js + TypeScript service (`backend/src/server.ts`, `auth.ts`, `validation.ts`, `cloudinary.ts`, `processAudio.ts`).
+  - Integrated FFmpeg broadband hiss reduction (`afftdn`) and loudness normalization (`loudnorm`) with guaranteed temp file lifecycle cleanup.
+  - Implemented secure Cloudinary signed uploads and Firebase Admin ID token authentication.
+  - Added multi-stage `Dockerfile` and `docker-compose.yml` with health checks and secret exclusion rules (`.dockerignore`).
+  - Authored comprehensive test suites (`backend/tests/`) covering validation, auth, audio processing, and express endpoints.
+  - Created Unlazy verification ledgers `.unlazy/voice-denoise-backend/` (`PLAN.md`, `GATES.md`, `gates/run_all_gates.js`). Certified all 7/7 quality gates.
+  - Integrated optional remote backend processing into `src/services/voiceNoteService.ts` and `useChat.ts` with transparent Cloudinary direct upload fallback.
+
 ### Immediate Next Steps
-- Deploy Cloud Functions (`cd functions && npm run deploy` or `firebase deploy --only functions`) to Firebase project `datty-40e3b` (ensuring Blaze plan).
-- Perform manual acceptance testing on physical Android/iOS devices per `GATES.md`.
+- Deploy `backend/` container to OCI Always Free ARM VM per `backend/README.md` and set `EXPO_PUBLIC_AUDIO_BACKEND_URL` when ready.
+- Conduct physical on-device listening test using the newly added audio comparison diagnostic panel in `ChatScreen.tsx`.
+
+
 
