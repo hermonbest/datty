@@ -28,10 +28,10 @@ export interface AudioProcessingOptions {
 }
 
 export const DEFAULT_PROCESSING_OPTIONS: AudioProcessingOptions = {
-  highpassFrequency: 80,
-  lowpassFrequency: 7500,
-  noiseReductionDb: 20,
-  noiseFloorDb: -40,
+  highpassFrequency: 100,
+  lowpassFrequency: 7200,
+  noiseReductionDb: 32,
+  noiseFloorDb: -45,
   loudnessTarget: -16,
   sampleRate: 44100,
   bitrate: '128k',
@@ -43,16 +43,30 @@ export const DEFAULT_PROCESSING_OPTIONS: AudioProcessingOptions = {
 export function runFFmpegDenoise(
   inputPath: string,
   outputPath: string,
-  options: AudioProcessingOptions = DEFAULT_PROCESSING_OPTIONS
+  options?: AudioProcessingOptions
 ): Promise<void> {
-  const opts = { ...DEFAULT_PROCESSING_OPTIONS, ...options };
+  const envNr = process.env.NOISE_REDUCTION_DB ? Number(process.env.NOISE_REDUCTION_DB) : undefined;
+  const envNf = process.env.NOISE_FLOOR_DB ? Number(process.env.NOISE_FLOOR_DB) : undefined;
 
-  // Construct audio filter chain
+  const opts = {
+    ...DEFAULT_PROCESSING_OPTIONS,
+    ...(envNr ? { noiseReductionDb: envNr } : {}),
+    ...(envNf ? { noiseFloorDb: envNf } : {}),
+    ...options,
+  };
+
+  // Construct audio filter chain:
+  // 1. Highpass (100Hz) to cut rumble & wind
+  // 2. Lowpass (7.2kHz) to cut high-end static/air hiss
+  // 3. afftdn (32dB reduction) for aggressive FFT spectral noise suppression
+  // 4. agate (downward audio gate) to silence background hiss during voice pauses
+  // 5. loudnorm (EBU R128) to balance voice level
   const filters: string[] = [
     `highpass=f=${opts.highpassFrequency}`,
     `lowpass=f=${opts.lowpassFrequency}`,
     `afftdn=nr=${opts.noiseReductionDb}:nf=${opts.noiseFloorDb}:tn=1`,
-    `loudnorm=I=${opts.loudnessTarget}:TP=-1.5:LRA=11`,
+    `agate=range=-20dB:threshold=0.035:ratio=3:attack=15:release=220`,
+    `loudnorm=I=${opts.loudnessTarget}:TP=-1.5:LRA=9`,
   ];
 
   return new Promise((resolve, reject) => {
