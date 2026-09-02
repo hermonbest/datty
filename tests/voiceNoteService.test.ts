@@ -15,18 +15,18 @@ describe('voiceNoteService (Cloudinary Audio Transformations)', () => {
   });
 
   describe('applyCloudinaryAudioTransformations', () => {
-    it('correctly injects audio transformations into a Cloudinary video URL', () => {
-      const original = 'https://res.cloudinary.com/qrzxe89y/video/upload/v1725274000/datty/chat/note.m4a';
-      const transformed = applyCloudinaryAudioTransformations(original, 'e_volume:max_peak,ac_aac,br_96k');
+    it('correctly injects audio transformations into a Cloudinary video URL and ensures .m4a format', () => {
+      const original = 'https://res.cloudinary.com/qrzxe89y/video/upload/v1725274000/datty/chat/note.3gp';
+      const transformed = applyCloudinaryAudioTransformations(original, 'e_volume:80');
       expect(transformed).toBe(
-        'https://res.cloudinary.com/qrzxe89y/video/upload/e_volume:max_peak,ac_aac,br_96k/v1725274000/datty/chat/note.m4a'
+        'https://res.cloudinary.com/qrzxe89y/video/upload/e_volume:80/v1725274000/datty/chat/note.m4a'
       );
     });
 
     it('does not duplicate transformations if already present', () => {
       const alreadyTransformed =
-        'https://res.cloudinary.com/qrzxe89y/video/upload/e_volume:max_peak,ac_aac,br_96k/v1725274000/datty/chat/note.m4a';
-      const result = applyCloudinaryAudioTransformations(alreadyTransformed, 'e_volume:max_peak,ac_aac,br_96k');
+        'https://res.cloudinary.com/qrzxe89y/video/upload/e_volume:80/v1725274000/datty/chat/note.m4a';
+      const result = applyCloudinaryAudioTransformations(alreadyTransformed, 'e_volume:80');
       expect(result).toBe(alreadyTransformed);
     });
 
@@ -37,9 +37,9 @@ describe('voiceNoteService (Cloudinary Audio Transformations)', () => {
   });
 
   describe('uploadVoiceNoteWithCloudinaryTransform', () => {
-    it('uploads as video and applies volume and codec transformation', async () => {
+    it('uploads as video and applies volume boost and .m4a transformation', async () => {
       (fileToBytes.uploadFileToCloudinary as jest.Mock).mockResolvedValueOnce(
-        'https://res.cloudinary.com/qrzxe89y/video/upload/v1725274000/datty/couple123/chat/test.m4a'
+        'https://res.cloudinary.com/qrzxe89y/video/upload/v1725274000/datty/couple123/chat/test.3gp'
       );
 
       const result = await uploadVoiceNoteWithCloudinaryTransform('file:///path/to/note.m4a', 'datty/couple123/chat');
@@ -50,7 +50,7 @@ describe('voiceNoteService (Cloudinary Audio Transformations)', () => {
         'datty/couple123/chat'
       );
       expect(result).toBe(
-        'https://res.cloudinary.com/qrzxe89y/video/upload/e_volume:max_peak,ac_aac,br_96k/v1725274000/datty/couple123/chat/test.m4a'
+        'https://res.cloudinary.com/qrzxe89y/video/upload/e_volume:80/v1725274000/datty/couple123/chat/test.m4a'
       );
     });
 

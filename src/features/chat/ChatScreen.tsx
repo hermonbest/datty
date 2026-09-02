@@ -18,6 +18,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { format, isToday, isYesterday } from 'date-fns';
+import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import {
   AudioModule,
@@ -27,6 +28,7 @@ import {
   requestRecordingPermissionsAsync,
   IOSOutputFormat,
   AudioQuality,
+  type AudioPlayer,
   type AudioRecorder,
   type RecordingOptions,
 } from 'expo-audio';
@@ -72,6 +74,7 @@ const RECORDING_OPTIONS: RecordingOptions = {
     outputFormat: 'mpeg4',
     audioEncoder: 'aac',
     sampleRate: 44100,
+    audioSource: 'voice_recognition',
   },
   ios: {
     extension: '.m4a',
@@ -104,33 +107,27 @@ const getWaveformBars = (id: string, count = 26): number[] => {
   return bars;
 };
 
-interface VoiceNoteRowProps {
-  message: ChatMessage;
+interface VoiceNoteUIProps {
+  bars: number[];
+  progress: number;
+  rowWidth: number;
   isMe: boolean;
-  isActive: boolean;
   isPlaying: boolean;
-  currentTime: number;
-  playerDuration: number;
+  durationLabel: string;
   onToggle: () => void;
 }
 
-const VoiceNoteRow: React.FC<VoiceNoteRowProps> = ({
-  message,
+const renderVoiceNoteUI = ({
+  bars,
+  progress,
+  rowWidth,
   isMe,
-  isActive,
   isPlaying,
-  currentTime,
-  playerDuration,
+  durationLabel,
   onToggle,
-}) => {
-  const bars = React.useMemo(() => getWaveformBars(message.id), [message.id]);
-  const storedDuration = message.audioDuration || 0;
-  const totalDuration = isActive && playerDuration > 0 ? playerDuration : storedDuration;
-  const progress = isActive && totalDuration > 0 ? Math.min(1, currentTime / totalDuration) : 0;
-  const rowWidth = Math.min(220, Math.max(160, (storedDuration || 30) * 2.2));
+}: VoiceNoteUIProps) => {
   const activeBarColor = isMe ? '#FFFFFF' : colors.primary;
   const inactiveBarColor = isMe ? 'rgba(255, 255, 255, 0.4)' : colors.border;
-
   return (
     <View style={[styles.voiceNoteRow, { width: rowWidth }]}>
       <TouchableOpacity
@@ -170,10 +167,79 @@ const VoiceNoteRow: React.FC<VoiceNoteRowProps> = ({
       </TouchableOpacity>
 
       <Text style={[styles.voiceDurationText, isMe ? styles.myVoiceDuration : styles.partnerVoiceDuration]}>
-        {isActive && currentTime > 0 ? formatVoiceDuration(currentTime) : formatVoiceDuration(storedDuration)}
+        {durationLabel}
       </Text>
     </View>
   );
+};
+
+const ActiveVoiceNote: React.FC<{
+  message: ChatMessage;
+  isMe: boolean;
+  player: AudioPlayer;
+  onToggle: () => void;
+}> = ({ message, isMe, player, onToggle }) => {
+  const status = useAudioPlayerStatus(player);
+  const bars = React.useMemo(() => getWaveformBars(message.id), [message.id]);
+  const storedDuration = message.audioDuration || 0;
+  const totalDuration = status.duration > 0 ? status.duration : storedDuration;
+  const isFinished = !status.playing && status.currentTime >= Math.max(0, totalDuration - 0.25) && totalDuration > 0;
+  const progress = isFinished ? 0 : totalDuration > 0 ? Math.min(1, Math.max(0, status.currentTime / totalDuration)) : 0;
+  const rowWidth = Math.min(220, Math.max(160, (storedDuration || 30) * 2.2));
+
+  return renderVoiceNoteUI({
+    bars,
+    progress,
+    rowWidth,
+    isMe,
+    isPlaying: status.playing,
+    durationLabel:
+      status.playing && status.currentTime > 0
+        ? formatVoiceDuration(status.currentTime)
+        : formatVoiceDuration(storedDuration),
+    onToggle,
+  });
+};
+
+const InertVoiceNote: React.FC<{
+  message: ChatMessage;
+  isMe: boolean;
+  onToggle: () => void;
+}> = ({ message, isMe, onToggle }) => {
+  const bars = React.useMemo(() => getWaveformBars(message.id), [message.id]);
+  const storedDuration = message.audioDuration || 0;
+  const rowWidth = Math.min(220, Math.max(160, (storedDuration || 30) * 2.2));
+
+  return renderVoiceNoteUI({
+    bars,
+    progress: 0,
+    rowWidth,
+    isMe,
+    isPlaying: false,
+    durationLabel: formatVoiceDuration(storedDuration),
+    onToggle,
+  });
+};
+
+interface VoiceNoteRowProps {
+  message: ChatMessage;
+  isMe: boolean;
+  isActive: boolean;
+  player: AudioPlayer;
+  onToggle: () => void;
+}
+
+const VoiceNoteRow: React.FC<VoiceNoteRowProps> = ({
+  message,
+  isMe,
+  isActive,
+  player,
+  onToggle,
+}) => {
+  if (isActive) {
+    return <ActiveVoiceNote message={message} isMe={isMe} player={player} onToggle={onToggle} />;
+  }
+  return <InertVoiceNote message={message} isMe={isMe} onToggle={onToggle} />;
 };
 
 // ---------------------------------------------------------------------------
@@ -378,9 +444,7 @@ interface MessageRowProps {
   onToggleAudio: (message: ChatMessage) => void;
   onReply: (item: ChatMessage) => void;
   isActive: boolean;
-  isPlaying: boolean;
-  currentTime: number;
-  playerDuration: number;
+  player: AudioPlayer;
 }
 
 const MessageRow = React.memo<MessageRowProps>(({
@@ -393,9 +457,7 @@ const MessageRow = React.memo<MessageRowProps>(({
   onToggleAudio,
   onReply,
   isActive,
-  isPlaying,
-  currentTime,
-  playerDuration,
+  player,
 }) => {
   const hasReply = Boolean(item.replyTo);
   const reply = item.replyTo;
@@ -432,7 +494,8 @@ const MessageRow = React.memo<MessageRowProps>(({
             />
           )}
 
-          <View
+          <Pressable
+            onPress={handleBubblePress}
             style={[
               styles.bubble,
               isMe ? styles.myBubble : styles.partnerBubble,
@@ -499,9 +562,7 @@ const MessageRow = React.memo<MessageRowProps>(({
                 message={item}
                 isMe={isMe}
                 isActive={isActive}
-                isPlaying={isPlaying}
-                currentTime={currentTime}
-                playerDuration={playerDuration}
+                player={player}
                 onToggle={() => onToggleAudio(item)}
               />
             ) : null}
@@ -519,11 +580,9 @@ const MessageRow = React.memo<MessageRowProps>(({
 
             {/* Text Message */}
             {item.text ? (
-              <TouchableOpacity activeOpacity={0.8} onPress={handleBubblePress}>
-                <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.partnerMessageText]}>
-                  {item.text}
-                </Text>
-              </TouchableOpacity>
+              <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.partnerMessageText]}>
+                {item.text}
+              </Text>
             ) : null}
 
             {/* Bubble Timestamp & Status */}
@@ -545,14 +604,12 @@ const MessageRow = React.memo<MessageRowProps>(({
                 <Text style={styles.reactionEmoji}>{item.reaction}</Text>
               </TouchableOpacity>
             )}
-          </View>
+          </Pressable>
         </View>
       </SwipeableMessage>
     </View>
   );
 });
-
-import { useNavigation } from '@react-navigation/native';
 
 // Date helpers (module scope so the memoized MessageRow can use them)
 const formatMessageTime = (createdAt: any) => {
@@ -592,8 +649,8 @@ const RecordingBar: React.FC<RecordingBarProps> = React.memo(({ onCancel, onSend
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.7, duration: 650, useNativeDriver: false }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 650, useNativeDriver: false }),
+        Animated.timing(pulseAnim, { toValue: 1.7, duration: 650, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 650, useNativeDriver: true }),
       ])
     );
     loop.start();
@@ -760,11 +817,19 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   // Voice notes: player for message playback with reactive source
   const [activeAudio, setActiveAudio] = useState<{ id: string; url: string } | null>(null);
   const audioSource = React.useMemo(() => {
-    return activeAudio?.url ? { uri: activeAudio.url } : null;
+    if (!activeAudio?.url) return null;
+    let uri = activeAudio.url;
+    if (uri.includes('cloudinary.com')) {
+      // Fix broken tokens if present from earlier tests
+      uri = uri.replace('e_volume:max_peak,ac_aac,br_96k/', 'e_volume:80/');
+      // Ensure .m4a container so expo-audio decodes native AAC/MP4
+      uri = uri.replace(/\.3gp$/i, '.m4a');
+    }
+    return { uri };
   }, [activeAudio?.url]);
 
-  const player = useAudioPlayer(audioSource, { updateInterval: 200 });
-  const playerStatus = useAudioPlayerStatus(player);
+
+  const player = useAudioPlayer(audioSource, { updateInterval: 150 });
   const playRequestedRef = useRef(false);
 
   // Set audio mode on mount for playback
@@ -843,6 +908,21 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     };
   }, []);
 
+  const restoreAudioMode = useCallback(async () => {
+    try {
+      await Promise.resolve(
+        setAudioModeAsync({
+          allowsRecording: false,
+          playsInSilentMode: true,
+          interruptionMode: 'doNotMix',
+          shouldRouteThroughEarpiece: false,
+        })
+      ).catch(() => {});
+    } catch (e) {
+      // ignore mode restore failures
+    }
+  }, []);
+
   const startRecording = async () => {
     if (isRecording || sending || startingRecordingRef.current) {
       console.log('[voice-ui] startRecording ignored: isRecording =', isRecording, 'sending =', sending, 'starting =', startingRecordingRef.current);
@@ -872,9 +952,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       });
       const recorder = getFreshRecorder();
       console.log('[voice] preparing recorder', recorder.id);
-      await Promise.resolve(recorder.prepareToRecordAsync()).catch((e) => {
-        console.warn('[voice] prepareToRecordAsync failed:', e?.message);
-      });
+      try {
+        await Promise.resolve(recorder.prepareToRecordAsync());
+      } catch (prepErr: any) {
+        console.warn('[voice] prepareToRecordAsync failed:', prepErr?.message);
+        releaseRecorder();
+        setIsRecording(false);
+        toast.error('Could not start recording', 'Microphone initialization failed.');
+        return;
+      }
       recorder.record();
       // Diagnostic: verify the native recorder actually started
       const status = (() => {
@@ -899,21 +985,6 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       toast.error('Could not start recording', e?.message || 'Please try again.');
     } finally {
       startingRecordingRef.current = false;
-    }
-  };
-
-  const restoreAudioMode = async () => {
-    try {
-      await Promise.resolve(
-        setAudioModeAsync({
-          allowsRecording: false,
-          playsInSilentMode: true,
-          interruptionMode: 'doNotMix',
-          shouldRouteThroughEarpiece: false,
-        })
-      ).catch(() => {});
-    } catch (e) {
-      // ignore mode restore failures
     }
   };
 
@@ -1034,19 +1105,20 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       if (!message.audioURL) return;
 
       if (activeAudio?.id === message.id) {
-        if (playerStatus.playing) {
+        if (player.playing) {
           player.pause();
         } else {
-          setAudioModeAsync({
-            allowsRecording: false,
-            playsInSilentMode: true,
-            interruptionMode: 'doNotMix',
-            shouldRouteThroughEarpiece: false,
-          }).catch(() => {});
-          if (
-            playerStatus.didJustFinish ||
-            playerStatus.currentTime >= (playerStatus.duration || 0) - 0.2
-          ) {
+          Promise.resolve(
+            setAudioModeAsync({
+              allowsRecording: false,
+              playsInSilentMode: true,
+              interruptionMode: 'doNotMix',
+              shouldRouteThroughEarpiece: false,
+            })
+          ).catch(() => {});
+          const curTime = player.currentTime || 0;
+          const dur = player.duration || 0;
+          if (dur > 0 && curTime >= dur - 0.25) {
             player.seekTo(0).catch(() => {});
           }
           player.volume = 1.0;
@@ -1058,14 +1130,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
         setActiveAudio({ id: message.id, url: message.audioURL });
       }
     },
-    [
-      activeAudio?.id,
-      playerStatus.playing,
-      playerStatus.didJustFinish,
-      playerStatus.currentTime,
-      playerStatus.duration,
-      player,
-    ]
+    [activeAudio?.id, player]
   );
 
   // Set reply target from route params if navigated from Card / Daily Question
@@ -1144,6 +1209,22 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   const partnerTyping = partnerPresence?.typing === 'chat';
   const partnerOnline = partnerPresence ? Boolean(partnerPresence.online) : true;
 
+  const handleReply = useCallback(
+    (msg: ChatMessage) => {
+      const isMe = msg.senderUid === myUid;
+      setReplyingTo({
+        type: 'message',
+        authorName: isMe
+          ? (userProfile?.displayName || 'You')
+          : (partnerProfile?.displayName || 'Partner'),
+        answerText: msg.text || (msg.imageURL ? '📷 Photo' : msg.audioURL ? '🎤 Voice note' : ''),
+        // intentionally omit questionText + deckTitle — Firebase rejects undefined values
+      });
+      setTimeout(() => inputRef.current?.focus(), 200);
+    },
+    [myUid, userProfile?.displayName, partnerProfile?.displayName]
+  );
+
   // Stable renderer: rows are memoized so typing / playback ticks don't
   // re-render the whole list.
   const renderMessage = useCallback(
@@ -1161,35 +1242,21 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
           onToggleReaction={toggleReaction}
           onOpenImage={setViewingImage}
           onToggleAudio={handleToggleAudio}
-          onReply={(msg) => {
-            setReplyingTo({
-              type: 'message',
-              authorName: isMe
-                ? (userProfile?.displayName || 'You')
-                : (partnerProfile?.displayName || 'Partner'),
-              answerText: msg.text || (msg.imageURL ? '📷 Photo' : msg.audioURL ? '🎤 Voice note' : ''),
-              // intentionally omit questionText + deckTitle — Firebase rejects undefined values
-            });
-            setTimeout(() => inputRef.current?.focus(), 200);
-          }}
+          onReply={handleReply}
           isActive={activeAudio?.id === item.id}
-          isPlaying={activeAudio?.id === item.id && playerStatus.playing}
-          currentTime={activeAudio?.id === item.id ? playerStatus.currentTime : 0}
-          playerDuration={activeAudio?.id === item.id ? playerStatus.duration : 0}
+          player={player}
         />
       );
     },
     [
       messages,
       myUid,
-      userProfile,
       partnerProfile,
       toggleReaction,
       handleToggleAudio,
+      handleReply,
       activeAudio?.id,
-      playerStatus.playing,
-      playerStatus.currentTime,
-      playerStatus.duration,
+      player,
     ]
   );
 
@@ -1239,6 +1306,9 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
           data={messages}
           inverted
           keyExtractor={(item) => item.id}
+          extraData={{
+            activeAudioId: activeAudio?.id,
+          }}
           contentContainerStyle={styles.messagesList}
           renderItem={renderMessage}
         />
