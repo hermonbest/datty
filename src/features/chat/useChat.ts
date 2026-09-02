@@ -12,6 +12,7 @@ import {
 } from 'firebase/database';
 import { rtdb } from '../../services/firebase';
 import { uploadFileToCloudinary, getFileSizeBytes } from '../../services/fileToBytes';
+import { processAndUploadVoiceNote } from '../../services/voiceNoteService';
 import { useCouple } from '../../services/coupleContext';
 import { ChatMessage, ChatReplyReference, MediaState } from '../../types';
 
@@ -109,16 +110,18 @@ export const useChat = () => {
     [coupleId]
   );
 
-  // Upload chat voice note — use 'raw' resource type so Cloudinary stores the
-  // original .m4a without transcoding to .3gp (which expo-audio can't play back).
+  // Upload chat voice note — server-side post-processing (noise reduction,
+  // highpass/lowpass filters, -16 LUFS loudness normalization) with automatic
+  // fallback to direct raw Cloudinary upload.
   const uploadChatAudio = useCallback(
     async (uri: string): Promise<string> => {
       if (!coupleId) throw new Error('Couple not found');
-      console.log('[useChat] Uploading audio to Cloudinary');
-      return uploadFileToCloudinary(uri, 'raw', `datty/${coupleId}/chat`);
+      console.log('[useChat] Processing and uploading voice note');
+      return processAndUploadVoiceNote(uri, `datty/${coupleId}/chat`);
     },
     [coupleId]
   );
+
 
   // Send message: RTDB push gives instant local echo; media uploads run in the
   // background and patch the message node with the URL afterwards.
