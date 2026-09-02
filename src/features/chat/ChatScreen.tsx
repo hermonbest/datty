@@ -841,7 +841,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
         interruptionMode: 'doNotMix',
         shouldRouteThroughEarpiece: false,
       })
-    ).catch(() => {});
+    ).catch(() => { });
   }, []);
 
   // When activeAudio changes and play was requested, start playback once loaded
@@ -854,7 +854,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
           interruptionMode: 'doNotMix',
           shouldRouteThroughEarpiece: false,
         })
-      ).catch(() => {});
+      ).catch(() => { });
 
       try {
         player.volume = 1.0;
@@ -893,7 +893,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
         try {
           if (rec.isRecording) {
             console.log('[voice] unmount: stopping active recording');
-            rec.stop().catch(() => {});
+            rec.stop().catch(() => { });
           }
         } catch (e) {
           // ignore
@@ -917,7 +917,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
           interruptionMode: 'doNotMix',
           shouldRouteThroughEarpiece: false,
         })
-      ).catch(() => {});
+      ).catch(() => { });
     } catch (e) {
       // ignore mode restore failures
     }
@@ -1115,11 +1115,11 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
               interruptionMode: 'doNotMix',
               shouldRouteThroughEarpiece: false,
             })
-          ).catch(() => {});
+          ).catch(() => { });
           const curTime = player.currentTime || 0;
           const dur = player.duration || 0;
           if (dur > 0 && curTime >= dur - 0.25) {
-            player.seekTo(0).catch(() => {});
+            player.seekTo(0).catch(() => { });
           }
           player.volume = 1.0;
           player.loop = false;

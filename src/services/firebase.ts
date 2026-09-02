@@ -7,7 +7,6 @@ import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { getDatabase, Database } from 'firebase/database';
-import { getFunctions, Functions } from 'firebase/functions';
 import Constants from 'expo-constants';
 
 const extra = Constants.expoConfig?.extra || {};
@@ -51,6 +50,4 @@ export { auth };
 export const db: Firestore = getFirestore(app);
 export const storage: FirebaseStorage = getStorage(app);
 export const rtdb: Database = getDatabase(app);
-export const functions: Functions = getFunctions(app, 'europe-west1');
 export default app;
-
