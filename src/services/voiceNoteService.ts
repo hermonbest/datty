@@ -64,18 +64,28 @@ export async function requestServerDenoise(
   }
 
   console.log(`[voiceNoteService] Sending audio to backend for FFmpeg denoising: ${backendUrl}/v1/audio/process`);
-  const response = await fetch(`${backendUrl}/v1/audio/process`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${idToken}`,
-    },
-    body: JSON.stringify({
-      sourceUrl: rawUrl,
-      coupleId,
-      durationSeconds,
-    }),
-  });
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  let response: Response;
+  try {
+    response = await fetch(`${backendUrl}/v1/audio/process`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        sourceUrl: rawUrl,
+        coupleId,
+        durationSeconds,
+      }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
