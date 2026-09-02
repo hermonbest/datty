@@ -1,3 +1,4 @@
+import '../polyfills';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { initializeAuth, getAuth, Auth } from 'firebase/auth';
 // @ts-ignore - getReactNativePersistence is available in react-native entrypoint

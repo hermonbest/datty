@@ -7,6 +7,7 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
+  Pressable,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -576,6 +577,92 @@ const formatDividerDate = (createdAt: any) => {
   }
 };
 
+interface RecordingBarProps {
+  onCancel: () => void;
+  onSend: (durationSec: number) => void;
+  isStopping: boolean;
+  isSending: boolean;
+}
+
+const RecordingBar: React.FC<RecordingBarProps> = React.memo(({ onCancel, onSend, isStopping, isSending }) => {
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const startedAtRef = useRef(Date.now());
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.7, duration: 650, useNativeDriver: false }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 650, useNativeDriver: false }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulseAnim]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const diff = Date.now() - startedAtRef.current;
+      setElapsedMs(diff);
+      if (diff >= MAX_RECORDING_MS) {
+        clearInterval(interval);
+        onSend(Math.floor(MAX_RECORDING_MS / 1000));
+      }
+    }, 250);
+    return () => clearInterval(interval);
+  }, [onSend]);
+
+  const sec = Math.floor(elapsedMs / 1000);
+
+  return (
+    <>
+      <View style={styles.recordingIndicator}>
+        <Animated.View style={[styles.recordingDot, { transform: [{ scale: pulseAnim }] }]} />
+        <Text style={styles.recordingTimer}>
+          {formatVoiceDuration(sec)}
+          <Text style={styles.recordingTimerMax}> / 10:00</Text>
+        </Text>
+      </View>
+
+      <View style={styles.recordingSpacer} />
+
+      <Pressable
+        onPress={() => {
+          console.log('[voice-ui] Delete / Cancel button pressed');
+          onCancel();
+        }}
+        hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+        style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.6 }]}
+        accessibilityLabel="Cancel voice note"
+      >
+        <Trash2 size={22} color={colors.error} />
+      </Pressable>
+
+      <Pressable
+        onPress={() => {
+          const finalSec = Math.max(1, Math.floor((Date.now() - startedAtRef.current) / 1000));
+          console.log('[voice-ui] Send voice note pressed, finalSec =', finalSec);
+          onSend(finalSec);
+        }}
+        disabled={isStopping || isSending}
+        hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+        style={({ pressed }) => [
+          styles.sendBtn,
+          (isStopping || isSending) && styles.sendBtnDisabled,
+          pressed && { opacity: 0.8 },
+        ]}
+        accessibilityLabel="Send voice note"
+      >
+        {isSending ? (
+          <ActivityIndicator size="small" color={colors.textLight} />
+        ) : (
+          <Send size={17} color={colors.textLight} />
+        )}
+      </Pressable>
+    </>
+  );
+});
+
 interface ChatScreenProps {
   route?: {
     params?: {
@@ -645,6 +732,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   // Guards against re-entrant cancel (AppState + lock can both fire): two
   // concurrent stop() calls on one recorder can native-crash.
   const cancellingRef = useRef(false);
+  // Guards against concurrent / double-invocation of startRecording
+  const startingRecordingRef = useRef(false);
 
   const releaseRecorder = useCallback(() => {
     const rec = recorderRef.current;
@@ -667,7 +756,6 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
 
   const [isRecording, setIsRecording] = useState(false);
   const [isStoppingRecording, setIsStoppingRecording] = useState(false);
-  const [recordingDurationMillis, setRecordingDurationMillis] = useState(0);
 
   // Voice notes: player for message playback with reactive source
   const [activeAudio, setActiveAudio] = useState<{ id: string; url: string } | null>(null);
@@ -681,23 +769,27 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
 
   // Set audio mode on mount for playback
   useEffect(() => {
-    setAudioModeAsync({
-      allowsRecording: false,
-      playsInSilentMode: true,
-      interruptionMode: 'doNotMix',
-      shouldRouteThroughEarpiece: false,
-    }).catch(() => {});
-  }, []);
-
-  // When activeAudio changes and play was requested, start playback once loaded
-  useEffect(() => {
-    if (activeAudio?.url && playRequestedRef.current) {
+    Promise.resolve(
       setAudioModeAsync({
         allowsRecording: false,
         playsInSilentMode: true,
         interruptionMode: 'doNotMix',
         shouldRouteThroughEarpiece: false,
-      }).catch(() => {});
+      })
+    ).catch(() => {});
+  }, []);
+
+  // When activeAudio changes and play was requested, start playback once loaded
+  useEffect(() => {
+    if (activeAudio?.url && playRequestedRef.current) {
+      Promise.resolve(
+        setAudioModeAsync({
+          allowsRecording: false,
+          playsInSilentMode: true,
+          interruptionMode: 'doNotMix',
+          shouldRouteThroughEarpiece: false,
+        })
+      ).catch(() => {});
 
       try {
         player.volume = 1.0;
@@ -709,8 +801,6 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       playRequestedRef.current = false;
     }
   }, [activeAudio?.id, player]);
-
-  const recordingSec = Math.floor(recordingDurationMillis / 1000);
 
   // Poll the recorder only while recording and guard every native access —
   // the shared object can be released underneath us (known expo-audio issue),
@@ -724,46 +814,6 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       return 0;
     }
   };
-
-  // Local recording timer for the UI. We deliberately do NOT poll the native
-  // recorder while recording: repeated getStatus() calls on the expo-audio
-  // shared object are the known trigger for the Android "shared object was
-  // already released" native crash. The exact duration is read once, at stop.
-  const recordingStartedAtRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!isRecording) {
-      return;
-    }
-    recordingStartedAtRef.current = Date.now();
-    const interval = setInterval(() => {
-      const elapsed = recordingStartedAtRef.current
-        ? Date.now() - recordingStartedAtRef.current
-        : 0;
-      setRecordingDurationMillis(elapsed);
-    }, 200);
-    return () => {
-      clearInterval(interval);
-      recordingStartedAtRef.current = null;
-    };
-  }, [isRecording]);
-
-  // Pulsing red dot while recording
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    if (!isRecording) {
-      pulseAnim.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.7, duration: 650, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 650, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [isRecording]);
 
   // Removed auto-seek on didJustFinish to prevent infinite looping.
   // Instead, the play button handles seeking to 0 if the user plays it again.
@@ -794,23 +844,37 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   }, []);
 
   const startRecording = async () => {
-    if (isRecording || sending) return;
+    if (isRecording || sending || startingRecordingRef.current) {
+      console.log('[voice-ui] startRecording ignored: isRecording =', isRecording, 'sending =', sending, 'starting =', startingRecordingRef.current);
+      return;
+    }
+    startingRecordingRef.current = true;
+    Keyboard.dismiss();
     console.log('[voice] startRecording: requesting mic permission');
     try {
-      const permission = await requestRecordingPermissionsAsync();
-      if (!permission.granted) {
+      const permission = await Promise.resolve(requestRecordingPermissionsAsync()).catch((e) => {
+        console.warn('[voice] requestRecordingPermissionsAsync failed:', e?.message);
+        return null;
+      });
+      if (!permission || !permission.granted) {
         toast.error('Microphone permission required', 'Please grant microphone access.');
         return;
       }
-      await setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
-        interruptionMode: 'doNotMix',
-        shouldRouteThroughEarpiece: false,
+      await Promise.resolve(
+        setAudioModeAsync({
+          allowsRecording: true,
+          playsInSilentMode: true,
+          interruptionMode: 'doNotMix',
+          shouldRouteThroughEarpiece: false,
+        })
+      ).catch((e) => {
+        console.warn('[voice] setAudioModeAsync(recording) failed:', e?.message);
       });
       const recorder = getFreshRecorder();
       console.log('[voice] preparing recorder', recorder.id);
-      await recorder.prepareToRecordAsync();
+      await Promise.resolve(recorder.prepareToRecordAsync()).catch((e) => {
+        console.warn('[voice] prepareToRecordAsync failed:', e?.message);
+      });
       recorder.record();
       // Diagnostic: verify the native recorder actually started
       const status = (() => {
@@ -826,46 +890,49 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
         isRecording: status?.isRecording,
         durationMillis: status?.durationMillis,
       });
-      if (!status?.isRecording) {
-        console.warn(
-          '[voice] native recorder did not start — verify microphone permissions and dev client native build'
-        );
-      }
 
       setIsStoppingRecording(false);
-      setRecordingDurationMillis(0);
       setIsRecording(true);
     } catch (e: any) {
       console.warn('[voice] startRecording failed:', e?.message);
       setIsRecording(false);
       toast.error('Could not start recording', e?.message || 'Please try again.');
+    } finally {
+      startingRecordingRef.current = false;
     }
   };
 
   const restoreAudioMode = async () => {
     try {
-      await setAudioModeAsync({
-        allowsRecording: false,
-        playsInSilentMode: true,
-        interruptionMode: 'doNotMix',
-        shouldRouteThroughEarpiece: false,
-      });
+      await Promise.resolve(
+        setAudioModeAsync({
+          allowsRecording: false,
+          playsInSilentMode: true,
+          interruptionMode: 'doNotMix',
+          shouldRouteThroughEarpiece: false,
+        })
+      ).catch(() => {});
     } catch (e) {
       // ignore mode restore failures
     }
   };
 
   const cancelRecording = useCallback(async () => {
+    console.log('[voice] cancelRecording called, isRecording =', isRecording, 'cancelling =', cancellingRef.current);
     if (!isRecording) return;
     if (cancellingRef.current) return;
     cancellingRef.current = true;
     setIsStoppingRecording(true);
     try {
-      console.log('[voice] cancelRecording: stopping');
+      console.log('[voice] cancelRecording: stopping recorder');
       const recorder = recorderRef.current;
-      if (recorder) await recorder.stop();
+      if (recorder) {
+        await Promise.resolve(recorder.stop()).catch((e: any) => {
+          console.warn('[voice] cancelRecording stop failed:', e?.message);
+        });
+      }
     } catch (e: any) {
-      console.warn('[voice] cancelRecording stop failed:', e?.message);
+      console.warn('[voice] cancelRecording error:', e?.message);
     }
     // Free the native recorder so the next take starts clean.
     releaseRecorder();
@@ -875,6 +942,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       await restoreAudioMode();
     } finally {
       cancellingRef.current = false;
+      console.log('[voice] cancelRecording finished');
     }
   }, [isRecording, releaseRecorder, restoreAudioMode]);
 
@@ -901,61 +969,65 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     }
   }, [isLocked, isRecording, cancelRecording]);
 
-  const stopAndSendRecording = async () => {
-    if (!isRecording || isStoppingRecording) return;
-    setIsStoppingRecording(true);
+  const stopAndSendRecording = useCallback(
+    async (fallbackSec?: number) => {
+      console.log('[voice] stopAndSendRecording called, isRecording =', isRecording, 'isStopping =', isStoppingRecording);
+      if (!isRecording || isStoppingRecording) return;
+      setIsStoppingRecording(true);
 
-    // Read fresh duration before stopping (polled state may lag)
-    const durationSec = Math.min(
-      MAX_RECORDING_MS / 1000,
-      Math.max(1, Math.round(safeReadDurationMillis() / 1000))
-    );
+      // Read fresh duration before stopping (polled state may lag)
+      const rawDuration = safeReadDurationMillis() || (fallbackSec ? fallbackSec * 1000 : 0);
+      const durationSec = Math.min(
+        MAX_RECORDING_MS / 1000,
+        Math.max(1, Math.round(rawDuration / 1000))
+      );
 
-    let uri: string | null = null;
-    try {
-      console.log('[voice] stopAndSend: stopping, durationSec =', durationSec);
-      const recorder = recorderRef.current;
-      if (!recorder) throw new Error('Recorder not initialized');
-      await recorder.stop();
-      uri = recorder.uri;
-      console.log('[voice] stopAndSend: stopped, uri =', uri);
-    } catch (e: any) {
-      console.warn('[voice] stopAndSend: stop failed:', e?.message);
-      toast.error('Could not send voice note', e?.message || 'Recording failed.');
-    }
-    // Free the native recorder so the next take starts clean.
-    releaseRecorder();
-    setIsRecording(false);
-    await restoreAudioMode();
+      let uri: string | null = null;
+      try {
+        console.log('[voice] stopAndSend: stopping, durationSec =', durationSec);
+        const recorder = recorderRef.current;
+        if (!recorder) throw new Error('Recorder not initialized');
+        await Promise.resolve(recorder.stop()).catch((e: any) => {
+          console.warn('[voice] stop failed:', e?.message);
+        });
+        uri = recorder.uri;
+        console.log('[voice] stopAndSend: stopped, uri =', uri);
+      } catch (e: any) {
+        console.warn('[voice] stopAndSend: stop failed:', e?.message);
+        toast.error('Could not send voice note', e?.message || 'Recording failed.');
+      }
+      // Free the native recorder so the next take starts clean.
+      releaseRecorder();
+      setIsRecording(false);
+      await restoreAudioMode();
 
-    if (!uri) {
-      setIsStoppingRecording(false);
-      return;
-    }
-    if (durationSec < 1) {
-      setIsStoppingRecording(false);
-      toast.error('Voice note too short', 'Hold the mic a bit longer before sending.');
-      return;
-    }
+      if (!uri) {
+        console.warn('[voice] stopAndSend: no uri obtained from recorder');
+        setIsStoppingRecording(false);
+        return;
+      }
+      if (durationSec < 1) {
+        setIsStoppingRecording(false);
+        toast.error('Voice note too short', 'Hold the mic a bit longer before sending.');
+        return;
+      }
 
-    const replyRef = replyingTo;
-    setReplyingTo(null);
-    try {
-      await sendMessage(undefined, undefined, replyRef, { uri, duration: durationSec });
-    } catch (e: any) {
-      setReplyingTo(replyRef);
-      toast.error('Could not send voice note', 'Please check your connection and retry.');
-    } finally {
-      setIsStoppingRecording(false);
-    }
-  };
-
-  // Hard stop at the 10 minute cap — auto-send
-  useEffect(() => {
-    if (isRecording && recordingDurationMillis >= MAX_RECORDING_MS) {
-      stopAndSendRecording();
-    }
-  }, [isRecording, recordingDurationMillis]);
+      const replyRef = replyingTo;
+      setReplyingTo(null);
+      try {
+        console.log('[voice] sending voice note message...');
+        await sendMessage(undefined, undefined, replyRef, { uri, duration: durationSec });
+        console.log('[voice] voice note sent successfully!');
+      } catch (e: any) {
+        console.error('[voice] sendMessage failed:', e?.message);
+        setReplyingTo(replyRef);
+        toast.error('Could not send voice note', 'Please check your connection and retry.');
+      } finally {
+        setIsStoppingRecording(false);
+      }
+    },
+    [isRecording, isStoppingRecording, releaseRecorder, restoreAudioMode, replyingTo, sendMessage, toast]
+  );
 
   const handleToggleAudio = useCallback(
     (message: ChatMessage) => {
@@ -1223,47 +1295,27 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       )}
 
       {/* Datty Message Composer Bar */}
-      <View style={[styles.composerWrapper, { paddingBottom: isKeyboardVisible ? 8 : 88 }]}>
-        <View style={styles.composerContainer}>
+      <View
+        style={[styles.composerWrapper, { paddingBottom: isKeyboardVisible ? 8 : 88 }]}
+        pointerEvents="box-none"
+      >
+        <View style={styles.composerContainer} pointerEvents="auto">
           {isRecording ? (
-            <>
-              <View style={styles.recordingIndicator}>
-                <Animated.View style={[styles.recordingDot, { transform: [{ scale: pulseAnim }] }]} />
-                <Text style={styles.recordingTimer}>
-                  {formatVoiceDuration(recordingSec)}
-                  <Text style={styles.recordingTimerMax}> / 10:00</Text>
-                </Text>
-              </View>
-
-              <View style={styles.recordingSpacer} />
-
-              <TouchableOpacity
-                onPress={cancelRecording}
-                style={styles.iconBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityLabel="Cancel voice note"
-              >
-                <Trash2 size={22} color={colors.error} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={stopAndSendRecording}
-                disabled={isStoppingRecording || sending}
-                style={[styles.sendBtn, isStoppingRecording || sending ? styles.sendBtnDisabled : null]}
-                accessibilityLabel="Send voice note"
-              >
-                {sending ? (
-                  <ActivityIndicator size="small" color={colors.textLight} />
-                ) : (
-                  <Send size={17} color={colors.textLight} />
-                )}
-              </TouchableOpacity>
-            </>
+            <RecordingBar
+              onCancel={cancelRecording}
+              onSend={stopAndSendRecording}
+              isStopping={isStoppingRecording}
+              isSending={sending}
+            />
           ) : (
             <>
-              <TouchableOpacity onPress={pickImage} style={styles.iconBtn}>
+              <Pressable
+                onPress={pickImage}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.6 }]}
+              >
                 <PlusCircle size={24} color={colors.textMuted} strokeWidth={1.5} />
-              </TouchableOpacity>
+              </Pressable>
 
               <TextInput
                 ref={inputRef}
@@ -1276,17 +1328,22 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
                 maxLength={1000}
               />
 
-              <TouchableOpacity style={styles.iconBtn}>
+              <Pressable
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.6 }]}
+              >
                 <Smile size={24} color={colors.textMuted} strokeWidth={1.5} />
-              </TouchableOpacity>
+              </Pressable>
 
               {inputText.trim() || selectedImage ? (
-                <TouchableOpacity
+                <Pressable
                   onPress={handleSend}
                   disabled={(!inputText.trim() && !selectedImage) || sending}
-                  style={[
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={({ pressed }) => [
                     styles.sendBtn,
                     (!inputText.trim() && !selectedImage) || sending ? styles.sendBtnDisabled : null,
+                    pressed && { opacity: 0.8 },
                   ]}
                 >
                   {sending ? (
@@ -1294,12 +1351,20 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
                   ) : (
                     <Send size={17} color={colors.textLight} />
                   )}
-                </TouchableOpacity>
+                </Pressable>
               ) : (
-                <TouchableOpacity
-                  onPress={startRecording}
+                <Pressable
+                  onPress={() => {
+                    console.log('[voice-ui] Mic button tapped to start recording');
+                    startRecording();
+                  }}
                   disabled={sending}
-                  style={[styles.sendBtn, sending ? styles.sendBtnDisabled : null]}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={({ pressed }) => [
+                    styles.sendBtn,
+                    sending ? styles.sendBtnDisabled : null,
+                    pressed && { opacity: 0.8 },
+                  ]}
                   accessibilityLabel="Record voice note"
                 >
                   {sending ? (
@@ -1307,7 +1372,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
                   ) : (
                     <Mic size={19} color={colors.textLight} />
                   )}
-                </TouchableOpacity>
+                </Pressable>
               )}
             </>
           )}
