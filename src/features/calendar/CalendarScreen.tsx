@@ -108,7 +108,25 @@ export const CalendarScreen: React.FC = () => {
     const days = getDaysUntil(day);
     const formattedDate = format(day, 'MMMM d, yyyy');
     const dayEvents = getEventsForDay(day);
-    
+
+    if (dayEvents.length === 1) {
+      handleEventPress(dayEvents[0]);
+      return;
+    } else if (dayEvents.length > 1) {
+      Alert.alert(
+        `Events on ${format(day, 'MMM d')}`,
+        dayEvents.map((e) => `• ${e.title}`).join('\n'),
+        [
+          ...dayEvents.map((e) => ({
+            text: `View "${e.title}"`,
+            onPress: () => handleEventPress(e),
+          })),
+          { text: 'Close', style: 'cancel' as const },
+        ]
+      );
+      return;
+    }
+
     let message = '';
     if (days === 0) {
       message = `Today is ${formattedDate}!`;
@@ -116,11 +134,6 @@ export const CalendarScreen: React.FC = () => {
       message = `There are ${days} days until ${formattedDate}.`;
     } else {
       message = `It has been ${Math.abs(days)} days since ${formattedDate}.`;
-    }
-
-    if (dayEvents.length > 0) {
-      const eventTitles = dayEvents.map(e => e.title).join(', ');
-      message += `\n\nSpecial Date: ${eventTitles}`;
     }
 
     toast.info(format(day, 'MMM d'), message);
@@ -134,7 +147,14 @@ export const CalendarScreen: React.FC = () => {
     Alert.alert(
       event.title,
       `Date: ${format(getNextEventDate(event), 'MMMM d, yyyy')}\nCountdown: ${countdown}\n\nNotes:\n${notesText}`,
-      [{ text: 'Close', style: 'cancel' }]
+      [
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => handleDelete(event),
+        },
+        { text: 'Close', style: 'cancel' },
+      ]
     );
   };
 
@@ -298,9 +318,14 @@ export const CalendarScreen: React.FC = () => {
                   <Text style={styles.upcomingTitle}>{item.title}</Text>
                   <Text style={styles.upcomingSubtitle}>{formattedNext}</Text>
                 </View>
-                <View style={styles.upcomingChevron}>
-                  <ChevronRight size={20} color={colors.outline || '#867275'} />
-                </View>
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => handleDelete(item)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  activeOpacity={0.7}
+                >
+                  <Trash2 size={18} color={colors.outline || '#867275'} />
+                </TouchableOpacity>
               </TouchableOpacity>
             );
           }}
@@ -569,12 +594,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontFamily: 'manrope',
   },
-  upcomingChevron: {
-    width: 32,
-    height: 32,
+  deleteBtn: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 18,
   },
   addEventBtn: {
     flexDirection: 'row',

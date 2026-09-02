@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     alignItems: 'center',
     paddingHorizontal: spacing.marginMobile,
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.xxl + 48,
   },
   promptCard: {
     width: '100%',
