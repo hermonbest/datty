@@ -7,12 +7,26 @@ let isCloudinaryConfigured = false;
 
 export function initCloudinary(): typeof cloudinary {
   if (!isCloudinaryConfigured) {
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
-      secure: true,
-    });
+    const cloudName = (process.env.CLOUDINARY_CLOUD_NAME || 'qrzxe89y')?.trim().replace(/^["']|["']$/g, '');
+    const apiKey = process.env.CLOUDINARY_API_KEY?.trim().replace(/^["']|["']$/g, '');
+    const apiSecret = process.env.CLOUDINARY_API_SECRET?.trim().replace(/^["']|["']$/g, '');
+    const cloudinaryUrl = process.env.CLOUDINARY_URL?.trim().replace(/^["']|["']$/g, '');
+
+    if (cloudinaryUrl) {
+      cloudinary.config({
+        cloudinary_url: cloudinaryUrl,
+        secure: true,
+      });
+      console.log('[Cloudinary] Configured using CLOUDINARY_URL');
+    } else {
+      cloudinary.config({
+        cloud_name: cloudName,
+        api_key: apiKey,
+        api_secret: apiSecret,
+        secure: true,
+      });
+      console.log('[Cloudinary] Configured with cloud_name:', cloudName, 'apiKey present:', Boolean(apiKey));
+    }
     isCloudinaryConfigured = true;
   }
   return cloudinary;
