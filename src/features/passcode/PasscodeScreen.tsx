@@ -5,11 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  SafeAreaView,
   StatusBar,
   Alert,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { usePasscode } from '../../services/passcodeContext';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { Lock, ShieldCheck, KeyRound, Delete, X } from 'lucide-react-native';
@@ -378,18 +379,25 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: spacing.xl,
+    paddingHorizontal: spacing.md,
   },
   iconWrapper: {
     marginBottom: spacing.md,
   },
   title: {
-    ...typography.headlineLgMobile,
+    fontSize: 24,
+    fontWeight: '700',
     color: colors.primary,
-    marginBottom: spacing.sm,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    ...typography.bodyMd,
+    fontSize: 15,
+    fontWeight: '400',
     color: colors.onSurfaceVariant,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: spacing.sm,
   },
   dotsContainer: {
     flexDirection: 'row',
@@ -414,14 +422,18 @@ const styles = StyleSheet.create({
     borderColor: colors.error,
   },
   errorContainer: {
-    height: 24,
+    minHeight: 24,
     marginBottom: spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: spacing.md,
   },
   errorText: {
-    ...typography.labelSm,
+    fontSize: 13,
+    fontWeight: '500',
     color: colors.error,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   keypad: {
     width: '100%',
@@ -458,16 +470,24 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   keyNumber: {
-    ...typography.headlineMd,
+    fontSize: 26,
+    fontWeight: '600',
     color: colors.primary,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   footer: {
     marginTop: 'auto',
     paddingBottom: spacing.xl,
+    alignItems: 'center',
   },
   forgotBtnText: {
-    ...typography.labelMd,
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.primary,
-    opacity: 0.8,
+    textAlign: 'center',
+    opacity: 0.85,
   },
 });
+
