@@ -185,10 +185,16 @@ export const useChat = () => {
             if (imageUri) {
               const finalImageURL = await uploadChatImage(imageUri);
               await update(newMsgRef, { imageURL: finalImageURL, mediaState: 'ready' });
+              setMessages((prev) =>
+                prev.map((m) => (m.id === messageId ? { ...m, imageURL: finalImageURL, mediaState: 'ready' } : m))
+              );
             } else if (audio) {
               const finalAudioURL = await uploadChatAudio(audio.uri, audio.duration);
               uploadedAudioURL = finalAudioURL;
               await update(newMsgRef, { audioURL: finalAudioURL, mediaState: 'ready' });
+              setMessages((prev) =>
+                prev.map((m) => (m.id === messageId ? { ...m, audioURL: finalAudioURL, mediaState: 'ready' } : m))
+              );
             }
           } catch (mediaErr) {
             console.error('[useChat] Media upload error:', mediaErr);

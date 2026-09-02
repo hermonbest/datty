@@ -30,11 +30,11 @@ export interface AudioProcessingOptions {
 export const DEFAULT_PROCESSING_OPTIONS: AudioProcessingOptions = {
   highpassFrequency: 100,
   lowpassFrequency: 7200,
-  noiseReductionDb: 32,
-  noiseFloorDb: -45,
-  loudnessTarget: -21,
+  noiseReductionDb: 28,
+  noiseFloorDb: -40,
+  loudnessTarget: -25,
   sampleRate: 44100,
-  bitrate: '128k',
+  bitrate: '96k',
 };
 
 /**
@@ -47,11 +47,13 @@ export function runFFmpegDenoise(
 ): Promise<void> {
   const envNr = process.env.NOISE_REDUCTION_DB ? Number(process.env.NOISE_REDUCTION_DB) : undefined;
   const envNf = process.env.NOISE_FLOOR_DB ? Number(process.env.NOISE_FLOOR_DB) : undefined;
+  const envLoudness = process.env.LOUDNESS_TARGET ? Number(process.env.LOUDNESS_TARGET) : undefined;
 
   const opts = {
     ...DEFAULT_PROCESSING_OPTIONS,
     ...(envNr ? { noiseReductionDb: envNr } : {}),
     ...(envNf ? { noiseFloorDb: envNf } : {}),
+    ...(envLoudness ? { loudnessTarget: envLoudness } : {}),
     ...options,
   };
 
