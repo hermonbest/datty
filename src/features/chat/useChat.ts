@@ -12,7 +12,6 @@ import {
 } from 'firebase/database';
 import { rtdb } from '../../services/firebase';
 import { uploadFileToCloudinary, getFileSizeBytes } from '../../services/fileToBytes';
-import { processAndUploadVoiceNote } from '../../services/voiceNoteService';
 import { useCouple } from '../../services/coupleContext';
 import { ChatMessage, ChatReplyReference, MediaState } from '../../types';
 
@@ -110,13 +109,12 @@ export const useChat = () => {
     [coupleId]
   );
 
-  // Upload chat voice note with volume normalization and automatic fallback
-  // to direct raw Cloudinary upload.
+  // Upload chat voice note directly to Cloudinary as raw storage
   const uploadChatAudio = useCallback(
-    async (uri: string, duration?: number): Promise<string> => {
+    async (uri: string): Promise<string> => {
       if (!coupleId) throw new Error('Couple not found');
-      console.log('[useChat] Processing and uploading voice note');
-      return processAndUploadVoiceNote(uri, `datty/${coupleId}/chat`, duration);
+      console.log('[useChat] Uploading voice note to Cloudinary as raw');
+      return uploadFileToCloudinary(uri, 'raw', `datty/${coupleId}/chat`);
     },
     [coupleId]
   );
