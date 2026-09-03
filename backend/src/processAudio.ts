@@ -28,11 +28,11 @@ export interface AudioProcessingOptions {
 }
 
 export const DEFAULT_PROCESSING_OPTIONS: AudioProcessingOptions = {
-  highpassFrequency: 100,
-  lowpassFrequency: 7200,
-  noiseReductionDb: 28,
+  highpassFrequency: 90,
+  lowpassFrequency: 8000,
+  noiseReductionDb: 18,
   noiseFloorDb: -40,
-  loudnessTarget: -25,
+  loudnessTarget: -28,
   sampleRate: 44100,
   bitrate: '96k',
 };
@@ -58,17 +58,15 @@ export function runFFmpegDenoise(
   };
 
   // Construct audio filter chain:
-  // 1. Highpass (100Hz): Strip low-end mic rumble and wind
-  // 2. Lowpass (7.2kHz): Strip high-frequency static/air hiss
-  // 3. afftdn: Broadband spectral noise suppression
-  // 4. loudnorm (EBU R128): Controlled voice normalization to -25 LUFS (gentle conversational volume)
-  // 5. agate: Soft downward gate to keep silence clean without cutting into trailing words or soft speech
+  // 1. Highpass (90Hz): Strip handling rumble and wind
+  // 2. Lowpass (8kHz): Strip high-frequency hiss
+  // 3. afftdn: Clean spectral noise reduction without tracking echo (tn=0)
+  // 4. loudnorm: Gentle, natural voice normalization (-28 LUFS)
   const filters: string[] = [
     `highpass=f=${opts.highpassFrequency}`,
     `lowpass=f=${opts.lowpassFrequency}`,
-    `afftdn=nr=${opts.noiseReductionDb}:nf=${opts.noiseFloorDb}:tn=1`,
+    `afftdn=nr=${opts.noiseReductionDb}:nf=${opts.noiseFloorDb}`,
     `loudnorm=I=${opts.loudnessTarget}:TP=-2.0:LRA=10`,
-    `agate=range=-25dB:threshold=0.015:ratio=3:attack=10:release=250`,
   ];
 
   return new Promise((resolve, reject) => {
