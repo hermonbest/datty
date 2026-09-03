@@ -23,6 +23,7 @@ import { GamesScreen } from '../features/games/GamesScreen';
 import { MomentsFeedScreen } from '../features/moments/MomentsFeedScreen';
 import { ChatScreen } from '../features/chat/ChatScreen';
 import { CalendarScreen } from '../features/calendar/CalendarScreen';
+import { AudioTestScreen } from '../features/audioTest/AudioTestScreen';
 
 // Icons
 import {
@@ -33,6 +34,7 @@ import {
   MessageCircle,
   Calendar as CalendarIcon,
   Heart,
+  Mic,
 } from 'lucide-react-native';
 
 const Tab = createBottomTabNavigator();
@@ -167,6 +169,14 @@ function MainTabs() {
         options={{
           tabBarLabel: 'Calendar',
           tabBarIcon: ({ color, size }) => <CalendarIcon size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="AudioTestTab"
+        component={AudioTestScreen}
+        options={{
+          tabBarLabel: 'Mic Test',
+          tabBarIcon: ({ color, size }) => <Mic size={size} color={color} />,
         }}
       />
     </Tab.Navigator>
