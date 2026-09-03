@@ -46,6 +46,10 @@ export async function uploadFileToCloudinary(
   if (folder) {
     parameters.folder = folder;
   }
+  if (resourceType === 'raw' && !parameters.filename_override) {
+    const rawFilename = normalized.split('/').pop() || 'voice.m4a';
+    parameters.filename_override = rawFilename.endsWith('.m4a') ? rawFilename : `${rawFilename}.m4a`;
+  }
 
   console.log('[cloudinary] uploading', resourceType, normalized, '->', uploadUrl);
 

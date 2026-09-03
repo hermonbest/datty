@@ -21,14 +21,14 @@ import { format, isToday, isYesterday } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  AudioModule,
   useAudioPlayer,
   useAudioPlayerStatus,
+  useAudioRecorder,
+  useAudioRecorderState,
   setAudioModeAsync,
   requestRecordingPermissionsAsync,
   RecordingPresets,
   type AudioPlayer,
-  type AudioRecorder,
 } from 'expo-audio';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { Avatar, Skeleton, EmptyState, useToast } from '../../components';
@@ -755,81 +755,42 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     }
   };
 
-  // Voice notes: the recorder is created FRESH for every take. expo-audio
-  // 0.3.5 has a bug where the shared recorder object becomes unusable after
-  // stop() — the next record() rejects with "Cannot use shared object that was
-  // already released". A brand-new AudioModule.AudioRecorder per take avoids it.
-  const recorderRef = useRef<AudioRecorder | null>(null);
-  // Guards against re-entrant cancel (AppState + lock can both fire): two
-  // concurrent stop() calls on one recorder can native-crash.
-  const cancellingRef = useRef(false);
-  // Guards against concurrent / double-invocation of startRecording
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder);
+  const [isStoppingRecording, setIsStoppingRecording] = useState(false);
   const startingRecordingRef = useRef(false);
 
-  const releaseRecorder = useCallback(() => {
-    const rec = recorderRef.current;
-    if (rec) {
-      try {
-        rec.release();
-      } catch {
-        // already released
+  // Configure audio mode once on mount per official docs
+  useEffect(() => {
+    (async () => {
+      const status = await requestRecordingPermissionsAsync().catch(() => null);
+      if (status?.granted) {
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          allowsRecording: true,
+        }).catch(() => { });
       }
-      recorderRef.current = null;
-    }
+    })();
   }, []);
-
-  const getFreshRecorder = useCallback((): AudioRecorder => {
-    releaseRecorder();
-    const rec = new AudioModule.AudioRecorder(RecordingPresets.HIGH_QUALITY);
-    recorderRef.current = rec;
-    return rec;
-  }, [releaseRecorder]);
-
-  const [isRecording, setIsRecording] = useState(false);
-  const [isStoppingRecording, setIsStoppingRecording] = useState(false);
 
   // Voice notes: player for message playback with reactive source
   const [activeAudio, setActiveAudio] = useState<{ id: string; url: string } | null>(null);
   const audioSource = React.useMemo(() => {
     if (!activeAudio?.url) return null;
     let uri = activeAudio.url;
-    if (uri.includes('cloudinary.com')) {
-      // Strip any artificial volume boosts that amplify background hiss
+    if (uri.includes('cloudinary.com') && uri.includes('/video/upload/')) {
       uri = uri.replace(/e_volume:[^/]+\//g, '');
-      // Ensure .m4a container so expo-audio decodes native AAC/MP4
       uri = uri.replace(/\.3gp$/i, '.m4a');
     }
     return { uri };
   }, [activeAudio?.url]);
 
-
   const player = useAudioPlayer(audioSource, { updateInterval: 150 });
   const playRequestedRef = useRef(false);
-
-  // Set audio mode on mount for playback
-  useEffect(() => {
-    Promise.resolve(
-      setAudioModeAsync({
-        allowsRecording: false,
-        playsInSilentMode: true,
-        interruptionMode: 'doNotMix',
-        shouldRouteThroughEarpiece: false,
-      })
-    ).catch(() => { });
-  }, []);
 
   // When activeAudio changes and play was requested, start playback once loaded
   useEffect(() => {
     if (activeAudio?.url && playRequestedRef.current) {
-      Promise.resolve(
-        setAudioModeAsync({
-          allowsRecording: false,
-          playsInSilentMode: true,
-          interruptionMode: 'doNotMix',
-          shouldRouteThroughEarpiece: false,
-        })
-      ).catch(() => { });
-
       try {
         player.volume = 1.0;
         player.loop = false;
@@ -841,72 +802,16 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     }
   }, [activeAudio?.id, player]);
 
-  // Poll the recorder only while recording and guard every native access —
-  // the shared object can be released underneath us (known expo-audio issue),
-  // and unguarded reads would throw "Cannot use shared object that was
-  // already released".
-  const safeReadDurationMillis = () => {
-    try {
-      return recorderRef.current?.getStatus().durationMillis ?? 0;
-    } catch (e: any) {
-      console.warn('[voice] getStatus failed:', e?.message);
-      return 0;
-    }
-  };
-
-  // Removed auto-seek on didJustFinish to prevent infinite looping.
-  // Instead, the play button handles seeking to 0 if the user plays it again.
-
-  // Best-effort stop of an active recording on unmount; the hook releases the
-  // recorder, which may already have happened by the time this cleanup runs —
-  // hence the try/catch.
-  useEffect(() => {
-    return () => {
-      const rec = recorderRef.current;
-      if (rec) {
-        try {
-          if (rec.isRecording) {
-            console.log('[voice] unmount: stopping active recording');
-            rec.stop().catch(() => { });
-          }
-        } catch (e) {
-          // ignore
-        }
-        try {
-          rec.release();
-        } catch (e) {
-          // ignore
-        }
-        recorderRef.current = null;
-      }
-    };
-  }, []);
-
-  const restoreAudioMode = useCallback(async () => {
-    try {
-      await Promise.resolve(
-        setAudioModeAsync({
-          allowsRecording: false,
-          playsInSilentMode: true,
-          interruptionMode: 'doNotMix',
-          shouldRouteThroughEarpiece: false,
-        })
-      ).catch(() => { });
-    } catch (e) {
-      // ignore mode restore failures
-    }
-  }, []);
-
   const startRecording = async () => {
-    if (isRecording || sending || startingRecordingRef.current) {
-      console.log('[voice-ui] startRecording ignored: isRecording =', isRecording, 'sending =', sending, 'starting =', startingRecordingRef.current);
+    if (recorderState.isRecording || sending || startingRecordingRef.current) {
+      console.log('[voice-ui] startRecording ignored: isRecording =', recorderState.isRecording, 'sending =', sending, 'starting =', startingRecordingRef.current);
       return;
     }
     startingRecordingRef.current = true;
     Keyboard.dismiss();
     console.log('[voice] startRecording: requesting mic permission');
     try {
-      const permission = await Promise.resolve(requestRecordingPermissionsAsync()).catch((e) => {
+      const permission = await requestRecordingPermissionsAsync().catch((e) => {
         console.warn('[voice] requestRecordingPermissionsAsync failed:', e?.message);
         return null;
       });
@@ -914,48 +819,19 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
         toast.error('Microphone permission required', 'Please grant microphone access.');
         return;
       }
-      await Promise.resolve(
-        setAudioModeAsync({
-          allowsRecording: true,
-          playsInSilentMode: true,
-          interruptionMode: 'doNotMix',
-          shouldRouteThroughEarpiece: false,
-        })
-      ).catch((e) => {
-        console.warn('[voice] setAudioModeAsync(recording) failed:', e?.message);
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        allowsRecording: true,
+      }).catch((e) => {
+        console.warn('[voice] setAudioModeAsync failed:', e?.message);
       });
-      const recorder = getFreshRecorder();
-      console.log('[voice] preparing recorder', recorder.id);
-      try {
-        await Promise.resolve(recorder.prepareToRecordAsync());
-      } catch (prepErr: any) {
-        console.warn('[voice] prepareToRecordAsync failed:', prepErr?.message);
-        releaseRecorder();
-        setIsRecording(false);
-        toast.error('Could not start recording', 'Microphone initialization failed.');
-        return;
-      }
-      recorder.record();
-      // Diagnostic: verify the native recorder actually started
-      const status = (() => {
-        try {
-          return recorder.getStatus();
-        } catch {
-          return null;
-        }
-      })();
-      console.log('[voice] record() called', {
-        id: recorder.id,
-        canRecord: status?.canRecord,
-        isRecording: status?.isRecording,
-        durationMillis: status?.durationMillis,
-      });
-
+      console.log('[voice] preparing recorder');
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      console.log('[voice] recording started');
       setIsStoppingRecording(false);
-      setIsRecording(true);
     } catch (e: any) {
       console.warn('[voice] startRecording failed:', e?.message);
-      setIsRecording(false);
       toast.error('Could not start recording', e?.message || 'Please try again.');
     } finally {
       startingRecordingRef.current = false;
@@ -963,65 +839,44 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   };
 
   const cancelRecording = useCallback(async () => {
-    console.log('[voice] cancelRecording called, isRecording =', isRecording, 'cancelling =', cancellingRef.current);
-    if (!isRecording) return;
-    if (cancellingRef.current) return;
-    cancellingRef.current = true;
-    setIsStoppingRecording(true);
+    console.log('[voice] cancelRecording called');
     try {
-      console.log('[voice] cancelRecording: stopping recorder');
-      const recorder = recorderRef.current;
-      if (recorder) {
-        await Promise.resolve(recorder.stop()).catch((e: any) => {
-          console.warn('[voice] cancelRecording stop failed:', e?.message);
-        });
+      if (audioRecorder.isRecording) {
+        await audioRecorder.stop();
       }
     } catch (e: any) {
       console.warn('[voice] cancelRecording error:', e?.message);
     }
-    // Free the native recorder so the next take starts clean.
-    releaseRecorder();
-    setIsRecording(false);
     setIsStoppingRecording(false);
-    try {
-      await restoreAudioMode();
-    } finally {
-      cancellingRef.current = false;
-      console.log('[voice] cancelRecording finished');
-    }
-  }, [isRecording, releaseRecorder, restoreAudioMode]);
+  }, [audioRecorder]);
 
   const { isLocked } = usePasscode();
 
   // With the passcode-as-overlay, ChatScreen stays mounted across lock trips.
-  // Stop any active recording when the app backgrounds or the app locks — mic
-  // privacy: never keep recording behind the lock screen.
+  // Stop any active recording when the app backgrounds or the app locks.
   useEffect(() => {
-    if (!isRecording) return;
+    if (!recorderState.isRecording) return;
     const sub = AppState.addEventListener('change', (state) => {
-      // Only a real background ends the take (mic privacy). 'inactive' blips
-      // (permission dialogs, notification shade) must NOT kill a recording.
       if (state === 'background') {
         cancelRecording();
       }
     });
     return () => sub.remove();
-  }, [isRecording, cancelRecording]);
+  }, [recorderState.isRecording, cancelRecording]);
 
   useEffect(() => {
-    if (isLocked && isRecording) {
+    if (isLocked && recorderState.isRecording) {
       cancelRecording();
     }
-  }, [isLocked, isRecording, cancelRecording]);
+  }, [isLocked, recorderState.isRecording, cancelRecording]);
 
   const stopAndSendRecording = useCallback(
     async (fallbackSec?: number) => {
-      console.log('[voice] stopAndSendRecording called, isRecording =', isRecording, 'isStopping =', isStoppingRecording);
-      if (!isRecording || isStoppingRecording) return;
+      console.log('[voice] stopAndSendRecording called, isRecording =', recorderState.isRecording, 'isStopping =', isStoppingRecording);
+      if (isStoppingRecording) return;
       setIsStoppingRecording(true);
 
-      // Read fresh duration before stopping (polled state may lag)
-      const rawDuration = safeReadDurationMillis() || (fallbackSec ? fallbackSec * 1000 : 0);
+      const rawDuration = recorderState.durationMillis || (fallbackSec ? fallbackSec * 1000 : 0);
       const durationSec = Math.min(
         MAX_RECORDING_MS / 1000,
         Math.max(1, Math.round(rawDuration / 1000))
@@ -1030,21 +885,13 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       let uri: string | null = null;
       try {
         console.log('[voice] stopAndSend: stopping, durationSec =', durationSec);
-        const recorder = recorderRef.current;
-        if (!recorder) throw new Error('Recorder not initialized');
-        await Promise.resolve(recorder.stop()).catch((e: any) => {
-          console.warn('[voice] stop failed:', e?.message);
-        });
-        uri = recorder.uri;
+        await audioRecorder.stop();
+        uri = audioRecorder.uri;
         console.log('[voice] stopAndSend: stopped, uri =', uri);
       } catch (e: any) {
-        console.warn('[voice] stopAndSend: stop failed:', e?.message);
+        console.warn('[voice] stop failed:', e?.message);
         toast.error('Could not send voice note', e?.message || 'Recording failed.');
       }
-      // Free the native recorder so the next take starts clean.
-      releaseRecorder();
-      setIsRecording(false);
-      await restoreAudioMode();
 
       if (!uri) {
         console.warn('[voice] stopAndSend: no uri obtained from recorder');
@@ -1071,7 +918,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
         setIsStoppingRecording(false);
       }
     },
-    [isRecording, isStoppingRecording, releaseRecorder, restoreAudioMode, replyingTo, sendMessage, toast]
+    [isStoppingRecording, recorderState.isRecording, recorderState.durationMillis, audioRecorder, replyingTo, sendMessage, toast]
   );
 
   const handleToggleAudio = useCallback(
@@ -1082,14 +929,6 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
         if (player.playing) {
           player.pause();
         } else {
-          Promise.resolve(
-            setAudioModeAsync({
-              allowsRecording: false,
-              playsInSilentMode: true,
-              interruptionMode: 'doNotMix',
-              shouldRouteThroughEarpiece: false,
-            })
-          ).catch(() => { });
           const curTime = player.currentTime || 0;
           const dur = player.duration || 0;
           if (dur > 0 && curTime >= dur - 0.25) {
@@ -1344,7 +1183,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
         pointerEvents="box-none"
       >
         <View style={styles.composerContainer} pointerEvents="auto">
-          {isRecording ? (
+          {recorderState.isRecording ? (
             <RecordingBar
               onCancel={cancelRecording}
               onSend={stopAndSendRecording}
