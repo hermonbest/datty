@@ -187,7 +187,7 @@ export const useChat = () => {
                 prev.map((m) => (m.id === messageId ? { ...m, imageURL: finalImageURL, mediaState: 'ready' } : m))
               );
             } else if (audio) {
-              const finalAudioURL = await uploadChatAudio(audio.uri, audio.duration);
+              const finalAudioURL = await uploadChatAudio(audio.uri);
               uploadedAudioURL = finalAudioURL;
               await update(newMsgRef, { audioURL: finalAudioURL, mediaState: 'ready' });
               setMessages((prev) =>

@@ -306,10 +306,7 @@ export const PasscodeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         const inputHash = hashPasscode(oldPin, storedSalt);
         if (inputHash !== storedHash) {
-          const legacyHash = legacyHashPasscode(oldPin, storedSalt);
-          if (legacyHash !== storedHash) {
-            return { success: false, error: 'Current passcode is incorrect' };
-          }
+          return { success: false, error: 'Current passcode is incorrect' };
         }
 
         const newSalt = generateSalt();
