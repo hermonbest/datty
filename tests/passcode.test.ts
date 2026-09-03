@@ -1,4 +1,4 @@
-import { hashPasscode, legacyHashPasscode, generateSalt, validatePasscodeFormat } from '../src/services/passcodeUtils';
+import { hashPasscode, generateSalt, validatePasscodeFormat } from '../src/services/passcodeUtils';
 
 describe('Passcode security and hashing functions', () => {
   it('hashes identical PINs with identical salts consistently', () => {
@@ -62,12 +62,5 @@ describe('Passcode security and hashing functions', () => {
     expect(validatePasscodeFormat('abcd')).toBe(false);
     expect(validatePasscodeFormat('')).toBe(false);
   });
-
-  it('correctly supports legacyHashPasscode for existing passcode migration', () => {
-    const salt = 'legacy_salt_test';
-    const legacyHash = legacyHashPasscode('1234', salt);
-    expect(legacyHash).toBeDefined();
-    expect(typeof legacyHash).toBe('string');
-    expect(legacyHash.length).toBe(64);
-  });
 });
+

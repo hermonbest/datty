@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { hashPasscode, legacyHashPasscode, generateSalt, validatePasscodeFormat } from './passcodeUtils';
+import { hashPasscode, generateSalt, validatePasscodeFormat } from './passcodeUtils';
 
 const PASSCODE_HASH_KEY = 'datty_passcode_hash_v2';
 const PASSCODE_SALT_KEY = 'datty_passcode_salt_v2';
@@ -260,17 +260,6 @@ export const PasscodeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return { success: true };
       }
 
-      // Check legacy hash for existing passcodes created before the optimization
-      const legacyHash = legacyHashPasscode(pin, storedSalt);
-      if (legacyHash === storedHash) {
-        // Upgrade to new fast hash so all future unlocks are instant
-        await secureSet(PASSCODE_HASH_KEY, inputHash);
-        await AsyncStorage.removeItem(FAILED_ATTEMPTS_KEY);
-        await AsyncStorage.removeItem(LOCKOUT_UNTIL_KEY);
-        setLockoutRemainingSeconds(0);
-        setIsLocked(false);
-        return { success: true };
-      }
 
       // Failed attempt tracking
       const attemptsStr = await AsyncStorage.getItem(FAILED_ATTEMPTS_KEY);
