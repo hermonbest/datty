@@ -28,8 +28,10 @@
   - Integrated optional remote backend processing into `src/services/voiceNoteService.ts` and `useChat.ts` with transparent Cloudinary direct upload fallback.
 
 ### Immediate Next Steps
-- Deploy `backend/` container to OCI Always Free ARM VM per `backend/README.md` and set `EXPO_PUBLIC_AUDIO_BACKEND_URL` when ready.
-- Conduct physical on-device listening test using the newly added audio comparison diagnostic panel in `ChatScreen.tsx`.
+- Switch `ChatScreen.tsx` to use `RecordingPresets.HIGH_QUALITY` directly.
+- Streamline `voiceNoteService.ts` to upload clean `.m4a` audio directly to Cloudinary without remote FFmpeg microservice or `e_volume` boosts.
+- Remove temporary diagnostic comparison UI in `ChatScreen.tsx` and the `Mic Test` tab in `RootNavigator.tsx`.
+- Delete unused backend microservice directory (`backend/`) to keep repo lean and minimal.
 
 
 
