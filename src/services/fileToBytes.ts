@@ -81,21 +81,6 @@ export async function uploadFileToCloudinary(
   return body.secure_url as string;
 }
 
-// ---------------------------------------------------------------------------
-// readFileAsUint8Array — kept for any remaining callers that need raw bytes
-// ---------------------------------------------------------------------------
-export async function readFileAsUint8Array(uri: string): Promise<Uint8Array> {
-  const base64 = await FileSystem.readAsStringAsync(normalizeUri(uri), {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  const atobFn = (globalThis as any).atob as (s: string) => string;
-  const binary = atobFn(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
 
 // ---------------------------------------------------------------------------
 // getFileSizeBytes — returns file size or null if unavailable
