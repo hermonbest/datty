@@ -16,13 +16,18 @@ function normalizeUri(uri: string): string {
  */
 export function applyCloudinaryAudioTransformations(
   url: string,
-  transformations: string = 'e_volume:80'
+  transformations: string = ''
 ): string {
   if (!url || !url.includes('cloudinary.com') || !url.includes('/video/upload/')) {
     return url;
   }
   // Replace .3gp extension with .m4a so expo-audio gets native AAC / MP4 audio stream
   let cleanUrl = url.replace(/\.[a-zA-Z0-9]+$/, '.m4a');
+  // Strip any old volume boosts that amplify background hiss
+  cleanUrl = cleanUrl.replace(/e_volume:[^/]+\//g, '');
+  if (!transformations) {
+    return cleanUrl;
+  }
   if (cleanUrl.includes(`/video/upload/${transformations}/`)) {
     return cleanUrl;
   }
@@ -111,7 +116,7 @@ export async function uploadVoiceNoteWithCloudinaryTransform(
   try {
     console.log('[voiceNoteService] Uploading voice note as video resource for Cloudinary audio processing...');
     const rawUrl = await uploadFileToCloudinary(localUri, 'video', folder);
-    const transformedUrl = applyCloudinaryAudioTransformations(rawUrl, 'e_volume:80');
+    const transformedUrl = applyCloudinaryAudioTransformations(rawUrl);
     console.log('[voiceNoteService] Cloudinary transformed audio URL:', transformedUrl);
     return transformedUrl;
   } catch (err: any) {

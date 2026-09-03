@@ -65,28 +65,27 @@ const MAX_RECORDING_MS = 10 * 60 * 1000; // 10 minutes
 
 const RECORDING_OPTIONS: RecordingOptions = {
   extension: '.m4a',
-  sampleRate: 44100,
+  sampleRate: 24000,
   numberOfChannels: 1,
-  bitRate: 128000,
+  bitRate: 64000,
   isMeteringEnabled: false,
   android: {
     extension: '.m4a',
     outputFormat: 'mpeg4',
     audioEncoder: 'aac',
-    sampleRate: 44100,
-    // Use the phone's voice-processing path to reduce microphone hiss and
-    // enable hardware echo cancellation / automatic gain control when available.
-    audioSource: 'voice_communication',
+    sampleRate: 24000,
+    // voice_recognition disables aggressive AGC pumping while preserving noise suppression
+    audioSource: 'voice_recognition',
   },
   ios: {
     extension: '.m4a',
     outputFormat: IOSOutputFormat.MPEG4AAC,
-    audioQuality: AudioQuality.MAX,
-    sampleRate: 44100,
+    audioQuality: AudioQuality.HIGH,
+    sampleRate: 24000,
   },
   web: {
     mimeType: 'audio/webm',
-    bitsPerSecond: 128000,
+    bitsPerSecond: 64000,
   },
 };
 
@@ -921,8 +920,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     if (!activeAudio?.url) return null;
     let uri = activeAudio.url;
     if (uri.includes('cloudinary.com')) {
-      // Fix broken tokens if present from earlier tests
-      uri = uri.replace('e_volume:max_peak,ac_aac,br_96k/', 'e_volume:80/');
+      // Strip any artificial volume boosts that amplify background hiss
+      uri = uri.replace(/e_volume:[^/]+\//g, '');
       // Ensure .m4a container so expo-audio decodes native AAC/MP4
       uri = uri.replace(/\.3gp$/i, '.m4a');
     }
