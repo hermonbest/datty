@@ -31,16 +31,20 @@ import {
   NUDGE_COOLDOWNS,
 } from './notificationLogic';
 
-// Configure foreground notifications presentation
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Configure foreground notifications presentation (safe guard for uncompiled native client)
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch (e) {
+  // Native module not linked in current APK
+}
 
 /**
  * Setup Android notification channels
@@ -49,6 +53,7 @@ export async function setupNotificationChannels(): Promise<void> {
   if (Platform.OS !== 'android') return;
 
   try {
+    if (!Notifications.setNotificationChannelAsync) return;
     await Notifications.setNotificationChannelAsync('partner-activity', {
       name: 'Partner Activity',
       importance: Notifications.AndroidImportance.HIGH,
@@ -68,7 +73,7 @@ export async function setupNotificationChannels(): Promise<void> {
       importance: Notifications.AndroidImportance.DEFAULT,
     });
   } catch (err) {
-    console.warn('[Notifications] Failed to setup android notification channels:', err);
+    // Gracefully handle if native channels are unavailable in current binary
   }
 }
 
@@ -77,6 +82,9 @@ export async function setupNotificationChannels(): Promise<void> {
  */
 export async function registerForPushNotificationsAsync(uid: string): Promise<string | null> {
   try {
+    if (!Notifications.getPermissionsAsync || !Notifications.getExpoPushTokenAsync) {
+      return null;
+    }
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
     if (existingStatus !== 'granted') {
@@ -84,7 +92,6 @@ export async function registerForPushNotificationsAsync(uid: string): Promise<st
       finalStatus = status;
     }
     if (finalStatus !== 'granted') {
-      console.log('[Notifications] Permission not granted');
       return null;
     }
 
@@ -94,14 +101,15 @@ export async function registerForPushNotificationsAsync(uid: string): Promise<st
     const tokenResponse = await Notifications.getExpoPushTokenAsync(
       projectId ? { projectId } : undefined
     );
-    const token = tokenResponse.data;
+    const token = tokenResponse?.data;
+    if (!token) return null;
 
     // Save token to Firestore
     const userRef = doc(db, 'users', uid);
     await setDoc(userRef, { expoPushToken: token }, { merge: true });
     return token;
-  } catch (err) {
-    console.warn('[Notifications] Could not get push token:', err);
+  } catch (err: any) {
+    console.warn('[Notifications] Push token unavailable (requires new dev build):', err?.message || err);
     return null;
   }
 }
@@ -239,6 +247,7 @@ export async function scheduleHabitNotifications(
   partnerName: string = 'Partner'
 ): Promise<void> {
   try {
+    if (!Notifications.scheduleNotificationAsync) return;
     // Cancel existing habits first
     await Notifications.cancelScheduledNotificationAsync(HABIT_NOTIFICATION_IDS.morning).catch(() => {});
     await Notifications.cancelScheduledNotificationAsync(HABIT_NOTIFICATION_IDS.evening).catch(() => {});
