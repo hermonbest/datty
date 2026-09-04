@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,9 @@ import {
   Modal,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
   RotateCcw,
@@ -19,13 +21,18 @@ import {
   Delete,
   Flame,
   KeyRound,
+  Clock,
+  X,
 } from 'lucide-react-native';
+import { doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../../services/firebase';
+import { useCouple } from '../../../services/coupleContext';
 import { colors, radii, shadows, spacing, typography } from '../../../theme';
 import {
   evaluateGuess,
   getDailyCoupleWord,
   getRandomCoupleWord,
-  isValidWord,
+  checkWordValid,
   LetterFeedback,
 } from './wordGameLogic';
 import { gameLog, startGameTimer } from '../gameLogger';
@@ -42,6 +49,14 @@ const KEYBOARD_ROWS = [
 ];
 
 export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareToChat }) => {
+  const insets = useSafeAreaInsets();
+  const { coupleId, myUid } = useCouple();
+
+  // Challenge mode Firestore state
+  const [challengeDoc, setChallengeDoc] = useState<any>(null);
+  const [challengeLoading, setChallengeLoading] = useState(true);
+
+  // Local game state
   const [targetWord, setTargetWord] = useState<string>('HEART');
   const [guesses, setGuesses] = useState<string[]>([]);
   const [currentGuess, setCurrentGuess] = useState<string>('');
@@ -50,18 +65,52 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
   const [streak, setStreak] = useState<number>(1);
   const [customWordModalVisible, setCustomWordModalVisible] = useState(false);
   const [customInput, setCustomInput] = useState('');
+  const [validating, setValidating] = useState(false);
 
-  // Start new game
-  const initGame = (gameMode: 'daily' | 'practice' | 'custom', customWord?: string) => {
+  const challengeRef = coupleId
+    ? doc(db, 'couples', coupleId, 'games', 'word_guess')
+    : null;
+
+  // Listen for active challenge
+  useEffect(() => {
+    if (!challengeRef) {
+      setChallengeLoading(false);
+      return;
+    }
+    const unsub = onSnapshot(challengeRef, (snap) => {
+      setChallengeDoc(snap.exists() ? snap.data() : null);
+      setChallengeLoading(false);
+    }, () => {
+      setChallengeLoading(false);
+    });
+    return () => unsub();
+  }, [coupleId]);
+
+  // When a challenge becomes active and I'm the guesser, load it
+  useEffect(() => {
+    if (
+      challengeDoc &&
+      challengeDoc.setterUid !== myUid &&
+      !challengeDoc.guessedBy
+    ) {
+      // Partner set a word — switch to challenge mode without revealing word until needed
+      setMode('custom');
+      setTargetWord(challengeDoc.word);
+      setGuesses([]);
+      setCurrentGuess('');
+      setGameStatus('playing');
+    }
+  }, [challengeDoc, myUid]);
+
+  // Start new game (daily / practice)
+  const initGame = (gameMode: 'daily' | 'practice') => {
     const timer = startGameTimer('WordGame', 'InitGame', { gameMode });
     let word = 'HEART';
     if (gameMode === 'daily') {
       const todayStr = new Date().toISOString().slice(0, 10);
       word = getDailyCoupleWord(todayStr);
-    } else if (gameMode === 'practice') {
+    } else {
       word = getRandomCoupleWord();
-    } else if (gameMode === 'custom' && customWord) {
-      word = customWord.toUpperCase();
     }
     setTargetWord(word);
     setGuesses([]);
@@ -75,8 +124,8 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
     initGame('daily');
   }, []);
 
-  const handleKeyPress = (key: string) => {
-    if (gameStatus !== 'playing') return;
+  const handleKeyPress = useCallback(async (key: string) => {
+    if (gameStatus !== 'playing' || validating) return;
 
     if (key === 'ENTER') {
       const submitTimer = startGameTimer('WordGame', 'SubmitGuess', {
@@ -90,10 +139,16 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
         Alert.alert('Too Short', 'Word must be 5 letters long.');
         return;
       }
-      if (!isValidWord(currentGuess) && mode !== 'custom') {
-        submitTimer.stop({ rejected: 'Invalid word' });
-        Alert.alert('Not in Word List', 'Please enter a valid 5-letter word.');
-        return;
+      // In custom (challenge) mode skip dictionary check
+      if (mode !== 'custom') {
+        setValidating(true);
+        const valid = await checkWordValid(currentGuess);
+        setValidating(false);
+        if (!valid) {
+          submitTimer.stop({ rejected: 'Invalid word' });
+          Alert.alert('Not a Word', `"${currentGuess}" wasn't found in the dictionary.`);
+          return;
+        }
       }
 
       const nextGuesses = [...guesses, currentGuess];
@@ -105,9 +160,16 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
         setGameStatus('won');
         setStreak((s) => s + 1);
         submitTimer.stop({ status: 'won', guessCount: nextGuesses.length });
+        // Mark challenge as solved so setter can see result
+        if (mode === 'custom' && challengeRef && myUid) {
+          setDoc(challengeRef, { guessedBy: myUid, won: true, attempts: nextGuesses.length }, { merge: true });
+        }
       } else if (nextGuesses.length >= 6) {
         setGameStatus('lost');
         submitTimer.stop({ status: 'lost', targetWord });
+        if (mode === 'custom' && challengeRef && myUid) {
+          setDoc(challengeRef, { guessedBy: myUid, won: false, attempts: 6 }, { merge: true });
+        }
       } else {
         submitTimer.stop({ status: 'playing', remaining: 6 - nextGuesses.length });
       }
@@ -118,9 +180,30 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
         setCurrentGuess((prev) => prev + key);
       }
     }
+  }, [gameStatus, validating, currentGuess, guesses, targetWord, mode, streak, challengeRef, myUid]);
+
+  // Submit a challenge word to Firestore
+  const submitChallenge = async (word: string) => {
+    if (!challengeRef || !myUid) return;
+    await setDoc(challengeRef, {
+      word: word.toUpperCase(),
+      setterUid: myUid,
+      guessedBy: null,
+      won: null,
+      attempts: null,
+    });
+    setCustomWordModalVisible(false);
+    setCustomInput('');
+    setMode('custom'); // switch UI to challenge mode for setter
   };
 
-  // Compute key feedback colors for virtual keyboard
+  const cancelChallenge = async () => {
+    if (challengeRef) await deleteDoc(challengeRef);
+    // Drop back to daily
+    initGame('daily');
+  };
+
+  // Compute key feedback colors
   const keyFeedbackMap: Record<string, LetterFeedback> = {};
   guesses.forEach((guess) => {
     const feedback = evaluateGuess(guess, targetWord);
@@ -137,34 +220,94 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
 
   const getCellBg = (feedback?: LetterFeedback) => {
     switch (feedback) {
-      case 'correct':
-        return '#16A34A'; // Green
-      case 'present':
-        return '#CA8A04'; // Yellow
-      case 'absent':
-        return '#78716C'; // Gray
-      default:
-        return colors.card;
+      case 'correct': return '#16A34A';
+      case 'present': return '#CA8A04';
+      case 'absent': return '#78716C';
+      default: return colors.card;
     }
   };
-
-  const getCellTextColor = (feedback?: LetterFeedback) => {
-    return feedback && feedback !== 'empty' ? '#FFFFFF' : colors.textPrimary;
-  };
-
+  const getCellTextColor = (feedback?: LetterFeedback) =>
+    feedback && feedback !== 'empty' ? '#FFFFFF' : colors.textPrimary;
   const getKeyBg = (letter: string) => {
-    const feedback = keyFeedbackMap[letter];
-    if (feedback === 'correct') return '#16A34A';
-    if (feedback === 'present') return '#CA8A04';
-    if (feedback === 'absent') return '#57534E';
+    const f = keyFeedbackMap[letter];
+    if (f === 'correct') return '#16A34A';
+    if (f === 'present') return '#CA8A04';
+    if (f === 'absent') return '#57534E';
     return colors.card;
   };
+  const getKeyTextColor = (letter: string) =>
+    keyFeedbackMap[letter] ? '#FFFFFF' : colors.textPrimary;
 
-  const getKeyTextColor = (letter: string) => {
-    const feedback = keyFeedbackMap[letter];
-    if (feedback) return '#FFFFFF';
-    return colors.textPrimary;
-  };
+  // ── Setter waiting screen ─────────────────────────────────────────────────
+  const amSetter = challengeDoc && challengeDoc.setterUid === myUid && !challengeDoc.guessedBy;
+  const challengeResult = challengeDoc && challengeDoc.setterUid === myUid && challengeDoc.guessedBy;
+
+  if (amSetter) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
+            <ArrowLeft size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Word Guess</Text>
+            <Text style={styles.headerSubtitle}>Partner Challenge</Text>
+          </View>
+          <TouchableOpacity onPress={cancelChallenge} style={styles.backButton} activeOpacity={0.7}>
+            <X size={22} color={colors.error} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.waitingContainer}>
+          <Clock size={56} color={colors.primary} />
+          <Text style={styles.waitingTitle}>Waiting for {'\u2764\uFE0F'}</Text>
+          <Text style={styles.waitingBody}>
+            Your partner needs to guess the word you set.{'\n'}Come back here when they've played!
+          </Text>
+          <Text style={styles.waitingWord}>
+            Your word: {challengeDoc.word.split('').map(() => '●').join(' ')}
+          </Text>
+          <TouchableOpacity style={styles.cancelBtn} onPress={cancelChallenge}>
+            <Text style={styles.cancelBtnText}>Cancel Challenge</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Setter result screen ──────────────────────────────────────────────────
+  if (challengeResult) {
+    const won = challengeDoc.won;
+    const attempts = challengeDoc.attempts;
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
+            <ArrowLeft size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Word Guess</Text>
+            <Text style={styles.headerSubtitle}>Challenge Result</Text>
+          </View>
+        </View>
+        <View style={styles.waitingContainer}>
+          <Trophy size={56} color={won ? '#16A34A' : colors.error} />
+          <Text style={styles.waitingTitle}>
+            {won ? `Partner got it! 🎉` : `Too tough! 😈`}
+          </Text>
+          <Text style={styles.waitingBody}>
+            The word was{' '}
+            <Text style={{ fontWeight: 'bold', color: colors.primary }}>{challengeDoc.word}</Text>
+            {won ? `\nGuessed in ${attempts} attempt${attempts !== 1 ? 's' : ''}!` : '\nThey ran out of guesses!'}
+          </Text>
+          <TouchableOpacity style={styles.cancelBtn} onPress={cancelChallenge}>
+            <Text style={styles.cancelBtnText}>Start New Challenge</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -176,7 +319,7 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
           <ArrowLeft size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Couple Wordle</Text>
+          <Text style={styles.headerTitle}>Word Guess</Text>
           <Text style={styles.headerSubtitle}>
             {mode === 'daily' ? 'Daily Word' : mode === 'custom' ? 'Partner Challenge' : 'Practice Mode'}
           </Text>
@@ -213,6 +356,7 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
           style={[styles.modePill, mode === 'custom' && styles.modePillActive]}
           onPress={() => setCustomWordModalVisible(true)}
           activeOpacity={0.7}
+          disabled={challengeLoading}
         >
           <KeyRound size={14} color={mode === 'custom' ? '#FFFFFF' : colors.textSecondary} />
           <Text style={[styles.modePillText, mode === 'custom' && styles.modePillTextActive]}>
@@ -220,6 +364,15 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Active guesser challenge banner */}
+      {mode === 'custom' && challengeDoc && challengeDoc.setterUid !== myUid && !challengeDoc.guessedBy && (
+        <View style={styles.challengeBanner}>
+          <Text style={styles.challengeBannerText}>
+            🎯 Your partner set this word — can you guess it?
+          </Text>
+        </View>
+      )}
 
       {/* Word Grid */}
       <View style={styles.gridContainer}>
@@ -294,7 +447,7 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
       )}
 
       {/* Virtual Keyboard */}
-      <View style={styles.keyboardContainer}>
+      <View style={[styles.keyboardContainer, { paddingBottom: 76 + insets.bottom }]}>
         {KEYBOARD_ROWS.map((row, rIdx) => (
           <View key={rIdx} style={styles.keyboardRow}>
             {row.map((key) => {
@@ -306,12 +459,16 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
                     styles.key,
                     isSpecial && styles.specialKey,
                     { backgroundColor: getKeyBg(key) },
+                    validating && styles.keyDisabled,
                   ]}
                   onPress={() => handleKeyPress(key)}
                   activeOpacity={0.7}
+                  disabled={validating}
                 >
                   {key === 'BACK' ? (
                     <Delete size={18} color={getKeyTextColor(key)} />
+                  ) : key === 'ENTER' && validating ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
                   ) : (
                     <Text
                       style={[
@@ -330,13 +487,13 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
         ))}
       </View>
 
-      {/* Custom Word Modal */}
+      {/* Set Challenge Word Modal */}
       <Modal visible={customWordModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Set a Secret Word</Text>
             <Text style={styles.modalSubtitle}>
-              Type a 5-letter romantic or secret word for your partner to guess!
+              Type a 5-letter word for your partner to guess — they won't see it until the game ends!
             </Text>
             <TextInput
               style={styles.modalInput}
@@ -350,7 +507,7 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
             <View style={styles.modalBtnRow}>
               <TouchableOpacity
                 style={styles.modalCancelBtn}
-                onPress={() => setCustomWordModalVisible(false)}
+                onPress={() => { setCustomWordModalVisible(false); setCustomInput(''); }}
               >
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
@@ -361,12 +518,10 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
                     Alert.alert('Invalid', 'Please enter exactly 5 letters.');
                     return;
                   }
-                  setCustomWordModalVisible(false);
-                  initGame('custom', customInput.trim());
-                  setCustomInput('');
+                  submitChallenge(customInput.trim());
                 }}
               >
-                <Text style={styles.modalConfirmText}>Start Challenge</Text>
+                <Text style={styles.modalConfirmText}>Send Challenge</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -455,16 +610,16 @@ const styles = StyleSheet.create({
   gridContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: spacing.sm,
-    gap: 6,
+    marginVertical: 4,
+    gap: 4,
   },
   gridRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
   },
   cell: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: radii.sm,
     borderWidth: 2,
     alignItems: 'center',
@@ -472,7 +627,7 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   cellText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: typography.weights.heavy,
   },
   resultBanner: {
@@ -538,28 +693,28 @@ const styles = StyleSheet.create({
   },
   keyboardContainer: {
     marginTop: 'auto',
-    paddingHorizontal: 4,
     paddingBottom: spacing.sm,
-    gap: 6,
+    width: '100%',
+    gap: 5,
   },
   keyboardRow: {
     flexDirection: 'row',
     justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
     gap: 4,
   },
   key: {
-    minWidth: 32,
+    flex: 1,
     height: 44,
     borderRadius: radii.xs,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
     borderWidth: 1,
     borderColor: colors.borderLight,
     ...shadows.sm,
   },
   specialKey: {
-    minWidth: 50,
+    flex: 1.6,
   },
   keyText: {
     fontSize: 14,
@@ -627,5 +782,63 @@ const styles = StyleSheet.create({
   modalConfirmText: {
     color: '#FFFFFF',
     fontWeight: typography.weights.bold,
+  },
+  waitingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  waitingTitle: {
+    fontSize: typography.sizes.xxl,
+    fontWeight: typography.weights.bold,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  waitingBody: {
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  waitingWord: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.bold,
+    color: colors.primary,
+    letterSpacing: 6,
+    marginTop: spacing.sm,
+  },
+  cancelBtn: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  cancelBtnText: {
+    color: colors.textSecondary,
+    fontWeight: typography.weights.medium,
+    fontSize: typography.sizes.sm,
+  },
+  challengeBanner: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+  },
+  challengeBannerText: {
+    fontSize: typography.sizes.xs,
+    color: '#EA580C',
+    fontWeight: typography.weights.medium,
+    textAlign: 'center',
+  },
+  keyDisabled: {
+    opacity: 0.45,
   },
 });

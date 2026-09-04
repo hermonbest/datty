@@ -21,6 +21,11 @@ import { WordGameScreen } from './word/WordGameScreen';
 import { ChessGameScreen } from './chess/ChessGameScreen';
 import { CoupleTriviaScreen } from './trivia/CoupleTriviaScreen';
 import { TicTacToeScreen } from './tictactoe/TicTacToeScreen';
+import { TapBattleScreen } from './tapBattle/TapBattleScreen';
+import { TwoTruthsScreen } from './twoTruths/TwoTruthsScreen';
+import { HotTakesScreen } from './hotTakes/HotTakesScreen';
+import { SeaBattleScreen } from './seaBattle/SeaBattleScreen';
+import { CheckersScreen } from './checkers/CheckersScreen';
 
 interface GamesScreenProps {
   onNavigateToChat?: (replyTo?: any) => void;
@@ -97,6 +102,61 @@ const GAMES: GameCardConfig[] = [
     tagText: colors.onSecondaryFixed,
     cardBg: colors.surfaceContainerLow,
   },
+  {
+    id: 'tap_battle',
+    title: 'Tap Battle',
+    desc: 'Who has the fastest fingers? Tap as fast as you can for 5 seconds!',
+    tag: 'Reflex',
+    icon: Flame,
+    imageUrl: require('../../../assets/tap_battle_card.jpg'),
+    tagBg: colors.tertiaryContainer,
+    tagText: colors.onTertiaryContainer,
+    cardBg: colors.surfaceContainer,
+  },
+  {
+    id: 'two_truths',
+    title: 'Two Truths, One Lie',
+    desc: 'Can you spot the lie? Submit 3 statements and test your partner.',
+    tag: 'Async',
+    icon: Brain,
+    imageUrl: require('../../../assets/twotruths_card.jpg'),
+    tagBg: colors.secondaryContainer,
+    tagText: colors.onSecondaryContainer,
+    cardBg: colors.surfaceContainerLow,
+  },
+  {
+    id: 'hot_takes',
+    title: 'Hot Takes',
+    desc: 'Rate bold statements blindly, then reveal the gap and discuss.',
+    tag: 'Spicy',
+    icon: Flame,
+    imageUrl: require('../../../assets/hottakes_card.jpg'),
+    tagBg: colors.primary,
+    tagText: colors.onPrimary,
+    cardBg: colors.surfaceContainer,
+  },
+  {
+    id: 'sea_battle',
+    title: 'Sea Battle',
+    desc: 'Hide your fleet and sink your partner’s ships in this classic game.',
+    tag: 'Strategy',
+    icon: Grid,
+    imageUrl: 'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&q=80',
+    tagBg: colors.secondaryFixed,
+    tagText: colors.onSecondaryFixed,
+    cardBg: colors.surfaceContainerLow,
+  },
+  {
+    id: 'checkers',
+    title: 'Checkers',
+    desc: 'Jump your way to victory in this simple strategy board game.',
+    tag: 'Classic',
+    icon: Gamepad2,
+    imageUrl: require('../../../assets/chess_card.jpg'),
+    tagBg: colors.tertiaryFixed,
+    tagText: colors.onTertiaryFixed,
+    cardBg: colors.surfaceContainer,
+  },
 ];
 
 // Helper for hover/press animations
@@ -168,6 +228,21 @@ export const GamesScreen: React.FC<GamesScreenProps> = ({ onNavigateToChat }) =>
   }
   if (activeGame === 'tic_tac_toe') {
     return <TicTacToeScreen onBack={() => setActiveGame(null)} onShareToChat={handleShareToChat} />;
+  }
+  if (activeGame === 'tap_battle') {
+    return <TapBattleScreen onBack={() => setActiveGame(null)} />;
+  }
+  if (activeGame === 'two_truths') {
+    return <TwoTruthsScreen onBack={() => setActiveGame(null)} />;
+  }
+  if (activeGame === 'hot_takes') {
+    return <HotTakesScreen onBack={() => setActiveGame(null)} />;
+  }
+  if (activeGame === 'sea_battle') {
+    return <SeaBattleScreen onBack={() => setActiveGame(null)} />;
+  }
+  if (activeGame === 'checkers') {
+    return <CheckersScreen onBack={() => setActiveGame(null)} />;
   }
 
   return (
@@ -322,6 +397,96 @@ export const GamesScreen: React.FC<GamesScreenProps> = ({ onNavigateToChat }) =>
                 </View>
               </View>
             </AnimatedCard>
+          </View>
+
+          {/* Row 4: New Games */}
+          <View style={styles.squareRow}>
+            {GAMES.slice(5, 7).map((game, i) => (
+              <AnimatedCard 
+                key={game.id}
+                onPress={() => setActiveGame(game.id)}
+                style={[styles.squareCard, { backgroundColor: game.cardBg }]}
+              >
+                <View style={styles.squareImageWrapper}>
+                  <ImageBackground 
+                    source={typeof game.imageUrl === 'string' ? { uri: game.imageUrl } : game.imageUrl} 
+                    style={styles.bgImage} 
+                  />
+                </View>
+                <View style={styles.squareContent}>
+                  <View style={styles.tagRow}>
+                    <View style={[styles.tagBadge, { backgroundColor: game.tagBg }]}>
+                      <Text style={[styles.tagText, { color: game.tagText }]}>{game.tag}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.cardTitleSm}>{game.title}</Text>
+                  <Text style={styles.cardDescSm} numberOfLines={2}>{game.desc}</Text>
+                  <View style={styles.arrowIcon}>
+                    <ArrowRight size={20} color={colors.primary} />
+                  </View>
+                </View>
+              </AnimatedCard>
+            ))}
+          </View>
+
+          {/* Row 5: Remaining New Games */}
+          <View style={styles.squareRow}>
+            {GAMES.slice(7, 9).map((game, i) => (
+              <AnimatedCard 
+                key={game.id}
+                onPress={() => setActiveGame(game.id)}
+                style={[styles.squareCard, { backgroundColor: game.cardBg }]}
+              >
+                <View style={styles.squareImageWrapper}>
+                  <ImageBackground 
+                    source={typeof game.imageUrl === 'string' ? { uri: game.imageUrl } : game.imageUrl} 
+                    style={styles.bgImage} 
+                  />
+                </View>
+                <View style={styles.squareContent}>
+                  <View style={styles.tagRow}>
+                    <View style={[styles.tagBadge, { backgroundColor: game.tagBg }]}>
+                      <Text style={[styles.tagText, { color: game.tagText }]}>{game.tag}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.cardTitleSm}>{game.title}</Text>
+                  <Text style={styles.cardDescSm} numberOfLines={2}>{game.desc}</Text>
+                  <View style={styles.arrowIcon}>
+                    <ArrowRight size={20} color={colors.primary} />
+                  </View>
+                </View>
+              </AnimatedCard>
+            ))}
+          </View>
+
+          {/* Final Game */}
+          <View style={styles.squareRow}>
+            {GAMES.slice(9).map((game, i) => (
+              <AnimatedCard 
+                key={game.id}
+                onPress={() => setActiveGame(game.id)}
+                style={[styles.squareCard, { backgroundColor: game.cardBg }]}
+              >
+                <View style={styles.squareImageWrapper}>
+                  <ImageBackground 
+                    source={typeof game.imageUrl === 'string' ? { uri: game.imageUrl } : game.imageUrl} 
+                    style={styles.bgImage} 
+                  />
+                </View>
+                <View style={styles.squareContent}>
+                  <View style={styles.tagRow}>
+                    <View style={[styles.tagBadge, { backgroundColor: game.tagBg }]}>
+                      <Text style={[styles.tagText, { color: game.tagText }]}>{game.tag}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.cardTitleSm}>{game.title}</Text>
+                  <Text style={styles.cardDescSm} numberOfLines={2}>{game.desc}</Text>
+                  <View style={styles.arrowIcon}>
+                    <ArrowRight size={20} color={colors.primary} />
+                  </View>
+                </View>
+              </AnimatedCard>
+            ))}
           </View>
 
         </View>

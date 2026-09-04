@@ -1,4 +1,4 @@
-export type GameId = 'truth_or_dare' | 'word_guess' | 'chess' | 'couple_trivia' | 'tic_tac_toe';
+export type GameId = 'truth_or_dare' | 'word_guess' | 'chess' | 'couple_trivia' | 'tic_tac_toe' | 'tap_battle' | 'two_truths' | 'hot_takes' | 'sea_battle' | 'checkers';
 
 export type TruthOrDareCategory = 'romantic' | 'spicy' | 'deep' | 'fun';
 export type PromptType = 'truth' | 'dare';

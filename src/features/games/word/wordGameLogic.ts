@@ -1,10 +1,38 @@
-import { COUPLE_WORD_LIST, VALID_GUESS_DICTIONARY } from './wordList';
+import { COUPLE_WORD_LIST } from './wordList';
 
 export type LetterFeedback = 'correct' | 'present' | 'absent' | 'empty';
 
-export function isValidWord(word: string): boolean {
-  if (word.length !== 5) return false;
-  return VALID_GUESS_DICTIONARY.has(word.toUpperCase());
+const WORDS_API_KEY = process.env.EXPO_PUBLIC_WORDSAPI_KEY ?? '';
+const WORDS_API_BASE = 'https://wordsapiv1.p.mashape.com/words';
+
+// In-memory cache so we don't re-fetch the same word twice per session
+const wordValidityCache = new Map<string, boolean>();
+
+/**
+ * Returns true if the word exists in the English dictionary (via WordsAPI).
+ * Caches results to avoid duplicate network calls.
+ * Fails open on network error so the game isn't blocked offline.
+ */
+export async function checkWordValid(word: string): Promise<boolean> {
+  const lower = word.toLowerCase();
+  if (lower.length !== 5) return false;
+  if (wordValidityCache.has(lower)) return wordValidityCache.get(lower)!;
+
+  try {
+    const res = await fetch(`${WORDS_API_BASE}/${lower}`, {
+      headers: {
+        'X-Mashape-Key': WORDS_API_KEY,
+        'Accept': 'application/json',
+      },
+    });
+    const valid = res.status === 200;
+    wordValidityCache.set(lower, valid);
+    return valid;
+  } catch {
+    // Network unavailable — fail open so the game isn't blocked offline
+    wordValidityCache.set(lower, true);
+    return true;
+  }
 }
 
 export function evaluateGuess(guess: string, target: string): LetterFeedback[] {

@@ -1,4 +1,8 @@
-import { evaluateGuess, getDailyCoupleWord, isValidWord, getRandomCoupleWord } from '../src/features/games/word/wordGameLogic';
+import { evaluateGuess, getDailyCoupleWord, checkWordValid, getRandomCoupleWord } from '../src/features/games/word/wordGameLogic';
+
+// Mock fetch so tests don't hit the network
+const mockFetch = (status: number) =>
+  jest.fn().mockResolvedValue({ status } as Response);
 
 describe('Wordle Couple Edition Logic', () => {
   it('correctly evaluates exact matches (correct / green)', () => {
@@ -19,7 +23,6 @@ describe('Wordle Couple Edition Logic', () => {
   it('handles duplicate letters properly without over-crediting', () => {
     // Target HEART has one 'E'. Guess STEEL has two 'E's at index 2 and 3.
     const feedback = evaluateGuess('STEEL', 'HEART');
-    // S(absent), T(present), E(present), E(absent), L(absent)
     expect(feedback[0]).toBe('absent');
     expect(feedback[1]).toBe('present');
     expect(feedback[2]).toBe('present');
@@ -27,11 +30,23 @@ describe('Wordle Couple Edition Logic', () => {
     expect(feedback[4]).toBe('absent');
   });
 
+  it('checkWordValid returns true when API returns 200', async () => {
+    global.fetch = mockFetch(200);
+    const result = await checkWordValid('heart');
+    expect(result).toBe(true);
+  });
 
-  it('validates 5-letter word entries correctly', () => {
-    expect(isValidWord('HEART')).toBe(true);
-    expect(isValidWord('SWEET')).toBe(true);
-    expect(isValidWord('XYZQW')).toBe(false);
+  it('checkWordValid returns false when API returns 404', async () => {
+    global.fetch = mockFetch(404);
+    // Clear cache for this word first by testing a unique word
+    const result = await checkWordValid('xyzqw');
+    expect(result).toBe(false);
+  });
+
+  it('checkWordValid fails open on network error', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+    const result = await checkWordValid('zzzzz');
+    expect(result).toBe(true); // fail open
   });
 
   it('returns a valid daily couple word based on date', () => {
@@ -44,9 +59,8 @@ describe('Wordle Couple Edition Logic', () => {
     expect(typeof wordNextDay).toBe('string');
   });
 
-  it('returns a valid random couple word', () => {
+  it('returns a valid random couple word with length 5', () => {
     const randomWord = getRandomCoupleWord();
     expect(randomWord).toHaveLength(5);
-    expect(isValidWord(randomWord)).toBe(true);
   });
 });
