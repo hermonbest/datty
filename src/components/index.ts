@@ -8,3 +8,5 @@ export { ToastProvider, useToast } from './Toast';
 export { Header } from './Header';
 export { ProfileSettingsModal } from './ProfileSettingsModal';
 export { TopAppBar } from './TopAppBar';
+export { NotesScreen } from '../features/notes/NotesScreen';
+

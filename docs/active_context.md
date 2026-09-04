@@ -1,19 +1,20 @@
 # Active Context
 
-## Current Status: Ponytail Repo-Wide Over-Engineering Cleanup (Completed)
+## Current Status: Couple Notes & Private Partner Cheat Sheet Feature (Completed)
 
 ### Completed Work
-- **Executed `/ponytail-audit` items across entire codebase**:
-  - `src/services/passcodeUtils.ts` & `src/services/passcodeContext.tsx`: Deleted 89-line hand-rolled legacy SHA-256 implementation and old migration logic, keeping only standard optimized SHA-256 PIN hashing.
-  - `src/services/voiceNoteService.ts`: Removed 47-line shallow wrapper and obsolete audio transformation methods, invoking `uploadFileToCloudinary(uri, 'raw', ...)` directly from `useChat.ts`.
-  - `package.json`: Removed 4 unused dependencies (`@expo/vector-icons`, `expo-font`, `expo-asset`, `react-native-gesture-handler`).
-  - `src/services/fileToBytes.ts`: Removed unused `readFileAsUint8Array` byte decoder helper.
-  - `src/polyfills.ts`: Shrunk manual `DOMException` error prototype boilerplate into a concise check.
-  - `src/theme/`: Deleted redundant 1-line re-export files `colors.ts` and `typography.ts`.
-  - **Net Reduction**: -199 lines of code, -4 unused packages.
+- **Implemented Notes Feature per Option B (`implementation_plan.md`)**:
+  - `src/types/index.ts`: Added `CoupleNote`, `CoupleNoteType`, and `PartnerNote` data interfaces.
+  - `firestore.rules`: Configured security isolation — `/couples/{coupleId}/notes/{noteId}` allows couple members; `/users/{uid}/partnerNotes/{noteId}` strictly enforces `isMe(uid)` so partner cannot read private notes.
+  - `src/features/notes/notesLogic.ts`: Pure utilities for validation, sorting, filtering, and partner cheat-sheet suggested prompt chips.
+  - `src/features/notes/useNotes.ts`: Real-time hook with `onSnapshot` for shared couple notes and private partner notes.
+  - `src/features/notes/NotesScreen.tsx`: 3-tab segmented interface (Shared Gratitude, Shared Couple List, Private Partner Notes with private indicator banner and edit/delete).
+  - `src/components/TopAppBar.tsx` & `src/components/index.ts`: Added `BookOpen` icon in persistent header to open `NotesScreen` as a full modal screen, preserving exactly 6 bottom tabs.
+  - `tests/notesLogic.test.ts`: Added comprehensive unit tests covering validation, category tagging, completion toggling, and sorting.
 - **Verification**:
-  - All 9 test suites passing (43/43 tests).
+  - All 10 test suites passing (58/58 tests).
   - Clean TypeScript check (`tsc --noEmit` exits with 0 errors).
 
 ### Immediate Next Steps
-- Merge `refactor/ponytail-cleanup` branch or proceed with couples chat/feature development.
+- Merge `feat/notes-and-cheat-sheet` branch to `master` or deploy firestore rules via `npm run deploy:firestore-rules`.
+

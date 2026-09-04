@@ -100,5 +100,13 @@ service cloud.firestore {
     match /couples/{coupleId}/games/{gameId} {
       allow read, create, update, delete: if isCoupleMember(coupleId);
     }
+
+    match /couples/{coupleId}/notes/{noteId} {
+      allow read, create, update, delete: if isCoupleMember(coupleId);
+    }
+
+    match /users/{uid}/partnerNotes/{noteId} {
+      allow read, write: if isMe(uid);
+    }
   }
 }

@@ -89,5 +89,27 @@ export interface CoupleEvent {
   createdAt: any;
 }
 
+export type CoupleNoteType = 'gratitude' | 'list';
+
+export interface CoupleNote {
+  id: string;
+  type: CoupleNoteType;
+  content: string;
+  completed?: boolean;
+  authorUid: string;
+  authorName?: string;
+  createdAt: any;
+}
+
+export interface PartnerNote {
+  id: string;
+  title: string;
+  content: string;
+  category?: string;
+  createdAt: any;
+  updatedAt?: any;
+}
+
 export * from './games';
+
 
