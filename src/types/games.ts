@@ -1,4 +1,4 @@
-export type GameId = 'truth_or_dare' | 'word_guess' | 'chess' | 'couple_trivia' | 'tic_tac_toe' | 'dream_house';
+export type GameId = 'truth_or_dare' | 'word_guess' | 'chess' | 'couple_trivia' | 'tic_tac_toe';
 
 export type TruthOrDareCategory = 'romantic' | 'spicy' | 'deep' | 'fun';
 export type PromptType = 'truth' | 'dare';
@@ -39,56 +39,5 @@ export interface ChessFirestoreDoc {
   lastMove: { from: { row: number; col: number }; to: { row: number; col: number } } | null;
   lastMoveBy?: string;
   updatedAt?: any;
-}
-
-export type DreamHouseItemCategory = 'living' | 'bedroom' | 'kitchen' | 'decor' | 'plants';
-
-export interface DreamHouseItemTemplate {
-  id: string;
-  name: string;
-  category: DreamHouseItemCategory;
-  width: number;
-  height: number;
-  color: string;
-  iconName: string;
-  description?: string;
-}
-
-export interface DreamHousePlacedItem {
-  instanceId: string;
-  templateId: string;
-  qX: number;
-  qY: number;
-  rotation: number;
-  placedBy: string;
-  placedAt?: number;
-  updatedAt?: any;
-}
-
-export interface DreamHouseRoom {
-  layoutName: string;
-  gridWidth: number;
-  gridHeight: number;
-  floorTheme: string;
-  items: Record<string, DreamHousePlacedItem>;
-  updatedAt?: any;
-  updatedBy?: string;
-}
-
-export interface DreamHouseLock {
-  uid: string;
-  userName?: string;
-  acquiredAt: number;
-}
-
-export interface DreamHouseLiveMove {
-  qX: number;
-  qY: number;
-  uid: string;
-}
-
-export interface DreamHouseLiveSync {
-  locks?: Record<string, DreamHouseLock>;
-  liveMoves?: Record<string, DreamHouseLiveMove>;
 }
 
