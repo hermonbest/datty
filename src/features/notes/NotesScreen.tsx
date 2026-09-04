@@ -659,7 +659,11 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ visible = true, onClos
     </KeyboardAvoidingView>
   );
 
-  if (visible && onClose) {
+  if (!visible) {
+    return null;
+  }
+
+  if (onClose) {
     return (
       <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
         {content}

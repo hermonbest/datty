@@ -41,7 +41,9 @@ export const TopAppBar: React.FC = () => {
         </View>
       </View>
 
-      <NotesScreen visible={notesVisible} onClose={() => setNotesVisible(false)} />
+      {notesVisible && (
+        <NotesScreen visible={notesVisible} onClose={() => setNotesVisible(false)} />
+      )}
     </>
   );
 };
