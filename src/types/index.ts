@@ -1,9 +1,13 @@
+import { NotificationPreferences } from './notifications';
+
 export interface UserProfile {
   uid: string;
   displayName: string;
   email: string;
   photoURL: string | null;
   coupleId: string | null;
+  expoPushToken?: string | null;
+  notificationPreferences?: NotificationPreferences;
   createdAt: any;
   updatedAt?: any;
 }
@@ -111,5 +115,6 @@ export interface PartnerNote {
 }
 
 export * from './games';
+export * from './notifications';
 
 

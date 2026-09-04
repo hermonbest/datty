@@ -105,6 +105,10 @@ service cloud.firestore {
       allow read, create, update, delete: if isCoupleMember(coupleId);
     }
 
+    match /couples/{coupleId}/notifications/{notifId} {
+      allow read, create, update, delete: if isCoupleMember(coupleId);
+    }
+
     match /users/{uid}/partnerNotes/{noteId} {
       allow read, write: if isMe(uid);
     }

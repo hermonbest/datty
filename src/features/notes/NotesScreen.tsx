@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { Avatar, Button, Card, EmptyState, useToast } from '../../components';
 import { useCouple } from '../../services/coupleContext';
+import { useNotifications } from '../../services/useNotifications';
 import { useNotes } from './useNotes';
 import {
   ListFilter,
@@ -40,6 +41,7 @@ import {
   Send,
   ListPlus,
   Check,
+  Bell,
 } from 'lucide-react-native';
 import { CoupleNote, PartnerNote } from '../../types';
 
@@ -55,6 +57,22 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ visible = true, onClos
   const toast = useToast();
   const { userProfile, partnerProfile } = useCouple();
   const partnerName = partnerProfile?.displayName || 'Partner';
+  const { sendNudge } = useNotifications();
+  const [nudging, setNudging] = useState(false);
+
+  const handleNudgePartnerToWrite = async () => {
+    if (nudging) return;
+    setNudging(true);
+    const res = await sendNudge('nudge_write_note');
+    setNudging(false);
+    if (res.success) {
+      toast.success('Nudge Sent! 💌', `Asked ${partnerName} to write a sweet note today.`);
+    } else if (res.reason === 'throttled') {
+      toast.error('Cooldown Active', `Please wait ${res.remainingMinutes}m before nudging again.`);
+    } else {
+      toast.error('Unavailable', 'Couple must be linked to send nudges.');
+    }
+  };
 
   const {
     gratitudeNotes,
@@ -229,15 +247,26 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ visible = true, onClos
           <Text style={styles.headerTitle}>Notes & Lists</Text>
           <Text style={styles.headerSubtitle}>Shared memories & private reminders</Text>
         </View>
-        {onClose && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
           <TouchableOpacity
-            style={styles.closeBtn}
-            onPress={onClose}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={styles.nudgeBtnHeader}
+            onPress={handleNudgePartnerToWrite}
+            activeOpacity={0.7}
+            disabled={nudging}
           >
-            <X size={24} color={colors.onSurface} />
+            <Bell size={16} color={colors.primary} />
+            <Text style={styles.nudgeBtnHeaderText}>Nudge</Text>
           </TouchableOpacity>
-        )}
+          {onClose && (
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={onClose}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <X size={24} color={colors.onSurface} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Segmented Tab Bar */}
@@ -704,6 +733,20 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: radii.full,
     backgroundColor: colors.surfaceContainer,
+  },
+  nudgeBtnHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: radii.full,
+    backgroundColor: colors.primaryLight,
+  },
+  nudgeBtnHeaderText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semiBold,
+    color: colors.primary,
   },
   tabBar: {
     flexDirection: 'row',

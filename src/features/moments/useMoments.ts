@@ -14,12 +14,13 @@ import {
 import { db } from '../../services/firebase';
 import { uploadFileToCloudinary, getFileSizeBytes } from '../../services/fileToBytes';
 import { useCouple } from '../../services/coupleContext';
+import { dispatchCoupleNotification } from '../../services/notificationService';
 import { Moment } from '../../types';
 
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // mirrors storage.rules cap
 
 export const useMoments = () => {
-  const { coupleId, myUid } = useCouple();
+  const { coupleId, myUid, partnerUid, userProfile, partnerProfile } = useCouple();
   const [moments, setMoments] = useState<Moment[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -123,6 +124,20 @@ export const useMoments = () => {
           caption: caption.trim(),
           createdAt: serverTimestamp(),
         });
+
+        if (partnerUid) {
+          dispatchCoupleNotification({
+            coupleId,
+            senderUid: myUid,
+            recipientUid: partnerUid,
+            recipientPushToken: partnerProfile?.expoPushToken,
+            type: 'moment_new',
+            partnerName: userProfile?.displayName || 'Partner',
+            preview: caption.trim() || undefined,
+            data: { route: 'MomentsTab' },
+            preferences: partnerProfile?.notificationPreferences,
+          }).catch(() => {});
+        }
       } catch (err: any) {
         console.error('[useMoments] Create moment error:', err);
         setError(err.message || 'Failed to post moment.');

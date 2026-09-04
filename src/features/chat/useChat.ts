@@ -13,6 +13,7 @@ import {
 import { rtdb } from '../../services/firebase';
 import { uploadFileToCloudinary, getFileSizeBytes } from '../../services/fileToBytes';
 import { useCouple } from '../../services/coupleContext';
+import { dispatchCoupleNotification } from '../../services/notificationService';
 import { ChatMessage, ChatReplyReference, MediaState } from '../../types';
 
 
@@ -35,7 +36,7 @@ const toMillis = (t: any): number => {
 // run in the background via expo-file-system (no fetch+blob — see fileToBytes),
 // then the node is patched with the storage URL.
 export const useChat = () => {
-  const { coupleId, myUid } = useCouple();
+  const { coupleId, myUid, partnerUid, userProfile, partnerProfile } = useCouple();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -173,6 +174,29 @@ export const useChat = () => {
         // 2. Push to RTDB — local echo means our own list updates instantly,
         //    and the listener keeps the partner in sync.
         await set(newMsgRef, payload);
+
+        // Dispatch push notification to partner
+        if (partnerUid) {
+          const previewText = text?.trim()
+            ? (text.trim().length > 60 ? text.trim().slice(0, 57) + '...' : text.trim())
+            : audio
+            ? 'Sent an audio message 🎙️'
+            : imageUri
+            ? 'Sent a photo 📷'
+            : 'Sent a message 💬';
+
+          dispatchCoupleNotification({
+            coupleId,
+            senderUid: myUid,
+            recipientUid: partnerUid,
+            recipientPushToken: partnerProfile?.expoPushToken,
+            type: 'chat_message',
+            partnerName: userProfile?.displayName || 'Partner',
+            preview: previewText,
+            data: { route: 'ChatTab' },
+            preferences: partnerProfile?.notificationPreferences,
+          }).catch(() => {});
+        }
 
         // Remove temp optimistic message once real one arrives (cleanup just in case)
         setMessages((prev) => prev.filter((m) => m.id !== messageId || !m.pending));

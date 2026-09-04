@@ -11,7 +11,18 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
-  plugins: ['expo-asset', 'expo-audio', 'expo-font'],
+  plugins: [
+    'expo-asset',
+    'expo-audio',
+    'expo-font',
+    [
+      'expo-notifications',
+      {
+        icon: './assets/icon.png',
+        color: '#E05A6D',
+      },
+    ],
+  ],
   splash: {
     image: './assets/splash-icon.png',
     resizeMode: 'contain',

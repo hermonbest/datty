@@ -14,13 +14,14 @@ import { db } from '../../services/firebase';
 import { useCouple } from '../../services/coupleContext';
 import { Question, DailyAnswer } from '../../types';
 import { getDateId, getQuestionIndexForDate } from './pickTodaysQuestion';
+import { dispatchCoupleNotification } from '../../services/notificationService';
 
 // In-memory module cache for daily questions across tab switches
 let cachedTotalQuestions: number | null = null;
 const cachedQuestionsByDate: Record<string, Question> = {};
 
 export const useDailyQuestion = (targetDate: Date = new Date()) => {
-  const { coupleId, myUid, partnerUid, couple } = useCouple();
+  const { coupleId, myUid, partnerUid, couple, userProfile, partnerProfile } = useCouple();
   const coupleTimezone = couple?.timezone;
   const dateId = getDateId(targetDate, coupleTimezone);
 
@@ -238,6 +239,20 @@ export const useDailyQuestion = (targetDate: Date = new Date()) => {
             answeredAt: serverTimestamp(),
           }),
         ]);
+
+        if (partnerUid) {
+          const notifType = partnerAnswer ? 'daily_revealed' : 'daily_answered';
+          dispatchCoupleNotification({
+            coupleId,
+            senderUid: myUid,
+            recipientUid: partnerUid,
+            recipientPushToken: partnerProfile?.expoPushToken,
+            type: notifType,
+            partnerName: userProfile?.displayName || 'Partner',
+            data: { route: 'TodayTab', dateId },
+            preferences: partnerProfile?.notificationPreferences,
+          }).catch(() => {});
+        }
       } catch (err: any) {
         console.error('[useDailyQuestion] Submit error:', err);
         // Rollback optimistic state

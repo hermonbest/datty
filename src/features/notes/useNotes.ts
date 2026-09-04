@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useCouple } from '../../services/coupleContext';
+import { dispatchCoupleNotification } from '../../services/notificationService';
 import { CoupleNote, PartnerNote } from '../../types';
 import {
   filterCoupleNotesByType,
@@ -22,7 +23,7 @@ import {
 } from './notesLogic';
 
 export const useNotes = () => {
-  const { coupleId, user, userProfile } = useCouple();
+  const { coupleId, user, userProfile, partnerUid, partnerProfile } = useCouple();
   const [coupleNotes, setCoupleNotes] = useState<CoupleNote[]>([]);
   const [partnerNotes, setPartnerNotes] = useState<PartnerNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,8 +127,22 @@ export const useNotes = () => {
         authorName: userProfile?.displayName || 'Partner',
         createdAt: serverTimestamp(),
       });
+
+      if (partnerUid) {
+        dispatchCoupleNotification({
+          coupleId,
+          senderUid: user.uid,
+          recipientUid: partnerUid,
+          recipientPushToken: partnerProfile?.expoPushToken,
+          type: 'note_gratitude',
+          partnerName: userProfile?.displayName || 'Partner',
+          preview: text.length > 50 ? text.slice(0, 47) + '...' : text,
+          data: { route: 'NotesTab', tab: 'gratitude' },
+          preferences: partnerProfile?.notificationPreferences,
+        }).catch(() => {});
+      }
     },
-    [coupleId, user, userProfile]
+    [coupleId, user, userProfile, partnerUid, partnerProfile]
   );
 
   const addListItem = useCallback(
@@ -145,8 +160,22 @@ export const useNotes = () => {
         authorName: userProfile?.displayName || 'Partner',
         createdAt: serverTimestamp(),
       });
+
+      if (partnerUid) {
+        dispatchCoupleNotification({
+          coupleId,
+          senderUid: user.uid,
+          recipientUid: partnerUid,
+          recipientPushToken: partnerProfile?.expoPushToken,
+          type: 'note_list_item',
+          partnerName: userProfile?.displayName || 'Partner',
+          preview: `Added "${text.length > 40 ? text.slice(0, 37) + '...' : text}"`,
+          data: { route: 'NotesTab', tab: 'list' },
+          preferences: partnerProfile?.notificationPreferences,
+        }).catch(() => {});
+      }
     },
-    [coupleId, user, userProfile]
+    [coupleId, user, userProfile, partnerUid, partnerProfile]
   );
 
   const toggleListItem = useCallback(
