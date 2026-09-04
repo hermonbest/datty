@@ -11,7 +11,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Flame, Brain, Camera, PenTool, ArrowRight, Grid, Gamepad2 } from 'lucide-react-native';
+import { Flame, Brain, Camera, PenTool, ArrowRight, Grid, Gamepad2, Home } from 'lucide-react-native';
 import { colors, radii, spacing, typography } from '../../theme';
 import { GameId } from '../../types/games';
 import { TopAppBar } from '../../components/TopAppBar';
@@ -21,6 +21,7 @@ import { WordGameScreen } from './word/WordGameScreen';
 import { ChessGameScreen } from './chess/ChessGameScreen';
 import { CoupleTriviaScreen } from './trivia/CoupleTriviaScreen';
 import { TicTacToeScreen } from './tictactoe/TicTacToeScreen';
+import { DreamHouseScreen } from './dreamHouse/DreamHouseScreen';
 
 interface GamesScreenProps {
   onNavigateToChat?: (replyTo?: any) => void;
@@ -97,6 +98,17 @@ const GAMES: GameCardConfig[] = [
     tagText: colors.onSecondaryFixed,
     cardBg: colors.surfaceContainerLow,
   },
+  {
+    id: 'dream_house',
+    title: 'Dream Sanctuary',
+    desc: 'Design and build your dream love nest together in real-time. Drag and arrange cozy furniture in an isometric room.',
+    tag: 'Cozy',
+    icon: Home,
+    imageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600&auto=format&fit=crop&q=80',
+    tagBg: colors.primary,
+    tagText: colors.onPrimary,
+    cardBg: colors.surfaceContainer,
+  },
 ];
 
 // Helper for hover/press animations
@@ -168,6 +180,9 @@ export const GamesScreen: React.FC<GamesScreenProps> = ({ onNavigateToChat }) =>
   }
   if (activeGame === 'tic_tac_toe') {
     return <TicTacToeScreen onBack={() => setActiveGame(null)} onShareToChat={handleShareToChat} />;
+  }
+  if (activeGame === 'dream_house') {
+    return <DreamHouseScreen onBack={() => setActiveGame(null)} onShareToChat={handleShareToChat} />;
   }
 
   return (
@@ -323,6 +338,34 @@ export const GamesScreen: React.FC<GamesScreenProps> = ({ onNavigateToChat }) =>
               </View>
             </AnimatedCard>
           </View>
+
+          {/* Row 4: Dream Sanctuary */}
+          <AnimatedCard 
+            onPress={() => setActiveGame('dream_house')}
+            style={[styles.heroCard, { backgroundColor: GAMES[5].cardBg }]}
+          >
+            <View style={isTablet ? styles.heroCardInnerTablet : styles.heroCardInnerMobile}>
+              <View style={isTablet ? styles.heroImageWrapperTablet : styles.heroImageWrapperMobile}>
+                <ImageBackground 
+                  source={typeof GAMES[5].imageUrl === 'string' ? { uri: GAMES[5].imageUrl } : GAMES[5].imageUrl} 
+                  style={styles.bgImage} 
+                />
+              </View>
+              <View style={isTablet ? styles.heroContentTablet : styles.heroContentMobile}>
+                <View style={styles.tagRow}>
+                  <View style={[styles.tagBadge, { backgroundColor: GAMES[5].tagBg }]}>
+                    <Text style={[styles.tagText, { color: GAMES[5].tagText }]}>{GAMES[5].tag}</Text>
+                  </View>
+                  <Home size={20} color={colors.primary} />
+                </View>
+                <Text style={styles.cardTitle}>{GAMES[5].title}</Text>
+                <Text style={styles.cardDesc}>{GAMES[5].desc}</Text>
+                <View style={styles.primaryBtn}>
+                  <Text style={styles.primaryBtnText}>Build Together</Text>
+                </View>
+              </View>
+            </View>
+          </AnimatedCard>
 
         </View>
       </ScrollView>

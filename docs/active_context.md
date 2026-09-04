@@ -18,11 +18,20 @@
 ### Immediate Next Steps
 - Merge `feat/notes-and-cheat-sheet` branch to `master` or deploy firestore rules via `npm run deploy:firestore-rules`.
 
-## Feature Plan: Multiplayer Dream-House Game
-- **Scope:** Large. A full 2.5D isometric game subsystem running inside the Expo app.
-- **Edge cases evaluated:** Concurrent drag conflicts, z-index sorting of overlapping furniture, state desync on poor connections, UI thread performance with many items.
-- **Options presented:**
-  - *Option A (Recommended):* React Native Reanimated for 60fps gesture rendering + Firebase RTDB for lock-based drag sync. Simple, performs well for casual 2D grids, agent-friendly.
-  - *Option B:* React Native Skia + Yjs (CRDT). Highly performant rendering and true conflict-free state resolution, but significantly increases complexity for an AI to maintain.
-- **Next Actions:** Awaiting user approval to proceed with Phase 1 (Foundation & Local Grid Setup).
+## Feature: Multiplayer Dream-House Game (Completed on feat/dream-house)
+- **Status:** Fully implemented and verified on branch `feat/dream-house`.
+- **Completed Work**:
+  - `src/types/games.ts`: Added `'dream_house'` to `GameId` and created interfaces for `DreamHouseItemTemplate`, `DreamHousePlacedItem`, `DreamHouseRoom`, `DreamHouseLock`, `DreamHouseLiveMove`, and `DreamHouseLiveSync`.
+  - `src/features/games/dreamHouse/dreamHouseLogic.ts`: Pure isometric coordinate math (`gridToScreen`, `screenToGrid`), grid bounds checking, depth z-index calculation, pessimistic locking logic with automatic 30s expiry fallback, and cozy furniture catalog.
+  - `src/features/games/dreamHouse/useDreamHouse.ts`: Real-time hybrid synchronization hook. Uses Firestore (`couples/{coupleId}/games/dream_house`) for permanent room layouts and Firebase RTDB (`couples/{coupleId}/games/dream_house/sync`) for ephemeral locks (`onDisconnect().remove()`) and live ghost drag streaming.
+  - `src/features/games/dreamHouse/IsometricGrid.tsx`: Pixel-perfect SVG polygon isometric floor tiles and cozy walls.
+  - `src/features/games/dreamHouse/DraggableFurniture.tsx`: React Native `PanResponder` + `Animated` 60fps drag-and-drop with snap-to-grid, partner lock indicators, and live ghost drag rendering.
+  - `src/features/games/dreamHouse/CatalogModal.tsx`: Categorized furniture catalog drawer with cozy palettes and icons.
+  - `src/features/games/dreamHouse/DreamHouseScreen.tsx`: Game canvas with header presence indicators, real-time collaboration status, reset room, and catalog triggers.
+  - `src/features/games/GamesScreen.tsx`: Integrated Dream Sanctuary featured hero card into the Games hub.
+  - `tests/dreamHouseLogic.test.ts`: 11 unit tests covering projection math, roundtrip coordinate transforms, rotation, clamping, z-index layering, and pessimistic lock concurrency.
+- **Verification:**
+  - 11/11 test suites passing (69/69 tests total).
+  - TypeScript type check (`tsc --noEmit`) passes with 0 errors.
+  - Master branch remains untouched.
 
