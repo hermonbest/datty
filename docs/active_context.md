@@ -1,25 +1,30 @@
 # Active Context
 
-## Current Status: Couple Notes & Private Partner Cheat Sheet Feature (Completed)
+## Current Status: Notifications & Love Nudges System (Completed)
 
 ### Completed Work
-- **Implemented Notes Feature per Option B (`implementation_plan.md`)**:
-  - `src/types/index.ts`: Added `CoupleNote`, `CoupleNoteType`, and `PartnerNote` data interfaces.
-  - `firestore.rules`: Configured security isolation — `/couples/{coupleId}/notes/{noteId}` allows couple members; `/users/{uid}/partnerNotes/{noteId}` strictly enforces `isMe(uid)` so partner cannot read private notes.
-  - `src/features/notes/notesLogic.ts`: Pure utilities for validation, sorting, filtering, and partner cheat-sheet suggested prompt chips.
-  - `src/features/notes/useNotes.ts`: Real-time hook with `onSnapshot` for shared couple notes and private partner notes.
-  - `src/features/notes/NotesScreen.tsx`: 3-tab segmented interface (Shared Gratitude, Shared Couple List, Private Partner Notes with private indicator banner and edit/delete).
-  - `src/components/TopAppBar.tsx` & `src/components/index.ts`: Added `BookOpen` icon in persistent header to open `NotesScreen` as a full modal screen, preserving exactly 6 bottom tabs.
-  - `tests/notesLogic.test.ts`: Added comprehensive unit tests covering validation, category tagging, completion toggling, and sorting.
+- **Implemented Notifications System**:
+  - `src/types/notifications.ts`: Added `NotificationType`, `AppNotification`, `NotificationPreferences`, and defaults.
+  - `app.config.ts`: Configured `expo-notifications` plugin with custom icon and colors.
+  - `firestore.rules`: Permitted `/couples/{coupleId}/notifications/{notifId}` for couple members.
+  - `src/services/notificationLogic.ts`: Pure utilities for quiet hours calculation, daily habit scheduling, cooldown throttling, and copy formatting.
+  - `src/services/notificationService.ts`: Push token registration to Firestore (`users/{uid}/expoPushToken`), direct client-to-client push dispatcher via Expo Push API, local recurring habit scheduler, and Android notification channels.
+  - `src/services/useNotifications.ts`: Real-time subscription hook for in-app notification center, unread badge count, preferences sync, and throttled nudges.
+  - `src/features/dailyQuestion/useDailyQuestion.ts`: Dispatches `daily_answered` or `daily_revealed` on submit.
+  - `src/features/moments/useMoments.ts`: Dispatches `moment_new` on photo upload.
+  - `src/features/chat/useChat.ts`: Dispatches `chat_message` on text, photo, or audio message.
+  - `src/features/notes/useNotes.ts` & `NotesScreen.tsx`: Dispatches `note_gratitude` and `note_list_item`; added "Nudge Partner" button in header.
+  - `src/components/TopAppBar.tsx`: Added notification bell with live unread counter badge and one-tap "Thinking of you" heart pulse button.
+  - `src/components/NotificationCenterModal.tsx`: Notification history center modal with filter tabs ("All", "Love Nudges", "Activity"), quick nudge buttons, and mark all as read.
+  - `src/components/NotificationSettingsModal.tsx`: Granular preference toggles for partner activities, daily habits (morning note, evening gratitude, daily question, spontaneous photo), and quiet hours.
+  - `tests/notificationLogic.test.ts`: Added 9 unit tests covering quiet hours, scheduling, cooldowns, and copy.
 - **Verification**:
-  - All 10 test suites passing (58/58 tests).
+  - All 11 test suites passing (69/69 tests).
   - Clean TypeScript check (`tsc --noEmit` exits with 0 errors).
 
 ### Immediate Next Steps
-- **Notifications System (Feature-Specific & App Nudges)**:
-  - Plan created in `implementation_plan.md` categorizing notifications into Feature-Specific (Daily Question, Moments, Chat, Calendar, Notes, Games) and App Nudges (Daily Morning Note, Evening Gratitude, Spontaneous "What are you doing now?" photo prompt, Partner Nudges).
-  - Awaiting user review and approval before beginning Phase 1 implementation.
-- Implement logic and tests for the 5 new games if needed in the future.
+- Sideload/build APK with EAS or test in Expo Go / dev client.
+- Implement logic and tests for remaining mini-games if needed in the future.
 
 ### Completed Work (Current Session)
 - **Implemented 5 Lightweight Mini-Games**:
