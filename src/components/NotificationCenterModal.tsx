@@ -28,6 +28,8 @@ import { colors, radii, spacing, typography, shadows } from '../theme';
 import { AppNotification } from '../types/notifications';
 import { NotificationSettingsModal } from './NotificationSettingsModal';
 import { useNotifications } from '../services/useNotifications';
+import { resolveNotificationTarget, navigateFromNotification } from '../services/notificationNavigation';
+import { useNotesModal } from '../services/notesModalContext';
 
 interface NotificationCenterModalProps {
   visible: boolean;
@@ -41,6 +43,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
   onNavigateTab,
 }) => {
   const insets = useSafeAreaInsets();
+  const { openNotes } = useNotesModal();
   const {
     notifications,
     unreadCount,
@@ -86,13 +89,31 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
   };
 
   const handleNotificationPress = async (item: AppNotification) => {
+    // 1. Mark as read immediately (non-blocking)
     if (!item.read) {
-      await markAsRead(item.id);
+      markAsRead(item.id).catch(() => {});
     }
 
-    if (item.data?.route && onNavigateTab) {
-      onClose();
-      onNavigateTab(item.data.route, item.data);
+    // 2. Always dismiss the notification center modal
+    onClose();
+
+    // 3. Resolve destination route & parameters
+    const target = resolveNotificationTarget(item);
+
+    // 4. If target is Notes, open Notes modal directly
+    if (target.tabName === 'NotesTab') {
+      openNotes(target.params?.tab || 'gratitude');
+      if (onNavigateTab) {
+        onNavigateTab(target.tabName, target.params);
+      }
+      return;
+    }
+
+    // 5. Navigate to destination tab
+    if (onNavigateTab) {
+      onNavigateTab(target.tabName, target.params);
+    } else {
+      navigateFromNotification(target.tabName, target.params);
     }
   };
 

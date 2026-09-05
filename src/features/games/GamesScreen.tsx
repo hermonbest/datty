@@ -29,6 +29,7 @@ import { CheckersScreen } from './checkers/CheckersScreen';
 
 interface GamesScreenProps {
   onNavigateToChat?: (replyTo?: any) => void;
+  route?: any;
 }
 
 const { width } = Dimensions.get('window');
@@ -204,9 +205,15 @@ const AnimatedCard = ({ children, style, onPress }: any) => {
   );
 };
 
-export const GamesScreen: React.FC<GamesScreenProps> = ({ onNavigateToChat }) => {
-  const [activeGame, setActiveGame] = useState<GameId | null>(null);
+export const GamesScreen: React.FC<GamesScreenProps> = ({ onNavigateToChat, route }) => {
+  const [activeGame, setActiveGame] = useState<GameId | null>(route?.params?.gameId || null);
   const insets = useSafeAreaInsets();
+
+  React.useEffect(() => {
+    if (route?.params?.gameId) {
+      setActiveGame(route.params.gameId);
+    }
+  }, [route?.params?.gameId]);
 
   const handleShareToChat = (text: string) => {
     if (onNavigateToChat) {

@@ -7,7 +7,9 @@ import {
   SafeAreaView,
   StatusBar,
   Dimensions,
+  ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
   RotateCcw,
@@ -33,6 +35,7 @@ interface TicTacToeScreenProps {
 }
 
 export const TicTacToeScreen: React.FC<TicTacToeScreenProps> = ({ onBack, onShareToChat }) => {
+  const insets = useSafeAreaInsets();
   const {
     board,
     turn,
@@ -83,8 +86,12 @@ export const TicTacToeScreen: React.FC<TicTacToeScreenProps> = ({ onBack, onShar
         </TouchableOpacity>
       </View>
 
-      {/* Mode Switcher Pill if linked */}
-      {isLinked && (
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Mode Switcher Pill if linked */}
+        {isLinked && (
         <View style={styles.modeBar}>
           <TouchableOpacity
             style={[styles.modeTab, gameMode === 'couple' && styles.modeTabActive]}
@@ -237,6 +244,7 @@ export const TicTacToeScreen: React.FC<TicTacToeScreenProps> = ({ onBack, onShar
           </TouchableOpacity>
         </View>
       )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -245,6 +253,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',

@@ -9,6 +9,7 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
   Heart,
@@ -47,6 +48,7 @@ export const CoupleTriviaScreen: React.FC<CoupleTriviaScreenProps> = ({
   onBack,
   onShareToChat,
 }) => {
+  const insets = useSafeAreaInsets();
   const {
     selectedPack,
     gameMode,
@@ -290,7 +292,7 @@ export const CoupleTriviaScreen: React.FC<CoupleTriviaScreenProps> = ({
 
       {/* Main Content Area */}
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
         {phase !== 'finished' ? (
@@ -898,6 +900,7 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
+    flexGrow: 1,
     padding: spacing.md,
     paddingBottom: spacing.xxl,
   },

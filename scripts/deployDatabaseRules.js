@@ -16,11 +16,15 @@ const databaseName = process.env.FIREBASE_DATABASE_NAME || `${projectId}-default
 // Region of the RTDB instance (from the Firebase console / the deploy error's correctUrl).
 const databaseRegion = process.env.FIREBASE_DATABASE_REGION || 'europe-west1';
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+const { syncTime } = require('./timeSync');
 
 async function getAccessToken() {
+  await syncTime();
+  if (admin.apps.length === 0) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  }
   const tokenObj = await admin.credential.cert(serviceAccount).getAccessToken();
   return tokenObj.access_token;
 }

@@ -6,14 +6,15 @@ import { colors, typography, spacing, radii } from '../theme';
 import { Avatar } from './Avatar';
 import { useCouple } from '../services/coupleContext';
 import { useNotifications } from '../services/useNotifications';
-import { NotesScreen } from '../features/notes/NotesScreen';
+import { useNotesModal } from '../services/notesModalContext';
+import { navigateFromNotification } from '../services/notificationNavigation';
 import { NotificationCenterModal } from './NotificationCenterModal';
 
 export const TopAppBar: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { partnerProfile } = useCouple();
   const { unreadCount, sendNudge } = useNotifications();
-  const [notesVisible, setNotesVisible] = useState(false);
+  const { openNotes } = useNotesModal();
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [sendingHeart, setSendingHeart] = useState(false);
 
@@ -30,6 +31,15 @@ export const TopAppBar: React.FC = () => {
         'Heart Pulse Cooldown',
         `You recently sent a heart pulse. You can send another in ${res.remainingMinutes} minute(s).`
       );
+    }
+  };
+
+  const handleNavigateFromNotifications = (tabName: string, params?: any) => {
+    setNotificationsVisible(false);
+    if (tabName === 'NotesTab' || tabName === 'Notes') {
+      openNotes(params?.tab || 'gratitude');
+    } else {
+      navigateFromNotification(tabName as any, params);
     }
   };
 
@@ -65,7 +75,7 @@ export const TopAppBar: React.FC = () => {
 
             <TouchableOpacity
               style={styles.actionBtn}
-              onPress={() => setNotesVisible(true)}
+              onPress={() => openNotes('gratitude')}
               accessibilityLabel="Open Notes & Lists"
             >
               <BookOpen size={22} color={colors.primary} />
@@ -82,14 +92,11 @@ export const TopAppBar: React.FC = () => {
         </View>
       </View>
 
-      {notesVisible && (
-        <NotesScreen visible={notesVisible} onClose={() => setNotesVisible(false)} />
-      )}
-
       {notificationsVisible && (
         <NotificationCenterModal
           visible={notificationsVisible}
           onClose={() => setNotificationsVisible(false)}
+          onNavigateTab={handleNavigateFromNotifications}
         />
       )}
     </>

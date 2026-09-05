@@ -9,7 +9,9 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
   RotateCcw,
@@ -53,6 +55,7 @@ const PIECE_UNICODE: Record<string, string> = {
 };
 
 export const ChessGameScreen: React.FC<ChessGameScreenProps> = ({ onBack, onShareToChat }) => {
+  const insets = useSafeAreaInsets();
   const {
     board,
     turn,
@@ -214,7 +217,11 @@ export const ChessGameScreen: React.FC<ChessGameScreenProps> = ({ onBack, onShar
         </View>
       </View>
 
-      {/* Mode Switcher Pill if linked */}
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Mode Switcher Pill if linked */}
       {isLinked && (
         <View style={styles.modeBar}>
           <TouchableOpacity
@@ -486,6 +493,7 @@ export const ChessGameScreen: React.FC<ChessGameScreenProps> = ({ onBack, onShar
           </View>
         </View>
       )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -494,6 +502,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   loadingContainer: {
     flex: 1,

@@ -4,6 +4,7 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
   getCountFromServer,
   doc,
   setDoc,
@@ -135,7 +136,7 @@ export const useDailyQuestion = (targetDate: Date = new Date()) => {
     };
   }, [dateId, coupleTimezone]);
 
-  // 2. Realtime listener for my answer and partner's answer
+  // 2a. Realtime listener for MY answer
   useEffect(() => {
     if (!coupleId || !myUid) {
       setLoadingAnswers(false);
@@ -144,7 +145,6 @@ export const useDailyQuestion = (targetDate: Date = new Date()) => {
 
     setLoadingAnswers(true);
 
-    // Listen to my answer
     const myAnswerRef = doc(db, 'couples', coupleId, 'dailyQuestions', dateId, 'answers', myUid);
     const unsubMy = onSnapshot(
       myAnswerRef,
@@ -169,13 +169,29 @@ export const useDailyQuestion = (targetDate: Date = new Date()) => {
       }
     );
 
-    // Listen to partner's answer (if partnerUid is known)
+    return () => unsubMy();
+  }, [coupleId, myUid, dateId]);
+
+  // 2b. Realtime listener for PARTNER's answer
+  // Only active when the user has an answer (conforms with security rules blind reveal)
+  const hasMyAnswer = Boolean(myAnswer);
+  useEffect(() => {
+    if (!coupleId || !partnerUid || !hasMyAnswer) {
+      setPartnerAnswer(null);
+      return;
+    }
+
+    let isMounted = true;
+    let retryTimer: NodeJS.Timeout | null = null;
     let unsubPartner: (() => void) | null = null;
-    if (partnerUid) {
+
+    const startPartnerListener = () => {
+      if (!isMounted) return;
       const partnerAnswerRef = doc(db, 'couples', coupleId, 'dailyQuestions', dateId, 'answers', partnerUid);
       unsubPartner = onSnapshot(
         partnerAnswerRef,
         (snap) => {
+          if (!isMounted) return;
           if (snap.exists()) {
             const data = snap.data();
             setPartnerAnswer({
@@ -187,23 +203,30 @@ export const useDailyQuestion = (targetDate: Date = new Date()) => {
             setPartnerAnswer(null);
           }
         },
-        (_err) => {
-          // Expected behavior per security rules: will error / return nothing until my answer is submitted
+        (err) => {
+          // If the newly committed myAnswer has not propagated to security rules yet, retry once
+          if (!isMounted) return;
           setPartnerAnswer(null);
+          retryTimer = setTimeout(() => {
+            if (isMounted) startPartnerListener();
+          }, 1500);
         }
       );
-    }
+    };
+
+    startPartnerListener();
 
     return () => {
-      unsubMy();
+      isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
       if (unsubPartner) unsubPartner();
     };
-  }, [coupleId, myUid, partnerUid, dateId]);
+  }, [coupleId, partnerUid, dateId, hasMyAnswer]);
 
   // 3. Submit answer with immediate zero-lag optimistic state update
   const submitAnswer = useCallback(
-    async (answerText: string) => {
-      if (!coupleId || !myUid || !answerText.trim()) return;
+    async (answerText: string): Promise<{ revealed: boolean }> => {
+      if (!coupleId || !myUid || !answerText.trim()) return { revealed: false };
 
       const trimmed = answerText.trim();
       const previousAnswer = myAnswer;
@@ -221,6 +244,9 @@ export const useDailyQuestion = (targetDate: Date = new Date()) => {
       try {
         const parentDocRef = doc(db, 'couples', coupleId, 'dailyQuestions', dateId);
         const myAnswerRef = doc(db, 'couples', coupleId, 'dailyQuestions', dateId, 'answers', myUid);
+        const partnerAnswerRef = partnerUid
+          ? doc(db, 'couples', coupleId, 'dailyQuestions', dateId, 'answers', partnerUid)
+          : null;
 
         await Promise.all([
           setDoc(
@@ -240,8 +266,26 @@ export const useDailyQuestion = (targetDate: Date = new Date()) => {
           }),
         ]);
 
-        if (partnerUid) {
-          const notifType = partnerAnswer ? 'daily_revealed' : 'daily_answered';
+        // Immediately check if partner already answered so reveal is instantaneous
+        let partnerAlreadyAnswered = false;
+        if (partnerAnswerRef && partnerUid) {
+          try {
+            const partnerSnap = await getDoc(partnerAnswerRef);
+            if (partnerSnap.exists()) {
+              const data = partnerSnap.data();
+              const pAns = {
+                uid: partnerUid,
+                text: data.text,
+                answeredAt: data.answeredAt,
+              };
+              setPartnerAnswer(pAns);
+              partnerAlreadyAnswered = true;
+            }
+          } catch (pErr) {
+            // Realtime listener will pick it up
+          }
+
+          const notifType = (partnerAlreadyAnswered || partnerAnswer) ? 'daily_revealed' : 'daily_answered';
           dispatchCoupleNotification({
             coupleId,
             senderUid: myUid,
@@ -253,6 +297,8 @@ export const useDailyQuestion = (targetDate: Date = new Date()) => {
             preferences: partnerProfile?.notificationPreferences,
           }).catch(() => {});
         }
+
+        return { revealed: partnerAlreadyAnswered || Boolean(partnerAnswer) };
       } catch (err: any) {
         console.error('[useDailyQuestion] Submit error:', err);
         // Rollback optimistic state
@@ -264,7 +310,7 @@ export const useDailyQuestion = (targetDate: Date = new Date()) => {
         setSubmitting(false);
       }
     },
-    [coupleId, myUid, dateId, myAnswer, question]
+    [coupleId, myUid, partnerUid, dateId, myAnswer, partnerAnswer, question, userProfile?.displayName, partnerProfile?.expoPushToken, partnerProfile?.notificationPreferences]
   );
 
   const isRevealed = Boolean(myAnswer && partnerAnswer);

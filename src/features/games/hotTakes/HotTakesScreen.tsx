@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Flame, RefreshCw } from 'lucide-react-native';
 import { doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
@@ -24,6 +25,7 @@ interface HotTakesScreenProps {
 }
 
 export const HotTakesScreen: React.FC<HotTakesScreenProps> = ({ onBack }) => {
+  const insets = useSafeAreaInsets();
   const { coupleId, myUid, partnerUid } = useCouple();
   const [session, setSession] = useState<any>(null);
   const [rating, setRating] = useState<number>(5);
@@ -73,13 +75,13 @@ export const HotTakesScreen: React.FC<HotTakesScreenProps> = ({ onBack }) => {
           <Text style={styles.title}>Hot Takes</Text>
           <View style={{ width: 40 }} />
         </View>
-        <View style={styles.centerContent}>
+        <ScrollView contentContainerStyle={[styles.centerContent, { paddingBottom: 100 + insets.bottom }]} showsVerticalScrollIndicator={false}>
           <Flame size={64} color={colors.primary} style={{ marginBottom: 24 }} />
           <Text style={styles.instructions}>Rate bold statements from 1 (Strongly Disagree) to 10 (Strongly Agree).</Text>
           <TouchableOpacity style={styles.primaryBtn} onPress={startNewGame}>
             <Text style={styles.primaryBtnText}>Draw a Prompt</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -97,7 +99,7 @@ export const HotTakesScreen: React.FC<HotTakesScreenProps> = ({ onBack }) => {
           <Text style={styles.title}>Hot Takes</Text>
           <View style={{ width: 40 }} />
         </View>
-        <ScrollView style={styles.content}>
+        <ScrollView style={styles.content} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}>
           <View style={styles.promptCard}>
             <Text style={styles.promptText}>"{session.promptText}"</Text>
           </View>
@@ -135,13 +137,13 @@ export const HotTakesScreen: React.FC<HotTakesScreenProps> = ({ onBack }) => {
           <Text style={styles.title}>Hot Takes</Text>
           <View style={{ width: 40 }} />
         </View>
-        <View style={styles.centerContent}>
+        <ScrollView contentContainerStyle={[styles.centerContent, { paddingBottom: 100 + insets.bottom }]} showsVerticalScrollIndicator={false}>
           <Text style={styles.instructions}>You rated {myRating}/10.</Text>
           <Text style={styles.instructions}>Waiting for partner to submit their blind rating...</Text>
           <TouchableOpacity style={styles.outlineBtn} onPress={resetGame}>
             <Text style={styles.outlineBtnText}>Cancel Game</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -160,7 +162,7 @@ export const HotTakesScreen: React.FC<HotTakesScreenProps> = ({ onBack }) => {
         <Text style={styles.title}>The Reveal</Text>
         <View style={{ width: 40 }} />
       </View>
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}>
         <View style={styles.promptCard}>
           <Text style={styles.promptText}>"{session.promptText}"</Text>
         </View>
@@ -197,8 +199,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   backBtn: { padding: spacing.sm },
   title: { ...typography.headlineMd, color: colors.onSurface },
-  content: { flex: 1, padding: spacing.lg },
-  centerContent: { flex: 1, padding: spacing.lg, justifyContent: 'center', alignItems: 'center' },
+  content: { flex: 1 },
+  scrollContent: { padding: spacing.lg, flexGrow: 1 },
+  centerContent: { flexGrow: 1, padding: spacing.lg, justifyContent: 'center', alignItems: 'center' },
   instructions: { ...typography.bodyLg, textAlign: 'center', marginBottom: spacing.xl, color: colors.onSurfaceVariant },
   promptCard: { backgroundColor: colors.surfaceContainer, padding: spacing.xl, borderRadius: radii.xl, marginBottom: spacing.xl, alignItems: 'center' },
   promptText: { ...typography.headlineMd, color: colors.onSurface, textAlign: 'center', fontStyle: 'italic' },

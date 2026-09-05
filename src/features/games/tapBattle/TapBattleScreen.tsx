@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Zap } from 'lucide-react-native';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
@@ -13,6 +14,7 @@ interface TapBattleScreenProps {
 const GAME_DURATION = 5;
 
 export const TapBattleScreen: React.FC<TapBattleScreenProps> = ({ onBack }) => {
+  const insets = useSafeAreaInsets();
   const { coupleId, myUid, partnerUid } = useCouple();
   const [phase, setPhase] = useState<'intro' | 'countdown' | 'playing' | 'result'>('intro');
   const [countdown, setCountdown] = useState(3);
@@ -101,7 +103,7 @@ export const TapBattleScreen: React.FC<TapBattleScreenProps> = ({ onBack }) => {
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.content}>
+      <View style={[styles.content, { paddingBottom: 80 + insets.bottom }]}>
         {phase === 'intro' && (
           <View style={styles.center}>
             <Zap size={64} color={colors.primary} style={{ marginBottom: 24 }} />

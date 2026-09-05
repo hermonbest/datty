@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, MessageSquare, Check, X } from 'lucide-react-native';
 import { doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
@@ -11,6 +12,7 @@ interface TwoTruthsScreenProps {
 }
 
 export const TwoTruthsScreen: React.FC<TwoTruthsScreenProps> = ({ onBack }) => {
+  const insets = useSafeAreaInsets();
   const { coupleId, myUid, partnerUid } = useCouple();
   const [session, setSession] = useState<any>(null);
   
@@ -72,7 +74,7 @@ export const TwoTruthsScreen: React.FC<TwoTruthsScreenProps> = ({ onBack }) => {
           <Text style={styles.title}>Two Truths, One Lie</Text>
           <View style={{ width: 40 }} />
         </View>
-        <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView style={styles.content} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]} keyboardShouldPersistTaps="handled">
           <Text style={styles.instructions}>Enter 3 statements. Select the one that is a lie.</Text>
           {[0,1,2].map(idx => (
             <View key={idx} style={[styles.inputRow, lieIndex === idx && styles.selectedRow]}>
@@ -114,13 +116,13 @@ export const TwoTruthsScreen: React.FC<TwoTruthsScreenProps> = ({ onBack }) => {
             <Text style={styles.title}>Two Truths, One Lie</Text>
             <View style={{ width: 40 }} />
           </View>
-          <View style={styles.centerContent}>
+          <ScrollView contentContainerStyle={[styles.centerContent, { paddingBottom: 100 + insets.bottom }]} showsVerticalScrollIndicator={false}>
             <MessageSquare size={64} color={colors.primary} style={{ marginBottom: 24 }} />
             <Text style={styles.instructions}>Waiting for your partner to guess...</Text>
             <TouchableOpacity style={styles.outlineBtn} onPress={resetGame}>
               <Text style={styles.outlineBtnText}>Cancel Game</Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </SafeAreaView>
       );
     } else {
@@ -132,7 +134,7 @@ export const TwoTruthsScreen: React.FC<TwoTruthsScreenProps> = ({ onBack }) => {
             <Text style={styles.title}>Two Truths, One Lie</Text>
             <View style={{ width: 40 }} />
           </View>
-          <ScrollView style={styles.content}>
+          <ScrollView style={styles.content} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}>
             <Text style={styles.instructions}>Your partner sent these. Which one is the lie?</Text>
             {session.statements.map((stmt: any, idx: number) => (
               <TouchableOpacity key={idx} style={styles.guessCard} onPress={() => makeGuess(idx)}>
@@ -156,7 +158,7 @@ export const TwoTruthsScreen: React.FC<TwoTruthsScreenProps> = ({ onBack }) => {
         <Text style={styles.title}>Results</Text>
         <View style={{ width: 40 }} />
       </View>
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}>
         <View style={styles.resultBanner}>
           <Text style={styles.resultBannerText}>
             {guessedCorrectly ? (isCreator ? "They guessed it! 🎯" : "You got it right! 🎯") : (isCreator ? "They got fooled! 🎭" : "You got fooled! 🎭")}
@@ -210,8 +212,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   backBtn: { padding: spacing.sm },
   title: { ...typography.headlineMd, color: colors.onSurface },
-  content: { flex: 1, padding: spacing.lg },
-  centerContent: { flex: 1, padding: spacing.lg, justifyContent: 'center', alignItems: 'center' },
+  content: { flex: 1 },
+  scrollContent: { padding: spacing.lg, flexGrow: 1 },
+  centerContent: { flexGrow: 1, padding: spacing.lg, justifyContent: 'center', alignItems: 'center' },
   instructions: { ...typography.bodyLg, textAlign: 'center', marginBottom: spacing.xl, color: colors.onSurfaceVariant },
   inputRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.md, backgroundColor: colors.surfaceContainer, borderRadius: radii.lg, padding: spacing.md },
   selectedRow: { borderColor: colors.primary, borderWidth: 1 },

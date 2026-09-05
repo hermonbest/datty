@@ -41,13 +41,19 @@ const MomentImage: React.FC<{ uri: string }> = ({ uri }) => {
   );
 };
 
-export const MomentsFeedScreen: React.FC = () => {
+export const MomentsFeedScreen: React.FC<{ route?: any }> = ({ route }) => {
   const { userProfile, partnerProfile, myUid } = useCouple();
   const { moments, loading, deleteMoment, refreshMoments } = useMoments();
   const [modalVisible, setModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const toast = useToast();
   const insets = useSafeAreaInsets();
+
+  React.useEffect(() => {
+    if (route?.params?.action === 'snap') {
+      setModalVisible(true);
+    }
+  }, [route?.params?.action]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

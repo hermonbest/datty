@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import {
   collection,
   doc,
@@ -82,6 +82,17 @@ export async function setupNotificationChannels(): Promise<void> {
  */
 export async function registerForPushNotificationsAsync(uid: string): Promise<string | null> {
   try {
+    const isExpoGo =
+      Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+      (Constants as any).appOwnership === 'expo';
+
+    if (isExpoGo && Platform.OS === 'android') {
+      console.info(
+        '[Notifications] Running in Expo Go on Android: remote push notifications require a development build (npx expo run:android). In-app notifications and local reminders remain active.'
+      );
+      return null;
+    }
+
     if (!Notifications.getPermissionsAsync || !Notifications.getExpoPushTokenAsync) {
       return null;
     }

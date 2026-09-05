@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
   Flame,
@@ -44,6 +45,7 @@ const CATEGORIES: { id: TruthOrDareCategory; label: string; icon: any; color: st
 ];
 
 export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, onShareToChat }) => {
+  const insets = useSafeAreaInsets();
   const {
     category,
     setCategory,
@@ -213,7 +215,10 @@ export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, on
         </View>
       )}
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Category Selector */}
         <View style={styles.categoryRow}>
           {CATEGORIES.map((cat) => {
@@ -615,6 +620,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
   },
   scrollContent: {
+    flexGrow: 1,
     padding: spacing.md,
     paddingBottom: spacing.xxl,
   },

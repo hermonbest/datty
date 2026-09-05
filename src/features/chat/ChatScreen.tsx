@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import {
   useAudioPlayer,
@@ -704,6 +705,7 @@ interface ChatScreenProps {
 }
 
 export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { userProfile, partnerProfile, myUid, coupleId, partnerUid } = useCouple();
   const { messages, loading, sending, sendMessage, toggleReaction } = useChat();
@@ -1075,12 +1077,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       {/* Datty Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === 'android' ? 6 : 0) }]}>
         <View style={styles.headerLeft}>
           <Avatar
             name={partnerProfile?.displayName || 'Partner'}
@@ -1124,6 +1126,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
           }}
           contentContainerStyle={styles.messagesList}
           renderItem={renderMessage}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         />
       )}
 
@@ -1179,7 +1183,14 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
 
       {/* Datty Message Composer Bar */}
       <View
-        style={[styles.composerWrapper, { paddingBottom: isKeyboardVisible ? 8 : 88 }]}
+        style={[
+          styles.composerWrapper,
+          {
+            paddingBottom: isKeyboardVisible
+              ? (Platform.OS === 'android' ? 8 : 6)
+              : (58 + insets.bottom),
+          },
+        ]}
         pointerEvents="box-none"
       >
         <View style={styles.composerContainer} pointerEvents="auto">
@@ -1621,7 +1632,7 @@ const styles = StyleSheet.create({
   },
   composerWrapper: {
     paddingHorizontal: spacing.marginMobile,
-    paddingTop: 24,
+    paddingTop: 8,
     paddingBottom: 8,
     backgroundColor: 'transparent',
   },

@@ -10,6 +10,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -330,8 +331,17 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
         </View>
       </View>
 
-      {/* Mode Switcher */}
-      <View style={styles.modeBar}>
+      <ScrollView
+        style={styles.scrollArea}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: gameStatus !== 'playing' ? 100 + insets.bottom : spacing.md },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Mode Switcher */}
+        <View style={styles.modeBar}>
         <TouchableOpacity
           style={[styles.modePill, mode === 'daily' && styles.modePillActive]}
           onPress={() => initGame('daily')}
@@ -445,47 +455,50 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
           </View>
         </View>
       )}
+      </ScrollView>
 
       {/* Virtual Keyboard */}
-      <View style={[styles.keyboardContainer, { paddingBottom: 76 + insets.bottom }]}>
-        {KEYBOARD_ROWS.map((row, rIdx) => (
-          <View key={rIdx} style={styles.keyboardRow}>
-            {row.map((key) => {
-              const isSpecial = key === 'ENTER' || key === 'BACK';
-              return (
-                <TouchableOpacity
-                  key={key}
-                  style={[
-                    styles.key,
-                    isSpecial && styles.specialKey,
-                    { backgroundColor: getKeyBg(key) },
-                    validating && styles.keyDisabled,
-                  ]}
-                  onPress={() => handleKeyPress(key)}
-                  activeOpacity={0.7}
-                  disabled={validating}
-                >
-                  {key === 'BACK' ? (
-                    <Delete size={18} color={getKeyTextColor(key)} />
-                  ) : key === 'ENTER' && validating ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.keyText,
-                        isSpecial && styles.specialKeyText,
-                        { color: getKeyTextColor(key) },
-                      ]}
-                    >
-                      {key}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        ))}
-      </View>
+      {gameStatus === 'playing' && (
+        <View style={[styles.keyboardContainer, { paddingBottom: 76 + insets.bottom }]}>
+          {KEYBOARD_ROWS.map((row, rIdx) => (
+            <View key={rIdx} style={styles.keyboardRow}>
+              {row.map((key) => {
+                const isSpecial = key === 'ENTER' || key === 'BACK';
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    style={[
+                      styles.key,
+                      isSpecial && styles.specialKey,
+                      { backgroundColor: getKeyBg(key) },
+                      validating && styles.keyDisabled,
+                    ]}
+                    onPress={() => handleKeyPress(key)}
+                    activeOpacity={0.7}
+                    disabled={validating}
+                  >
+                    {key === 'BACK' ? (
+                      <Delete size={18} color={getKeyTextColor(key)} />
+                    ) : key === 'ENTER' && validating ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.keyText,
+                          isSpecial && styles.specialKeyText,
+                          { color: getKeyTextColor(key) },
+                        ]}
+                      >
+                        {key}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Set Challenge Word Modal */}
       <Modal visible={customWordModalVisible} transparent animationType="fade">
@@ -535,6 +548,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollArea: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',

@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, BackHandler, Keyboard, Platform, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TouchableOpacity } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as Notifications from 'expo-notifications';
 import { useCouple } from '../services/coupleContext';
 import { usePasscode } from '../services/passcodeContext';
 import { PasscodeScreen } from '../features/passcode/PasscodeScreen';
 import { colors, radii, shadows, spacing, typography } from '../theme';
+import { navigationRef, resolveNotificationTarget, navigateFromNotification } from '../services/notificationNavigation';
 
 // Auth screens
 import { SignInScreen } from '../features/auth/SignInScreen';
@@ -39,7 +40,7 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 // Daily Question Stack (for History Screen navigation)
-function DailyQuestionStack({ navigation }: any) {
+function DailyQuestionStack({ navigation, route }: any) {
   const [showHistory, setShowHistory] = useState(false);
 
   if (showHistory) {
@@ -48,6 +49,7 @@ function DailyQuestionStack({ navigation }: any) {
 
   return (
     <DailyQuestionScreen
+      route={route}
       onOpenHistory={() => setShowHistory(true)}
       onOpenDecks={() => navigation.navigate('CardsTab')}
     />
@@ -64,9 +66,10 @@ function CardsStack({ navigation }: any) {
 }
 
 // Games Stack
-function GamesStack({ navigation }: any) {
+function GamesStack({ navigation, route }: any) {
   return (
     <GamesScreen
+      route={route}
       onNavigateToChat={(replyTo?: any) => navigation.navigate('ChatTab', { replyTo })}
     />
   );
@@ -75,6 +78,27 @@ function GamesStack({ navigation }: any) {
 // Custom Tab Bar replicating HTML design
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  if (keyboardVisible) {
+    return null;
+  }
+
   return (
     <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom }]}>
       {state.routes.map((route, index) => {
@@ -204,6 +228,50 @@ export const RootNavigator: React.FC = () => {
   const { user, isLinked, loading: coupleLoading } = useCouple();
   const { isConfigured, isLocked, loading: passcodeLoading } = usePasscode();
 
+  // Handle background / foreground notification taps
+  useEffect(() => {
+    if (!user) return;
+
+    let isMounted = true;
+
+    try {
+      if (Notifications.addNotificationResponseReceivedListener) {
+        const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+          const data = response?.notification?.request?.content?.data as Record<string, any> | undefined;
+          if (data) {
+            const target = resolveNotificationTarget({
+              type: data.type as any,
+              data,
+            });
+            navigateFromNotification(target.tabName, target.params);
+          }
+        });
+
+        // Handle initial notification tap that launched the app
+        if (typeof Notifications.getLastNotificationResponse === 'function') {
+          const response = Notifications.getLastNotificationResponse();
+          if (response && isMounted) {
+            const data = response?.notification?.request?.content?.data as Record<string, any> | undefined;
+            if (data) {
+              const target = resolveNotificationTarget({
+                type: data.type as any,
+                data,
+              });
+              navigateFromNotification(target.tabName, target.params);
+            }
+          }
+        }
+
+        return () => {
+          isMounted = false;
+          sub.remove();
+        };
+      }
+    } catch (e) {
+      // Platform doesn't support expo-notifications listeners
+    }
+  }, [user]);
+
   // 1. Splash loading state
   if (passcodeLoading || coupleLoading) {
     return (
@@ -237,7 +305,7 @@ export const RootNavigator: React.FC = () => {
   return (
     <View style={styles.lockedRoot}>
       <View style={styles.appLayer}>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
           {!isLinked ? <UnlinkedCoupleScreen /> : <MainTabs />}
         </NavigationContainer>
       </View>

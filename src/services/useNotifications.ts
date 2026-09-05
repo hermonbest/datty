@@ -72,17 +72,28 @@ export function useNotifications() {
     const q = query(
       notifsRef,
       where('recipientUid', '==', myUid),
-      orderBy('createdAt', 'desc'),
       limit(50)
     );
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const items: AppNotification[] = snapshot.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as Omit<AppNotification, 'id'>),
-        }));
+        const getMillis = (val: any): number => {
+          if (!val) return 0;
+          if (typeof val.toMillis === 'function') return val.toMillis();
+          if (typeof val.seconds === 'number') return val.seconds * 1000;
+          if (val instanceof Date) return val.getTime();
+          if (typeof val === 'number') return val;
+          return 0;
+        };
+
+        const items: AppNotification[] = snapshot.docs
+          .map((d) => ({
+            id: d.id,
+            ...(d.data() as Omit<AppNotification, 'id'>),
+          }))
+          .sort((a, b) => getMillis(b.createdAt) - getMillis(a.createdAt));
+
         setNotifications(items);
         setLoading(false);
       },
@@ -174,6 +185,13 @@ export function useNotifications() {
       // Update cooldown tracker
       setLastNudgeTimes((prev) => ({ ...prev, [type]: Date.now() }));
 
+      const nudgeData =
+        type === 'nudge_thinking_of_you'
+          ? { route: 'ChatTab' }
+          : type === 'nudge_write_note'
+          ? { route: 'NotesTab', tab: 'gratitude' }
+          : { route: 'MomentsTab', action: 'snap' };
+
       // Dispatch to partner
       await dispatchCoupleNotification({
         coupleId,
@@ -183,6 +201,7 @@ export function useNotifications() {
         type,
         category: 'app_nudge',
         partnerName: userProfile?.displayName || 'Your partner',
+        data: nudgeData,
         preferences: partnerProfile?.notificationPreferences,
       });
 

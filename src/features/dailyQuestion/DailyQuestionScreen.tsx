@@ -21,6 +21,7 @@ import { History, Heart } from 'lucide-react-native';
 interface DailyQuestionScreenProps {
   onOpenHistory?: () => void;
   onOpenDecks?: () => void;
+  route?: any;
 }
 
 export const DailyQuestionScreen: React.FC<DailyQuestionScreenProps> = ({
@@ -74,8 +75,12 @@ export const DailyQuestionScreen: React.FC<DailyQuestionScreenProps> = ({
     const textToSubmit = answerInput.trim();
     setAnswerInput('');
     try {
-      await submitAnswer(textToSubmit);
-      toast.success('Answer Submitted!', 'Waiting for your partner to reveal.');
+      const res = await submitAnswer(textToSubmit);
+      if (res?.revealed) {
+        toast.success('Answers Revealed! 🎉', 'See what your partner wrote!');
+      } else {
+        toast.success('Answer Submitted!', 'Waiting for your partner to reveal.');
+      }
     } catch (e) {
       setAnswerInput(textToSubmit);
       toast.error('Submission Failed', 'Please try submitting again.');

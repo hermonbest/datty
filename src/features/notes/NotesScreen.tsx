@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
-import { Avatar, Button, Card, EmptyState, useToast } from '../../components';
+import { Avatar } from '../../components/Avatar';
+import { Button } from '../../components/Button';
+import { Card } from '../../components/Card';
+import { EmptyState } from '../../components/EmptyState';
+import { useToast } from '../../components/Toast';
 import { useCouple } from '../../services/coupleContext';
 import { useNotifications } from '../../services/useNotifications';
 import { useNotes } from './useNotes';
@@ -47,12 +51,13 @@ import { CoupleNote, PartnerNote } from '../../types';
 
 interface NotesScreenProps {
   visible?: boolean;
+  initialTab?: TabKey;
   onClose?: () => void;
 }
 
 type TabKey = 'gratitude' | 'list' | 'partner';
 
-export const NotesScreen: React.FC<NotesScreenProps> = ({ visible = true, onClose }) => {
+export const NotesScreen: React.FC<NotesScreenProps> = ({ visible = true, initialTab = 'gratitude', onClose }) => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const { userProfile, partnerProfile } = useCouple();
@@ -89,7 +94,13 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ visible = true, onClos
     currentUid,
   } = useNotes();
 
-  const [activeTab, setActiveTab] = useState<TabKey>('gratitude');
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Gratitude compose state
   const [gratitudeInput, setGratitudeInput] = useState('');

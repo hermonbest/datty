@@ -11,12 +11,15 @@ if (!fs.existsSync(serviceAccountPath)) {
 
 const serviceAccount = require(serviceAccountPath);
 const projectId = serviceAccount.project_id;
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+const { syncTime } = require('./timeSync');
 
 async function getAccessToken() {
+  await syncTime();
+  if (admin.apps.length === 0) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  }
   const tokenObj = await admin.credential.cert(serviceAccount).getAccessToken();
   return tokenObj.access_token;
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Anchor } from 'lucide-react-native';
 import { doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
@@ -15,6 +16,7 @@ const TOTAL_CELLS = BOARD_SIZE * BOARD_SIZE;
 const REQUIRED_SHIPS = 5;
 
 export const SeaBattleScreen: React.FC<SeaBattleScreenProps> = ({ onBack }) => {
+  const insets = useSafeAreaInsets();
   const { coupleId, myUid, partnerUid } = useCouple();
   const [session, setSession] = useState<any>(null);
   
@@ -102,13 +104,13 @@ export const SeaBattleScreen: React.FC<SeaBattleScreenProps> = ({ onBack }) => {
           <Text style={styles.title}>Sea Battle</Text>
           <View style={{ width: 40 }} />
         </View>
-        <View style={styles.centerContent}>
+        <ScrollView contentContainerStyle={[styles.centerContent, { paddingBottom: 100 + insets.bottom }]} showsVerticalScrollIndicator={false}>
           <Anchor size={64} color={colors.primary} style={{ marginBottom: 24 }} />
           <Text style={styles.instructions}>Hide 5 ships on a 5x5 grid and take turns guessing your partner's ship locations.</Text>
           <TouchableOpacity style={styles.primaryBtn} onPress={startNewGame}>
             <Text style={styles.primaryBtnText}>Start Game</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -129,7 +131,7 @@ export const SeaBattleScreen: React.FC<SeaBattleScreenProps> = ({ onBack }) => {
           <Text style={styles.title}>Setup Fleet</Text>
           <View style={{ width: 40 }} />
         </View>
-        <View style={styles.centerContent}>
+        <ScrollView contentContainerStyle={[styles.centerContent, { paddingBottom: 100 + insets.bottom }]} showsVerticalScrollIndicator={false}>
           {!iHaveSetup ? (
             <>
               <Text style={styles.instructions}>Tap 5 squares to hide your ships ({mySetupShips.length}/{REQUIRED_SHIPS})</Text>
@@ -161,7 +163,7 @@ export const SeaBattleScreen: React.FC<SeaBattleScreenProps> = ({ onBack }) => {
               </TouchableOpacity>
             </>
           )}
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -176,7 +178,7 @@ export const SeaBattleScreen: React.FC<SeaBattleScreenProps> = ({ onBack }) => {
           <Text style={styles.title}>{isMyTurn ? "Your Turn" : "Partner's Turn"}</Text>
           <View style={{ width: 40 }} />
         </View>
-        <View style={styles.centerContent}>
+        <ScrollView contentContainerStyle={[styles.centerContent, { paddingBottom: 100 + insets.bottom }]} showsVerticalScrollIndicator={false}>
           <Text style={styles.label}>Enemy Waters</Text>
           <View style={styles.board}>
             {Array.from({length: TOTAL_CELLS}).map((_, i) => {
@@ -204,7 +206,7 @@ export const SeaBattleScreen: React.FC<SeaBattleScreenProps> = ({ onBack }) => {
           </View>
           <View style={{height: 24}} />
           <Text style={styles.label}>Your Waters (Hits taken: {partnerGuesses.filter((g:number) => myShips.includes(g)).length}/{REQUIRED_SHIPS})</Text>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -218,12 +220,12 @@ export const SeaBattleScreen: React.FC<SeaBattleScreenProps> = ({ onBack }) => {
         <Text style={styles.title}>Game Over</Text>
         <View style={{ width: 40 }} />
       </View>
-      <View style={styles.centerContent}>
+      <ScrollView contentContainerStyle={[styles.centerContent, { paddingBottom: 100 + insets.bottom }]} showsVerticalScrollIndicator={false}>
         <Text style={styles.resultBannerText}>{iWon ? "You sank their fleet! 🏆" : "Your fleet was sunk! ☠️"}</Text>
         <TouchableOpacity style={styles.primaryBtn} onPress={resetGame}>
           <Text style={styles.primaryBtnText}>Play Again</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -233,7 +235,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   backBtn: { padding: spacing.sm },
   title: { ...typography.headlineMd, color: colors.onSurface },
-  centerContent: { flex: 1, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
+  centerContent: { flexGrow: 1, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
   instructions: { ...typography.bodyLg, textAlign: 'center', marginBottom: spacing.xl, color: colors.onSurfaceVariant },
   label: { ...typography.bodyLg, color: colors.onSurfaceVariant, marginBottom: spacing.md },
   board: { width: 300, height: 300, flexDirection: 'row', flexWrap: 'wrap', backgroundColor: colors.surfaceContainerHigh, padding: 4, borderRadius: radii.md },

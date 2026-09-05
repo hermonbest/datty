@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import { doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
@@ -29,6 +30,7 @@ const getInitialBoard = () => {
 };
 
 export const CheckersScreen: React.FC<CheckersScreenProps> = ({ onBack }) => {
+  const insets = useSafeAreaInsets();
   const { coupleId, myUid, partnerUid } = useCouple();
   const [session, setSession] = useState<any>(null);
   
@@ -148,12 +150,12 @@ export const CheckersScreen: React.FC<CheckersScreenProps> = ({ onBack }) => {
           <Text style={styles.title}>Checkers</Text>
           <View style={{ width: 40 }} />
         </View>
-        <View style={styles.centerContent}>
+        <ScrollView contentContainerStyle={[styles.centerContent, { paddingBottom: 100 + insets.bottom }]} showsVerticalScrollIndicator={false}>
           <Text style={styles.instructions}>Play a classic game of Checkers.</Text>
           <TouchableOpacity style={styles.primaryBtn} onPress={startNewGame}>
             <Text style={styles.primaryBtnText}>Start Game</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -170,7 +172,7 @@ export const CheckersScreen: React.FC<CheckersScreenProps> = ({ onBack }) => {
         <View style={{ width: 40 }} />
       </View>
       
-      <View style={styles.centerContent}>
+      <ScrollView contentContainerStyle={[styles.centerContent, { paddingBottom: 100 + insets.bottom }]} showsVerticalScrollIndicator={false}>
         {session.winner ? (
           <View style={styles.banner}>
             <Text style={styles.bannerText}>{session.winner === myUid ? 'You Won! 🏆' : 'Partner Won! 😅'}</Text>
@@ -227,7 +229,7 @@ export const CheckersScreen: React.FC<CheckersScreenProps> = ({ onBack }) => {
         <TouchableOpacity style={styles.outlineBtn} onPress={resetGame}>
           <Text style={styles.outlineBtnText}>Reset Game</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -237,7 +239,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   backBtn: { padding: spacing.sm },
   title: { ...typography.headlineMd, color: colors.onSurface },
-  centerContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  centerContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
   instructions: { ...typography.bodyLg, textAlign: 'center', marginBottom: spacing.xl, color: colors.onSurfaceVariant },
   primaryBtn: { backgroundColor: colors.primary, paddingVertical: spacing.md, paddingHorizontal: spacing.xl, borderRadius: radii.full },
   primaryBtnText: { ...typography.labelMd, color: colors.onPrimary },

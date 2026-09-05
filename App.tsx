@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ToastProvider } from './src/components';
 import { CoupleProvider } from './src/services/coupleContext';
 import { PasscodeProvider } from './src/services/passcodeContext';
+import { NotesModalProvider } from './src/services/notesModalContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 export default function App() {
@@ -13,8 +14,10 @@ export default function App() {
       <ToastProvider>
         <PasscodeProvider>
           <CoupleProvider>
-            <StatusBar style="dark" />
-            <RootNavigator />
+            <NotesModalProvider>
+              <StatusBar style="dark" />
+              <RootNavigator />
+            </NotesModalProvider>
           </CoupleProvider>
         </PasscodeProvider>
       </ToastProvider>
