@@ -1241,7 +1241,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
           {
             paddingBottom: isKeyboardVisible
               ? (Platform.OS === 'android' ? 8 : 6)
-              : (58 + insets.bottom),
+              : (80 + insets.bottom),
           },
         ]}
         pointerEvents="box-none"

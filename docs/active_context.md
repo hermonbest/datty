@@ -71,6 +71,8 @@
   - `src/services/notificationNavigation.ts`: Added `setActiveGameId` / `getActiveGameId` to track active multiplayer game context globally.
   - `src/features/games/GamesScreen.tsx`: Syncs `activeGame` with `setActiveGameId` and automatically marks pending game notification (`game_${activeGame}_${myUid}`) as read on launch.
   - `src/navigation/RootNavigator.tsx`: Auto-marks incoming notifications as read in Firestore and suppresses toasts when the user is already on the target screen (active `ChatTab`, active game matching `activeGameId` in `GamesTab`, `MomentsTab`, or `TodayTab` daily question).
+- **Chat Input Bottom Navigation Spacing**:
+  - `src/features/chat/ChatScreen.tsx`: Adjusted `composerWrapper` bottom padding when the keyboard is closed from `(58 + insets.bottom)` to `(80 + insets.bottom)` to prevent the message composer pill from being overlapped or cut off by the floating bottom tab bar (`~64-70px + insets.bottom`).
 - **Verification**:
   - All 13 test suites passing (84/84 tests).
   - TypeScript check (`tsc --noEmit`) verified with 0 errors.
