@@ -10,3 +10,4 @@ export { ProfileSettingsModal } from './ProfileSettingsModal';
 export { TopAppBar } from './TopAppBar';
 export { NotificationCenterModal } from './NotificationCenterModal';
 export { NotificationSettingsModal } from './NotificationSettingsModal';
+export { CachedImage } from './CachedImage';

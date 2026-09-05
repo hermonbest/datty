@@ -22,6 +22,24 @@
   - All 11 test suites passing (69/69 tests).
   - Clean TypeScript check (`tsc --noEmit` exits with 0 errors).
 
+### Completed Work (Current Session - Systematic Caching System)
+- **Systematic Caching for Instant Responsiveness**:
+  - `src/services/cache.ts`: Created zero-dependency two-tier cache engine (Tier 1 synchronous in-memory `Map` for 0ms frame rendering + Tier 2 persistent `@react-native-async-storage/async-storage` for cold starts). Provides `getMemory`, `get`, `set`, `remove`, `clear`, and `clearMemory` with TTL support and typed `CacheKeys`.
+  - `src/services/imageCache.ts`: Created disk image cache utility using `expo-file-system/legacy` (`FileSystem.cacheDirectory + 'img_cache/'`) with zero-dependency deterministic DJB2 hashing (`hashUri`), background downloading (`downloadAsync`), and `useCachedImageUri` React hook.
+  - `src/components/CachedImage.tsx`: Created drop-in replacement for `<Image>` with disk caching and smooth fallback to remote URI.
+  - `src/services/coupleContext.tsx`: Hydrates `userProfile`, `couple`, and `partnerProfile` from disk cache on app launch, setting `loading = false` instantly to eliminate cold-start splash screen waiting. Empties cache on `signOut`.
+  - `src/features/notes/useNotes.ts`: Cached `coupleNotes` and `partnerNotes` for instant 0ms Notes modal opening without loading spinner.
+  - `src/features/moments/useMoments.ts`: Cached moments list for instant 0ms feed display on tab switch.
+  - `src/features/calendar/useEvents.ts`: Cached couple events list for instant calendar view.
+  - `src/features/chat/useChat.ts`: Cached recent messages for instant chat screen loading.
+  - `src/features/cards/useDeckAnswers.ts`: Cached deck answer entries and progress for instant card decks opening.
+  - `src/services/useNotifications.ts`: Cached notifications list for instant bell badge count and notification center opening.
+  - `src/components/Avatar.tsx` & `MomentsFeedScreen.tsx` & `ChatScreen.tsx`: Updated avatars, moment photos, and chat photo bubbles to use `CachedImage` for local disk caching.
+  - `tests/cache.test.ts`: Added comprehensive unit tests covering memory hit/miss, AsyncStorage fallback, TTL expiration, prefix clearing, corrupt JSON handling, and image URI hashing.
+- **Verification**:
+  - All 13 test suites passing (82/82 tests).
+  - Clean TypeScript check (`tsc --noEmit` exits with 0 errors).
+
 ### Immediate Next Steps
 - Sideload/build APK with EAS or test in Expo Go / dev client.
 - Test notification tap on device to verify seamless screen routing.

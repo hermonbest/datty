@@ -27,12 +27,18 @@ import {
   dispatchCoupleNotification,
 } from './notificationService';
 import { isNudgeThrottled, NUDGE_COOLDOWNS } from './notificationLogic';
+import { cache, CacheKeys } from './cache';
 
 export function useNotifications() {
   const { coupleId, myUid, partnerUid, userProfile, partnerProfile } = useCouple();
 
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => {
+    return myUid ? cache.getMemory<AppNotification[]>(CacheKeys.notifications(myUid)) || [] : [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (!myUid) return false;
+    return cache.getMemory(CacheKeys.notifications(myUid)) === null;
+  });
   const [preferences, setPreferences] = useState<NotificationPreferences>(
     userProfile?.notificationPreferences || DEFAULT_NOTIFICATION_PREFERENCES
   );
@@ -68,6 +74,15 @@ export function useNotifications() {
       return;
     }
 
+    if (notifications.length === 0) {
+      cache.get<AppNotification[]>(CacheKeys.notifications(myUid)).then((cached) => {
+        if (cached && cached.length > 0) {
+          setNotifications(cached);
+          setLoading(false);
+        }
+      });
+    }
+
     const notifsRef = collection(db, 'couples', coupleId, 'notifications');
     const q = query(
       notifsRef,
@@ -95,6 +110,7 @@ export function useNotifications() {
           .sort((a, b) => getMillis(b.createdAt) - getMillis(a.createdAt));
 
         setNotifications(items);
+        cache.set(CacheKeys.notifications(myUid), items);
         setLoading(false);
       },
       (err) => {

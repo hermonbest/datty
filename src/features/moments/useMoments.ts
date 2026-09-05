@@ -16,13 +16,19 @@ import { uploadFileToCloudinary, getFileSizeBytes } from '../../services/fileToB
 import { useCouple } from '../../services/coupleContext';
 import { dispatchCoupleNotification } from '../../services/notificationService';
 import { Moment } from '../../types';
+import { cache, CacheKeys } from '../../services/cache';
 
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // mirrors storage.rules cap
 
 export const useMoments = () => {
   const { coupleId, myUid, partnerUid, userProfile, partnerProfile } = useCouple();
-  const [moments, setMoments] = useState<Moment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [moments, setMoments] = useState<Moment[]>(() => {
+    return coupleId ? cache.getMemory<Moment[]>(CacheKeys.moments(coupleId)) || [] : [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (!coupleId) return false;
+    return cache.getMemory(CacheKeys.moments(coupleId)) === null;
+  });
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +40,15 @@ export const useMoments = () => {
       return;
     }
 
-    setLoading(true);
+    if (moments.length === 0) {
+      cache.get<Moment[]>(CacheKeys.moments(coupleId)).then((cached) => {
+        if (cached && cached.length > 0) {
+          setMoments(cached);
+          setLoading(false);
+        }
+      });
+    }
+
     const momentsCol = collection(db, 'couples', coupleId, 'moments');
     const q = query(momentsCol, orderBy('createdAt', 'desc'), limit(50));
 
@@ -52,6 +66,7 @@ export const useMoments = () => {
           };
         });
         setMoments(items);
+        cache.set(CacheKeys.moments(coupleId), items);
         setLoading(false);
       },
       (err) => {

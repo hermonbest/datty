@@ -14,7 +14,7 @@ import {
 import { format } from 'date-fns';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
-import { EmptyState, CardSkeleton, useToast } from '../../components';
+import { EmptyState, CardSkeleton, useToast, CachedImage } from '../../components';
 import { TopAppBar } from '../../components/TopAppBar';
 import { useCouple } from '../../services/coupleContext';
 import { useMoments } from './useMoments';
@@ -31,7 +31,7 @@ const MomentImage: React.FC<{ uri: string }> = ({ uri }) => {
           <ActivityIndicator size="small" color={colors.primary} />
         </View>
       )}
-      <Image
+      <CachedImage
         source={{ uri }}
         style={styles.momentImage}
         resizeMode="cover"

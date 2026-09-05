@@ -15,7 +15,7 @@ import { uploadFileToCloudinary, getFileSizeBytes } from '../../services/fileToB
 import { useCouple } from '../../services/coupleContext';
 import { dispatchCoupleNotification } from '../../services/notificationService';
 import { ChatMessage, ChatReplyReference, MediaState } from '../../types';
-
+import { cache, CacheKeys } from '../../services/cache';
 
 // Keep the last N messages live; older ones can be lazily loaded later if needed.
 const MESSAGE_LIMIT = 150;
@@ -37,8 +37,13 @@ const toMillis = (t: any): number => {
 // then the node is patched with the storage URL.
 export const useChat = () => {
   const { coupleId, myUid, partnerUid, userProfile, partnerProfile } = useCouple();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    return coupleId ? cache.getMemory<ChatMessage[]>(CacheKeys.chat(coupleId)) || [] : [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (!coupleId) return false;
+    return cache.getMemory(CacheKeys.chat(coupleId)) === null;
+  });
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,7 +57,15 @@ export const useChat = () => {
       return;
     }
 
-    setLoading(true);
+    if (messages.length === 0) {
+      cache.get<ChatMessage[]>(CacheKeys.chat(coupleId)).then((cached) => {
+        if (cached && cached.length > 0) {
+          setMessages(cached);
+          setLoading(false);
+        }
+      });
+    }
+
     const chatRef = dbRef(rtdb, chatPath);
     const q = query(chatRef, orderByKey(), limitToLast(MESSAGE_LIMIT));
 
@@ -78,6 +91,8 @@ export const useChat = () => {
         });
         // Newest first
         items.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
+
+        cache.set(CacheKeys.chat(coupleId), items);
 
         // Merge with pending optimistic messages not yet in snapshot
         setMessages((current) => {

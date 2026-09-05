@@ -32,7 +32,7 @@ import {
   type AudioPlayer,
 } from 'expo-audio';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
-import { Avatar, Skeleton, EmptyState, useToast } from '../../components';
+import { Avatar, Skeleton, EmptyState, useToast, CachedImage } from '../../components';
 import { useCouple } from '../../services/coupleContext';
 import { usePasscode } from '../../services/passcodeContext';
 import { usePresence } from '../../services/usePresence';
@@ -281,7 +281,7 @@ const ChatImage: React.FC<ChatImageProps> = ({ uri, onPress }) => {
         { width: dimensions.width, height: dimensions.height },
       ]}
     >
-      <Image
+      <CachedImage
         source={{ uri }}
         style={[styles.bubbleImage, { width: dimensions.width, height: dimensions.height }]}
         resizeMode="cover"

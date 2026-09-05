@@ -3,6 +3,15 @@ import { User, onAuthStateChanged, signOut as fbSignOut } from 'firebase/auth';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { Couple, UserProfile } from '../types';
+import { cache, CacheKeys } from './cache';
+
+interface CachedCoupleState {
+  userProfile: UserProfile | null;
+  partnerProfile: UserProfile | null;
+  couple: Couple | null;
+  coupleId: string | null;
+  partnerUid: string | null;
+}
 
 export interface CoupleContextValue {
   user: User | null;
@@ -48,6 +57,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const handleSignOut = useCallback(async () => {
     try {
       await fbSignOut(auth);
+      await cache.clear();
       setUser(null);
       setUserProfile(null);
       setPartnerProfile(null);
@@ -59,21 +69,33 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, []);
 
-  // Fetch partner profile
-  const fetchPartnerProfile = useCallback(async (pUid: string) => {
+  // Fetch partner profile with caching
+  const fetchPartnerProfile = useCallback(async (pUid: string, cUid?: string) => {
     try {
+      const cached = cache.getMemory<UserProfile>(CacheKeys.partnerProfile(pUid));
+      if (cached) {
+        setPartnerProfile(cached);
+      }
       const partnerDocRef = doc(db, 'users', pUid);
       const snap = await getDoc(partnerDocRef);
       if (snap.exists()) {
         const data = snap.data();
-        setPartnerProfile({
+        const prof: UserProfile = {
           uid: pUid,
           displayName: data.displayName || 'Partner',
           email: data.email || '',
           photoURL: data.photoURL || null,
           coupleId: data.coupleId || null,
           createdAt: data.createdAt,
-        });
+        };
+        setPartnerProfile(prof);
+        cache.set(CacheKeys.partnerProfile(pUid), prof);
+        if (cUid) {
+          const current = cache.getMemory<CachedCoupleState>(CacheKeys.couple(cUid));
+          if (current) {
+            cache.set(CacheKeys.couple(cUid), { ...current, partnerProfile: prof });
+          }
+        }
       }
     } catch (err: any) {
       console.log('[CoupleContext] Partner profile read:', err?.message);
@@ -107,7 +129,18 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
 
-      setLoading(true);
+      // Check for cached couple state for 0ms cold start
+      const cached = await cache.get<CachedCoupleState>(CacheKeys.couple(currentUser.uid));
+      if (cached) {
+        setUserProfile(cached.userProfile);
+        setPartnerProfile(cached.partnerProfile);
+        setCouple(cached.couple);
+        setCoupleId(cached.coupleId);
+        setPartnerUid(cached.partnerUid);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
       setError(null);
 
       // Listen to users/{myUid}
@@ -117,14 +150,15 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         async (userSnap) => {
           if (!userSnap.exists()) {
             // User doc doesn't exist yet, wait for creation or signup
-            setUserProfile({
+            const fallbackProfile: UserProfile = {
               uid: currentUser.uid,
               displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'You',
               email: currentUser.email || '',
               photoURL: currentUser.photoURL || null,
               coupleId: null,
               createdAt: new Date(),
-            });
+            };
+            setUserProfile(fallbackProfile);
             setCoupleId(null);
             setLoading(false);
             return;
@@ -133,15 +167,16 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const userData = userSnap.data();
           const currentCoupleId = userData.coupleId || null;
 
-          setUserProfile({
+          const updatedProfile: UserProfile = {
             uid: currentUser.uid,
             displayName: userData.displayName || currentUser.displayName || currentUser.email?.split('@')[0] || 'You',
             email: userData.email || currentUser.email || '',
             photoURL: userData.photoURL || currentUser.photoURL || null,
             coupleId: currentCoupleId,
             createdAt: userData.createdAt,
-          });
+          };
 
+          setUserProfile(updatedProfile);
           setCoupleId(currentCoupleId);
 
           if (!currentCoupleId) {
@@ -153,6 +188,13 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setPartnerUid(null);
             setPartnerProfile(null);
             setLoading(false);
+            cache.set(CacheKeys.couple(currentUser.uid), {
+              userProfile: updatedProfile,
+              partnerProfile: null,
+              couple: null,
+              coupleId: null,
+              partnerUid: null,
+            });
             return;
           }
 
@@ -171,16 +213,28 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 const members = (cData.memberUids || []) as [string, string];
                 const pUid = members.find((uid) => uid !== currentUser.uid) || null;
 
-                setCouple({
+                const loadedCouple: Couple = {
                   id: coupleSnap.id,
                   memberUids: members,
                   createdAt: cData.createdAt,
                   timezone: cData.timezone || 'UTC',
-                });
+                };
+
+                setCouple(loadedCouple);
                 setPartnerUid(pUid);
 
+                // Persist combined couple state to cache
+                const currentCache = cache.getMemory<CachedCoupleState>(CacheKeys.couple(currentUser.uid));
+                cache.set(CacheKeys.couple(currentUser.uid), {
+                  userProfile: updatedProfile,
+                  partnerProfile: currentCache?.partnerProfile || null,
+                  couple: loadedCouple,
+                  coupleId: currentCoupleId,
+                  partnerUid: pUid,
+                });
+
                 if (pUid) {
-                  fetchPartnerProfile(pUid);
+                  fetchPartnerProfile(pUid, currentUser.uid);
                 }
               }
               setLoading(false);

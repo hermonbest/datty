@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useCouple } from '../../services/coupleContext';
+import { cache, CacheKeys } from '../../services/cache';
 
 export interface CardReply {
   id: string;
@@ -43,6 +44,11 @@ export interface DeckProgressState {
   completedByPartner: boolean;
 }
 
+interface CachedDeckState {
+  answersMap: Record<number, CardAnswerEntry>;
+  deckProgress: DeckProgressState;
+}
+
 export const useDeckAnswers = (
   deckId: string,
   deckTitle: string,
@@ -50,16 +56,22 @@ export const useDeckAnswers = (
   totalQuestions: number = 25
 ) => {
   const { coupleId, myUid, partnerUid } = useCouple();
-  const [answersMap, setAnswersMap] = useState<Record<number, CardAnswerEntry>>({});
-  const [deckProgress, setDeckProgress] = useState<DeckProgressState>({
-    myCount: 0,
-    partnerCount: 0,
-    totalQuestions,
-    isDeckRevealed: false,
-    completedByMy: false,
-    completedByPartner: false,
+  const initialCache = coupleId && deckId ? cache.getMemory<CachedDeckState>(CacheKeys.deck(coupleId, deckId)) : null;
+
+  const [answersMap, setAnswersMap] = useState<Record<number, CardAnswerEntry>>(
+    () => initialCache?.answersMap || {}
+  );
+  const [deckProgress, setDeckProgress] = useState<DeckProgressState>(() => {
+    return initialCache?.deckProgress || {
+      myCount: 0,
+      partnerCount: 0,
+      totalQuestions,
+      isDeckRevealed: false,
+      completedByMy: false,
+      completedByPartner: false,
+    };
   });
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(() => !initialCache);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [sendingReply, setSendingReply] = useState<boolean>(false);
 
@@ -70,7 +82,16 @@ export const useDeckAnswers = (
       return;
     }
 
-    setLoading(true);
+    if (!initialCache) {
+      cache.get<CachedDeckState>(CacheKeys.deck(coupleId, deckId)).then((cached) => {
+        if (cached) {
+          setAnswersMap(cached.answersMap);
+          setDeckProgress(cached.deckProgress);
+          setLoading(false);
+        }
+      });
+    }
+
     const answersCol = collection(db, 'couples', coupleId, 'deckAnswers');
     const q = query(answersCol, where('deckId', '==', deckId));
 
@@ -126,13 +147,19 @@ export const useDeckAnswers = (
         const completedByPartner = partnerCount >= totalQuestions;
         const isDeckRevealed = Boolean(completedByMy && completedByPartner);
 
-        setDeckProgress({
+        const newProgress: DeckProgressState = {
           myCount,
           partnerCount,
           totalQuestions,
           isDeckRevealed,
           completedByMy,
           completedByPartner,
+        };
+
+        setDeckProgress(newProgress);
+        cache.set(CacheKeys.deck(coupleId, deckId), {
+          answersMap: newMap,
+          deckProgress: newProgress,
         });
 
         setLoading(false);

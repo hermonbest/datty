@@ -12,11 +12,17 @@ import { db } from '../../services/firebase';
 import { useCouple } from '../../services/coupleContext';
 import { CoupleEvent } from '../../types';
 import { sortEventsByNextOccurrence } from './eventUtils';
+import { cache, CacheKeys } from '../../services/cache';
 
 export const useEvents = () => {
   const { coupleId } = useCouple();
-  const [events, setEvents] = useState<CoupleEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<CoupleEvent[]>(() => {
+    return coupleId ? cache.getMemory<CoupleEvent[]>(CacheKeys.events(coupleId)) || [] : [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (!coupleId) return false;
+    return cache.getMemory(CacheKeys.events(coupleId)) === null;
+  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,7 +31,15 @@ export const useEvents = () => {
       return;
     }
 
-    setLoading(true);
+    if (events.length === 0) {
+      cache.get<CoupleEvent[]>(CacheKeys.events(coupleId)).then((cached) => {
+        if (cached && cached.length > 0) {
+          setEvents(cached);
+          setLoading(false);
+        }
+      });
+    }
+
     const eventsCol = collection(db, 'couples', coupleId, 'events');
 
     const unsubscribe = onSnapshot(
@@ -45,6 +59,7 @@ export const useEvents = () => {
 
         const sorted = sortEventsByNextOccurrence(items);
         setEvents(sorted);
+        cache.set(CacheKeys.events(coupleId), sorted);
         setLoading(false);
       },
       (err) => {

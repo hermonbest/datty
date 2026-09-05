@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { colors, radii, shadows, typography } from '../theme';
+import { CachedImage } from './CachedImage';
 
 interface AvatarProps {
   name?: string;
@@ -58,7 +59,7 @@ export const Avatar: React.FC<AvatarProps> = ({
       ]}
     >
       {photoURL ? (
-        <Image
+        <CachedImage
           source={{ uri: photoURL }}
           style={{
             width: sizePixels,

@@ -14,6 +14,7 @@ import { db } from '../../services/firebase';
 import { useCouple } from '../../services/coupleContext';
 import { dispatchCoupleNotification } from '../../services/notificationService';
 import { CoupleNote, PartnerNote } from '../../types';
+import { cache, CacheKeys } from '../../services/cache';
 import {
   filterCoupleNotesByType,
   sortGratitudeNotes,
@@ -24,9 +25,16 @@ import {
 
 export const useNotes = () => {
   const { coupleId, user, userProfile, partnerUid, partnerProfile } = useCouple();
-  const [coupleNotes, setCoupleNotes] = useState<CoupleNote[]>([]);
-  const [partnerNotes, setPartnerNotes] = useState<PartnerNote[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [coupleNotes, setCoupleNotes] = useState<CoupleNote[]>(() => {
+    return coupleId ? cache.getMemory<CoupleNote[]>(CacheKeys.notes(coupleId)) || [] : [];
+  });
+  const [partnerNotes, setPartnerNotes] = useState<PartnerNote[]>(() => {
+    return user?.uid ? cache.getMemory<PartnerNote[]>(CacheKeys.partnerNotes(user.uid)) || [] : [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (!coupleId) return false;
+    return cache.getMemory(CacheKeys.notes(coupleId)) === null;
+  });
   const [error, setError] = useState<string | null>(null);
 
   // 1. Listen to shared couple notes (/couples/{coupleId}/notes)
@@ -37,7 +45,16 @@ export const useNotes = () => {
       return;
     }
 
-    setLoading(true);
+    // Attempt async persistent cache read if memory was empty
+    if (coupleNotes.length === 0) {
+      cache.get<CoupleNote[]>(CacheKeys.notes(coupleId)).then((cached) => {
+        if (cached && cached.length > 0) {
+          setCoupleNotes(cached);
+          setLoading(false);
+        }
+      });
+    }
+
     const notesCol = collection(db, 'couples', coupleId, 'notes');
 
     const unsubscribe = onSnapshot(
@@ -56,6 +73,7 @@ export const useNotes = () => {
           };
         });
         setCoupleNotes(items);
+        cache.set(CacheKeys.notes(coupleId), items);
         setLoading(false);
       },
       (err) => {
@@ -75,6 +93,15 @@ export const useNotes = () => {
       return;
     }
 
+    // Attempt async persistent cache read if memory was empty
+    if (partnerNotes.length === 0) {
+      cache.get<PartnerNote[]>(CacheKeys.partnerNotes(user.uid)).then((cached) => {
+        if (cached && cached.length > 0) {
+          setPartnerNotes(cached);
+        }
+      });
+    }
+
     const partnerNotesCol = collection(db, 'users', user.uid, 'partnerNotes');
 
     const unsubscribe = onSnapshot(
@@ -92,6 +119,7 @@ export const useNotes = () => {
           };
         });
         setPartnerNotes(items);
+        cache.set(CacheKeys.partnerNotes(user.uid), items);
       },
       (err) => {
         console.warn('[useNotes] Partner notes snapshot error:', err);
