@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { useCouple } from '../../../services/coupleContext';
+import { notifyGameTurn } from '../../../services/notificationService';
 import {
   ChessBoard,
   ChessPiece,
@@ -251,6 +252,18 @@ export function useChessGame(): UseChessGameReturn {
           updateDoc(gameDocRef, payload)
             .then(() => {
               syncTimer.stop({ success: true });
+              if (partnerProfile?.uid && !newWinner) {
+                notifyGameTurn({
+                  coupleId,
+                  senderUid: myUid as string,
+                  recipientUid: partnerProfile.uid,
+                  partnerName: userProfile?.displayName || 'Partner',
+                  gameId: 'chess',
+                  gameName: 'Chess',
+                  recipientPushToken: partnerProfile?.expoPushToken,
+                  preferences: partnerProfile?.notificationPreferences,
+                }).catch(() => {});
+              }
             })
             .catch((err) => {
               syncTimer.stop({ success: false, error: err?.message });

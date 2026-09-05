@@ -5,8 +5,11 @@ import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/b
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Notifications from 'expo-notifications';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../services/firebase';
 import { useCouple } from '../services/coupleContext';
 import { usePasscode } from '../services/passcodeContext';
+import { useToast } from '../components';
 import { PasscodeScreen } from '../features/passcode/PasscodeScreen';
 import { colors, radii, shadows, spacing, typography } from '../theme';
 import { navigationRef, resolveNotificationTarget, navigateFromNotification } from '../services/notificationNavigation';
@@ -225,8 +228,53 @@ function LockOverlay() {
 
 // Root Navigator
 export const RootNavigator: React.FC = () => {
-  const { user, isLinked, loading: coupleLoading } = useCouple();
+  const { user, coupleId, myUid, isLinked, loading: coupleLoading } = useCouple();
   const { isConfigured, isLocked, loading: passcodeLoading } = usePasscode();
+  const toast = useToast();
+
+  // Listen for real-time couple notifications directed at this user
+  useEffect(() => {
+    if (!user || !coupleId || !myUid) return;
+
+    let isInitialLoad = true;
+    const notifsRef = collection(db, 'couples', coupleId, 'notifications');
+    const q = query(notifsRef, where('recipientUid', '==', myUid));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        // Prevent spamming toasts for existing unread notifications on cold app mount
+        if (isInitialLoad) {
+          isInitialLoad = false;
+          return;
+        }
+
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' || change.type === 'modified') {
+            const data = change.doc.data();
+            if (data && data.read === false && data.senderUid !== myUid) {
+              const target = resolveNotificationTarget({
+                type: data.type as any,
+                data: data.data,
+              });
+
+              // In-app interactive toast banner on top of screen
+              toast.info(data.title || 'Us', data.body, () => {
+                navigateFromNotification(target.tabName, target.params);
+              });
+            }
+          }
+        });
+      },
+      (err) => {
+        console.warn('[RootNavigator] Notifications snapshot listener error:', err);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user, coupleId, myUid, toast]);
 
   // Handle background / foreground notification taps
   useEffect(() => {

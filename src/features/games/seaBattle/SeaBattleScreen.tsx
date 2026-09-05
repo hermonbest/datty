@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Anchor } from 'lucide-react-native';
-import { doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, deleteDoc, runTransaction } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { useCouple } from '../../../services/coupleContext';
+import { notifyGameTurn } from '../../../services/notificationService';
 import { colors, radii, spacing, typography } from '../../../theme';
 
 interface SeaBattleScreenProps {
@@ -17,7 +18,7 @@ const REQUIRED_SHIPS = 5;
 
 export const SeaBattleScreen: React.FC<SeaBattleScreenProps> = ({ onBack }) => {
   const insets = useSafeAreaInsets();
-  const { coupleId, myUid, partnerUid } = useCouple();
+  const { coupleId, myUid, partnerUid, userProfile, partnerProfile } = useCouple();
   const [session, setSession] = useState<any>(null);
   
   // Local setup state
@@ -27,10 +28,33 @@ export const SeaBattleScreen: React.FC<SeaBattleScreenProps> = ({ onBack }) => {
 
   useEffect(() => {
     if (!docRef) return;
+    console.log('[SeaBattle] subscribing to', docRef.path);
     const unsub = onSnapshot(docRef, (snap) => {
       if (snap.exists()) {
-        setSession(snap.data());
+        const data = snap.data();
+        console.log('[SeaBattle] snapshot:', JSON.stringify({
+          status: data.status,
+          turn: data.turn,
+          p1Ships: (data.p1Ships || []).length,
+          p2Ships: (data.p2Ships || []).length,
+          p1Guesses: (data.p1Guesses || []).length,
+          p2Guesses: (data.p2Guesses || []).length,
+          winner: data.winner || null,
+          myUid,
+        }));
+        setSession(data);
+        // Safety net: if both fleets are ready but the game is stuck in 'setup'
+        // (e.g. a stale snapshot missed the partner's ships), move to 'playing'.
+        const p1Ready = data.p1Ships && data.p1Ships.length === REQUIRED_SHIPS;
+        const p2Ready = data.p2Ships && data.p2Ships.length === REQUIRED_SHIPS;
+        if (data.status === 'setup' && p1Ready && p2Ready) {
+          console.log('[SeaBattle] auto-start -> playing');
+          setDoc(docRef, { status: 'playing' }, { merge: true }).catch((e) =>
+            console.warn('[SeaBattle] auto-start failed:', e)
+          );
+        }
       } else {
+        console.log('[SeaBattle] snapshot: no session doc');
         setSession(null);
       }
     }, (err) => {
@@ -40,6 +64,7 @@ export const SeaBattleScreen: React.FC<SeaBattleScreenProps> = ({ onBack }) => {
   }, [coupleId]);
 
   const startNewGame = async () => {
+    console.log('[SeaBattle] startNewGame tapped, docRef=', docRef?.path, 'myUid=', myUid);
     if (!docRef) return;
     await setDoc(docRef, {
       player1Uid: myUid,
@@ -50,49 +75,102 @@ export const SeaBattleScreen: React.FC<SeaBattleScreenProps> = ({ onBack }) => {
       p1Guesses: [],
       p2Guesses: [],
       turn: myUid
-    });
+    }).then(() => console.log('[SeaBattle] startNewGame written'))
+      .catch((e) => console.warn('[SeaBattle] startNewGame failed:', e));
     setMySetupShips([]);
   };
 
   const submitSetup = async () => {
+    console.log('[SeaBattle] submitSetup tapped, mySetupShips=', JSON.stringify(mySetupShips));
     if (!docRef || !myUid) return;
-    const isP1 = session.player1Uid === myUid;
-    const update: any = isP1 ? { p1Ships: mySetupShips } : { p2Ships: mySetupShips };
-    
-    // Check if partner also setup, then move to playing
-    const partnerShips = isP1 ? session.p2Ships : session.p1Ships;
-    if (partnerShips && partnerShips.length === REQUIRED_SHIPS) {
-      update.status = 'playing';
-    }
-    
-    await setDoc(docRef, update, { merge: true });
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(docRef);
+      if (!snap.exists()) { console.log('[SeaBattle] submitSetup: doc missing'); return; }
+      const data = snap.data();
+      const isP1 = data.player1Uid === myUid;
+      console.log('[SeaBattle] submitSetup: isP1=', isP1, 'status=', data.status, 'partnerShips=', (isP1 ? data.p2Ships : data.p1Ships)?.length);
+      const update: any = isP1 ? { p1Ships: mySetupShips } : { p2Ships: mySetupShips };
+
+      // Check if partner also setup, then move to playing (fresh read avoids stale snapshot)
+      const partnerShips = isP1 ? data.p2Ships : data.p1Ships;
+      if (data.status === 'setup' && partnerShips && partnerShips.length === REQUIRED_SHIPS) {
+        update.status = 'playing';
+        console.log('[SeaBattle] submitSetup: moving to playing');
+      }
+
+      tx.set(docRef, update, { merge: true });
+    }).then(() => {
+      console.log('[SeaBattle] submitSetup done');
+      if (coupleId && myUid && partnerUid) {
+        notifyGameTurn({
+          coupleId,
+          senderUid: myUid,
+          recipientUid: partnerUid,
+          partnerName: userProfile?.displayName || 'Partner',
+          gameId: 'sea_battle',
+          gameName: 'Sea Battle',
+          recipientPushToken: partnerProfile?.expoPushToken,
+          preferences: partnerProfile?.notificationPreferences,
+        }).catch(() => {});
+      }
+    })
+      .catch((err) => console.warn('[SeaBattle] submitSetup failed:', err));
   };
 
   const makeGuess = async (index: number) => {
-    if (!docRef || !myUid || session.turn !== myUid || session.status !== 'playing') return;
-    
-    const isP1 = session.player1Uid === myUid;
-    const myGuesses = isP1 ? session.p1Guesses || [] : session.p2Guesses || [];
-    if (myGuesses.includes(index)) return; // already guessed
-    
-    const newGuesses = [...myGuesses, index];
-    const update: any = isP1 ? { p1Guesses: newGuesses } : { p2Guesses: newGuesses };
-    
-    // Check win
-    const partnerShips = isP1 ? session.p2Ships : session.p1Ships;
-    const hits = newGuesses.filter(g => partnerShips.includes(g)).length;
-    
-    if (hits === REQUIRED_SHIPS) {
-      update.status = 'gameOver';
-      update.winner = myUid;
-    } else {
-      update.turn = partnerUid; // pass turn
-    }
-    
-    await setDoc(docRef, update, { merge: true });
+    console.log('[SeaBattle] makeGuess tapped, index=', index, 'turn=', session?.turn, 'status=', session?.status, 'myUid=', myUid);
+    if (!docRef || !myUid) return;
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(docRef);
+      if (!snap.exists()) { console.log('[SeaBattle] makeGuess: doc missing'); return; }
+      const data = snap.data();
+      if (data.status !== 'playing' || data.turn !== myUid) {
+        console.log('[SeaBattle] makeGuess: blocked, status=', data.status, 'turn=', data.turn, 'myUid=', myUid);
+        return;
+      }
+
+      const isP1 = data.player1Uid === myUid;
+      const partnerUid = isP1 ? data.player2Uid : data.player1Uid;
+      const myGuesses = isP1 ? data.p1Guesses || [] : data.p2Guesses || [];
+      if (myGuesses.includes(index)) { console.log('[SeaBattle] makeGuess: already guessed', index); return; } // already guessed
+
+      const newGuesses = [...myGuesses, index];
+      const update: any = isP1 ? { p1Guesses: newGuesses } : { p2Guesses: newGuesses };
+
+      // Check win
+      const partnerShips = isP1 ? data.p2Ships : data.p1Ships;
+      const hits = newGuesses.filter(g => partnerShips.includes(g)).length;
+      console.log('[SeaBattle] makeGuess: index=', index, 'hits=', hits, 'partnerShips=', JSON.stringify(partnerShips));
+
+      if (hits === REQUIRED_SHIPS) {
+        update.status = 'gameOver';
+        update.winner = myUid;
+        console.log('[SeaBattle] makeGuess: WIN!');
+      } else {
+        update.turn = partnerUid; // pass turn
+      }
+
+      tx.set(docRef, update, { merge: true });
+    }).then(() => {
+      console.log('[SeaBattle] makeGuess done');
+      if (coupleId && myUid && partnerUid) {
+        notifyGameTurn({
+          coupleId,
+          senderUid: myUid,
+          recipientUid: partnerUid,
+          partnerName: userProfile?.displayName || 'Partner',
+          gameId: 'sea_battle',
+          gameName: 'Sea Battle',
+          recipientPushToken: partnerProfile?.expoPushToken,
+          preferences: partnerProfile?.notificationPreferences,
+        }).catch(() => {});
+      }
+    })
+      .catch((err) => console.warn('[SeaBattle] makeGuess failed:', err));
   };
 
   const resetGame = async () => {
+    console.log('[SeaBattle] resetGame tapped');
     if (docRef) await deleteDoc(docRef);
   };
 
@@ -141,6 +219,7 @@ export const SeaBattleScreen: React.FC<SeaBattleScreenProps> = ({ onBack }) => {
                     key={i} 
                     style={[styles.cell, mySetupShips.includes(i) && styles.cellShip]}
                     onPress={() => {
+                      console.log('[SeaBattle] setup cell tapped, index=', i, 'mySetupShips=', JSON.stringify(mySetupShips));
                       if (mySetupShips.includes(i)) setMySetupShips(s => s.filter(x => x !== i));
                       else if (mySetupShips.length < REQUIRED_SHIPS) setMySetupShips(s => [...s, i]);
                     }}
@@ -195,7 +274,10 @@ export const SeaBattleScreen: React.FC<SeaBattleScreenProps> = ({ onBack }) => {
                     isMiss && styles.cellMiss,
                     !isMyTurn && {opacity: 0.8}
                   ]}
-                  onPress={() => makeGuess(i)}
+                  onPress={() => {
+                    console.log('[SeaBattle] guess cell tapped, index=', i, 'isMyTurn=', isMyTurn, 'isGuessed=', myGuesses.includes(i));
+                    makeGuess(i);
+                  }}
                   disabled={!isMyTurn || isGuessed}
                 >
                   {isHit && <Text style={styles.cellText}>💥</Text>}

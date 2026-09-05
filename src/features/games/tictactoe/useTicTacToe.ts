@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { useCouple } from '../../../services/coupleContext';
+import { notifyGameTurn } from '../../../services/notificationService';
 import {
   checkTicTacToeWinner,
   TicTacToeCell,
@@ -209,6 +210,20 @@ export function useTicTacToe(): UseTicTacToeReturn {
         'SyncMove'
       );
 
+      // Notify partner that it's their turn if game continues
+      if (gameMode === 'couple' && coupleId && myUid && partnerUid && !nextResult.winner && !nextResult.isDraw) {
+        notifyGameTurn({
+          coupleId,
+          senderUid: myUid,
+          recipientUid: partnerUid,
+          partnerName: userName,
+          gameId: 'tic_tac_toe',
+          gameName: 'Tic Tac Toe',
+          recipientPushToken: partnerProfile?.expoPushToken,
+          preferences: partnerProfile?.notificationPreferences,
+        }).catch(() => {});
+      }
+
       timer.stop({
         index,
         symbol: turn,
@@ -217,7 +232,7 @@ export function useTicTacToe(): UseTicTacToeReturn {
         winner: nextResult.winner,
       });
     },
-    [board, turn, result, scores, gameMode, isMyTurn, userName, updateRemote]
+    [board, turn, result, scores, gameMode, isMyTurn, userName, updateRemote, coupleId, myUid, partnerUid, partnerProfile]
   );
 
   const handleNewRound = useCallback(() => {

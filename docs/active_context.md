@@ -40,45 +40,33 @@
   - All 13 test suites passing (82/82 tests).
   - Clean TypeScript check (`tsc --noEmit` exits with 0 errors).
 
-### Immediate Next Steps
-- Sideload/build APK with EAS or test in Expo Go / dev client.
-- Test notification tap on device to verify seamless screen routing.
-
-### Completed Work (Current Session - Notification Tap Routing)
-- **Notification Tap Screen Navigation**:
-  - `src/services/notificationNavigation.ts`: Created `resolveNotificationTarget` and `navigateFromNotification` utilizing `navigationRef` and global notes opener to map any notification (in-app notification or system push notification) directly to the target tab (`TodayTab`, `ChatTab`, `MomentsTab`, `GamesTab`, `CalendarTab`, `CardsTab`, or `NotesTab`).
-  - `src/services/notesModalContext.tsx`: Created `NotesModalProvider` and `useNotesModal` hook to allow opening the `NotesScreen` modal from any screen or notification with specific tab targeting (`'gratitude' | 'list' | 'partner'`).
-  - `src/components/NotificationCenterModal.tsx`: Fixed tap handler (`handleNotificationPress`) which previously only marked notifications as read without closing the modal or navigating. It now marks as read asynchronously, closes the modal, and routes directly to the relevant screen or notes tab.
-  - `src/components/TopAppBar.tsx`: Passed `onNavigateTab` to `NotificationCenterModal` and refactored notes opening to use `useNotesModal()`, eliminating duplicate nested `NotesScreen` mounts.
-  - `src/navigation/RootNavigator.tsx`: Attached `navigationRef` to `NavigationContainer` and registered `Notifications.addNotificationResponseReceivedListener` and `getLastNotificationResponseAsync` so tapping remote/system push notifications routes to the appropriate screen automatically.
-  - `src/features/games/GamesScreen.tsx`: Added support for `route.params.gameId` to open the specific challenged game directly upon tapping game notifications.
-  - `src/features/moments/MomentsFeedScreen.tsx`: Added support for `route.params.action === 'snap'` to automatically trigger the new moment photo composer when tapping a photo prompt/nudge.
-  - `src/services/useNotifications.ts`: Attached route data (`ChatTab`, `NotesTab`, `MomentsTab`) to sent nudges.
-
-### Completed Work (Current Session)
-- **Resolved Notification Errors & Require Cycle**:
-  - `src/services/notificationService.ts`: Added Expo Go environment detection (`Constants.executionEnvironment === ExecutionEnvironment.StoreClient`) on Android to avoid the SDK 53+ uncatchable native error banner when attempting to call `getExpoPushTokenAsync` in Expo Go, while preserving full remote push support for standalone / dev builds.
-  - `src/features/notes/NotesScreen.tsx`: Replaced barrel imports from `../../components` with direct component imports, eliminating the require cycle `src/components/index.ts -> TopAppBar.tsx -> NotesScreen.tsx -> src/components/index.ts`.
-  - `scripts/timeSync.js`: Created clock-skew synchronization helper for Firebase Admin SDK scripts to compensate for system clock discrepancies when exchanging OAuth JWTs with Google's servers.
-  - `src/services/useNotifications.ts`: Removed `orderBy('createdAt', 'desc')` from the query and sorted client-side by timestamp in memory, completely eliminating the Firestore composite index error (`[FirebaseError: The query requires an index]`).
-  - `firestore.indexes.json`: Added `notifications` index configuration (`recipientUid ASC`, `createdAt DESC`).
-  - `src/features/dailyQuestion/useDailyQuestion.ts`: Decoupled the partner answer subscription from component mount so that it dynamically subscribes when `hasMyAnswer` is true. Previously, attempting to listen to the partner's answer on mount before answering violated Firestore security rules, which terminated the listener and prevented revealing the partner's answer without reloading. Also added immediate fetch of the partner's answer on `submitAnswer` for zero-lag instant reveal.
-  - `src/features/dailyQuestion/DailyQuestionScreen.tsx`: Updated toast to announce instant reveals when the partner has already answered.
-  - `src/features/chat/ChatScreen.tsx`: Fixed input hidden under keyboard on Android with `KeyboardAvoidingView` height behavior, and trimmed idle composer padding from `88 + insets.bottom` down to `58 + insets.bottom` (and reduced `paddingTop` from `24` to `8`) to eliminate the dead floating space above the bottom navigation bar.
-  - `src/navigation/RootNavigator.tsx`: Added `Keyboard` listener to `CustomTabBar` so the bottom tab bar hides when the keyboard opens and restores when closed.
-- **Games Vertical Scrolling & Bottom Navigation Clearance**:
-  - `src/features/games/tictactoe/TicTacToeScreen.tsx`: Wrapped game body (mode switcher, scoreboard, grid, dare banner, and actions) in a `ScrollView` with fixed header and `paddingBottom: 100 + insets.bottom`. Now the dare message, "Share", and "Next Round" buttons can be scrolled to easily on any device and sit comfortably above the navigation bar.
-  - `src/features/games/chess/ChessGameScreen.tsx`: Wrapped game body and victory forfeit card in `ScrollView` with `paddingBottom: 100 + insets.bottom`, keeping header fixed.
-  - `src/features/games/checkers/CheckersScreen.tsx`: Wrapped board and controls in `ScrollView` with `paddingBottom: 100 + insets.bottom`, keeping header fixed.
-  - `src/features/games/seaBattle/SeaBattleScreen.tsx`: Wrapped setup, playing, and game-over screens in `ScrollView` with `paddingBottom: 100 + insets.bottom`.
-  - `src/features/games/word/WordGameScreen.tsx`: Wrapped grid and game status result banner in `ScrollView` with `paddingBottom: 100 + insets.bottom`. In addition, only render the virtual keyboard while `gameStatus === 'playing'` so that upon completion, the victory/defeat banner and "Share to Chat" / "Play Next Word" buttons have full view.
-  - `src/features/games/truthOrDare/TruthOrDareScreen.tsx`: Added dynamic bottom insets (`100 + insets.bottom`) and `flexGrow: 1` to `scrollContent`.
-  - `src/features/games/trivia/CoupleTriviaScreen.tsx`: Added dynamic bottom insets (`100 + insets.bottom`) and `flexGrow: 1` to `scrollContent`.
-  - `src/features/games/twoTruths/TwoTruthsScreen.tsx`: Added dynamic bottom insets (`100 + insets.bottom`) and `flexGrow: 1` to all scrollable phases.
-  - `src/features/games/hotTakes/HotTakesScreen.tsx`: Added dynamic bottom insets (`100 + insets.bottom`) and `flexGrow: 1` to all scrollable phases.
-  - `src/features/games/tapBattle/TapBattleScreen.tsx`: Added `paddingBottom: 80 + insets.bottom` to the content container.
+### Completed Work (Current Session - In-App & Mobile Notifications + Deprecation Fixes)
+- **Collapsed Chat Notifications & Push Grouping**:
+  - `src/services/notificationService.ts`: Added `tag`, `collapseId`, and `threadId` support to `sendPushNotification`. For chat notifications, deterministically writes to `couples/{coupleId}/notifications/chat_${recipientUid}` so incoming messages update the existing unread card rather than accumulating duplicate entries. Added push tags `chat_${coupleId}` and `game_${gameId}`.
+  - `src/features/chat/ChatScreen.tsx`: Added auto-mark as read for `chat_${myUid}` on screen focus so opening the chat clears the unread badge and notification.
+- **Turn Notifications in Multiplayer Games**:
+  - `src/services/notificationService.ts`: Added `notifyGameTurn()` helper and registered Android notification channel `'game-alerts'` with high importance and vibration.
+  - Connected `notifyGameTurn` on move/turn-end across:
+    - `src/features/games/seaBattle/SeaBattleScreen.tsx` (fleet setup submission and attack guesses)
+    - `src/features/games/tictactoe/useTicTacToe.ts` (grid moves)
+    - `src/features/games/chess/useChessGame.ts` (chess board moves)
+    - `src/features/games/checkers/CheckersScreen.tsx` (checkers piece moves)
+    - `src/features/games/word/WordGameScreen.tsx` (word guess submissions)
+    - `src/features/games/twoTruths/TwoTruthsScreen.tsx` (statements submission and guessing)
+- **Interactive In-App Toast & Mobile Device System Notifications**:
+  - `src/components/Toast.tsx`: Added `onPress` callback and close button to `ToastMessage` and `ToastContextValue`, allowing in-app toast banners to be tapped for instant navigation.
+  - `src/navigation/RootNavigator.tsx`: Added a real-time Firestore listener on `couples/{coupleId}/notifications` for unread items directed at `myUid`:
+    1. Pops an in-app interactive `toast.info(title, body, onPress)` on the user's screen with direct navigation to the game or chat via `resolveNotificationTarget`.
+    2. Calls `Notifications.scheduleNotificationAsync({ identifier: doc.id, content: ..., trigger: null })` so a standard Android system notification is posted to the phone's notification bar/drawer, functioning in Expo Go as well as standalone/dev builds.
+- **Deprecation Warnings Eliminated**:
+  - Removed deprecated `shouldShowAlert` in favor of `shouldShowBanner` and `shouldShowList`.
+  - Replaced deprecated `SafeAreaView` from `'react-native'` with `SafeAreaView` from `'react-native-safe-area-context'` across all game screens (`SeaBattleScreen`, `CheckersScreen`, `WordGameScreen`, `TwoTruthsScreen`, `TicTacToeScreen`, `TapBattleScreen`, `HotTakesScreen`, `TruthOrDareScreen`, `CoupleTriviaScreen`, and `GamesScreen`).
 - **Verification**:
-  - Clean TypeScript check (`tsc --noEmit` exits with 0 errors).
-  - All 11 test suites passing (69/69 tests).
+  - All 13 test suites passing (83/83 tests).
+  - TypeScript check (`tsc --noEmit`) passes with 0 errors.
+
+- **In-App Foreground Presentation (OS System Notification Suppression)**:
+  - Configured `Notifications.setNotificationHandler` with `shouldShowBanner: false`, `shouldShowList: false`, and `shouldPlaySound: false` so that while the app is active in the foreground, Android/iOS system drawers and sounds do not duplicate alerts.
+  - In `RootNavigator.tsx`, displays solely the custom in-app interactive toast message when the app is open, reserving OS notifications for when the app is backgrounded or closed.
 
 

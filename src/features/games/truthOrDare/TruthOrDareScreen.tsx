@@ -7,10 +7,9 @@ import {
   ScrollView,
   Animated,
   Easing,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
   Flame,

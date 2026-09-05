@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, ScrollView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, MessageSquare, Check, X } from 'lucide-react-native';
 import { doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { useCouple } from '../../../services/coupleContext';
+import { notifyGameTurn } from '../../../services/notificationService';
 import { colors, radii, spacing, typography } from '../../../theme';
 
 interface TwoTruthsScreenProps {
@@ -13,7 +14,7 @@ interface TwoTruthsScreenProps {
 
 export const TwoTruthsScreen: React.FC<TwoTruthsScreenProps> = ({ onBack }) => {
   const insets = useSafeAreaInsets();
-  const { coupleId, myUid, partnerUid } = useCouple();
+  const { coupleId, myUid, partnerUid, userProfile, partnerProfile } = useCouple();
   const [session, setSession] = useState<any>(null);
   
   // Creator form state
@@ -53,6 +54,18 @@ export const TwoTruthsScreen: React.FC<TwoTruthsScreenProps> = ({ onBack }) => {
       statements,
       guessedIndex: null
     });
+    if (coupleId && myUid && partnerUid) {
+      notifyGameTurn({
+        coupleId,
+        senderUid: myUid,
+        recipientUid: partnerUid,
+        partnerName: userProfile?.displayName || 'Partner',
+        gameId: 'two_truths',
+        gameName: 'Two Truths & A Lie',
+        recipientPushToken: partnerProfile?.expoPushToken,
+        preferences: partnerProfile?.notificationPreferences,
+      }).catch(() => {});
+    }
   };
 
   const makeGuess = async (index: number) => {

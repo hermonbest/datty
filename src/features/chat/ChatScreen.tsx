@@ -19,7 +19,9 @@ import {
   Alert,
 } from 'react-native';
 import { format, isToday, isYesterday } from 'date-fns';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -55,7 +57,6 @@ import {
   Play,
   Pause,
   PlusCircle,
-  Smile,
 } from 'lucide-react-native';
 import { ChatMessage, ChatReplyReference, UserProfile } from '../../types';
 import { getCategoryTheme } from '../cards/categoryTheme';
@@ -731,6 +732,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingSentRef = useRef(0);
 
+  const isFocused = useIsFocused();
+
+  // Mark chat notification as read when opening ChatScreen
+  useEffect(() => {
+    if (!isFocused || !coupleId || !myUid) return;
+    const notifRef = doc(db, 'couples', coupleId, 'notifications', `chat_${myUid}`);
+    updateDoc(notifRef, { read: true }).catch(() => {});
+  }, [isFocused, coupleId, myUid]);
+
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -1264,13 +1274,6 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
                 multiline
                 maxLength={1000}
               />
-
-              <Pressable
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.6 }]}
-              >
-                <Smile size={24} color={colors.textMuted} strokeWidth={1.5} />
-              </Pressable>
 
               {inputText.trim() || selectedImage ? (
                 <Pressable

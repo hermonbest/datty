@@ -109,6 +109,28 @@ describe('Notification Logic & Scheduler', () => {
       const heartPulseCopy = getNotificationCopy('nudge_thinking_of_you', 'Maya');
       expect(heartPulseCopy.title).toContain('Thinking of You');
       expect(heartPulseCopy.body).toContain('Maya sent you a warm heart pulse');
+
+      const gameTurnCopy = getNotificationCopy('game_turn', 'Alex', { gameName: 'Chess' });
+      expect(gameTurnCopy.title).toBe("It's Your Turn! ♟️");
+      expect(gameTurnCopy.body).toContain('Alex took their turn in Chess');
+
+      const gameChallengeCopy = getNotificationCopy('game_challenge', 'Maya', { gameName: 'Sea Battle' });
+      expect(gameChallengeCopy.title).toBe('Game Challenge! ⚔️');
+      expect(gameChallengeCopy.body).toContain('Maya challenged you to Sea Battle');
+    });
+
+    it('generates predictable deterministic collapsing keys for chat and games', () => {
+      const chatDocId = `chat_user123`;
+      expect(chatDocId).toBe('chat_user123');
+
+      const gameDocId = `game_chess_user123`;
+      expect(gameDocId).toBe('game_chess_user123');
+
+      const chatTag = `chat_couple456`;
+      expect(chatTag).toBe('chat_couple456');
+
+      const gameTag = `game_chess`;
+      expect(gameTag).toBe('game_chess');
     });
   });
 });

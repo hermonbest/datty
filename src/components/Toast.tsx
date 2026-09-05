@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, Platform, TouchableOpacity } from 'react-native';
 import { colors, radii, shadows, spacing, typography } from '../theme';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react-native';
 
@@ -10,13 +10,14 @@ interface ToastMessage {
   type: ToastType;
   title: string;
   message?: string;
+  onPress?: () => void;
 }
 
 interface ToastContextValue {
-  showToast: (type: ToastType, title: string, message?: string) => void;
-  success: (title: string, message?: string) => void;
-  error: (title: string, message?: string) => void;
-  info: (title: string, message?: string) => void;
+  showToast: (type: ToastType, title: string, message?: string, onPress?: () => void) => void;
+  success: (title: string, message?: string, onPress?: () => void) => void;
+  error: (title: string, message?: string, onPress?: () => void) => void;
+  info: (title: string, message?: string, onPress?: () => void) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -40,7 +41,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [fadeAnim]);
 
   const showToast = useCallback(
-    (type: ToastType, title: string, message?: string) => {
+    (type: ToastType, title: string, message?: string, onPress?: () => void) => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
@@ -48,7 +49,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       fadeAnim.stopAnimation();
 
       const id = Math.random().toString();
-      setToast({ id, type, title, message });
+      setToast({ id, type, title, message, onPress });
 
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -63,15 +64,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }).start(() => {
             setToast((current) => (current?.id === id ? null : current));
           });
-        }, 3200);
+        }, 4000);
       });
     },
     [fadeAnim]
   );
 
-  const success = useCallback((title: string, message?: string) => showToast('success', title, message), [showToast]);
-  const error = useCallback((title: string, message?: string) => showToast('error', title, message), [showToast]);
-  const info = useCallback((title: string, message?: string) => showToast('info', title, message), [showToast]);
+  const success = useCallback((title: string, message?: string, onPress?: () => void) => showToast('success', title, message, onPress), [showToast]);
+  const error = useCallback((title: string, message?: string, onPress?: () => void) => showToast('error', title, message, onPress), [showToast]);
+  const info = useCallback((title: string, message?: string, onPress?: () => void) => showToast('info', title, message, onPress), [showToast]);
 
   return (
     <ToastContext.Provider value={{ showToast, success, error, info }}>
@@ -86,15 +87,29 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             { opacity: fadeAnim },
           ]}
         >
-          <View style={styles.iconContainer}>
-            {toast.type === 'success' && <CheckCircle2 size={20} color={colors.success} />}
-            {toast.type === 'error' && <AlertCircle size={20} color={colors.error} />}
-            {toast.type === 'info' && <Info size={20} color={colors.info} />}
-          </View>
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>{toast.title}</Text>
-            {toast.message ? <Text style={styles.message}>{toast.message}</Text> : null}
-          </View>
+          <TouchableOpacity
+            activeOpacity={toast.onPress ? 0.7 : 1}
+            onPress={() => {
+              if (toast.onPress) {
+                hideToast();
+                toast.onPress();
+              }
+            }}
+            style={styles.innerTouchable}
+          >
+            <View style={styles.iconContainer}>
+              {toast.type === 'success' && <CheckCircle2 size={20} color={colors.success} />}
+              {toast.type === 'error' && <AlertCircle size={20} color={colors.error} />}
+              {toast.type === 'info' && <Info size={20} color={colors.info} />}
+            </View>
+            <View style={styles.textContainer}>
+              <Text style={styles.title}>{toast.title}</Text>
+              {toast.message ? <Text style={styles.message}>{toast.message}</Text> : null}
+            </View>
+            <TouchableOpacity onPress={hideToast} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <X size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          </TouchableOpacity>
         </Animated.View>
       )}
     </ToastContext.Provider>
@@ -105,10 +120,10 @@ export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {
     return {
-      showToast: (t: ToastType, title: string, m?: string) => console.log(`[Toast ${t}] ${title}: ${m || ''}`),
-      success: (title: string, m?: string) => console.log(`[Toast Success] ${title}: ${m || ''}`),
-      error: (title: string, m?: string) => console.error(`[Toast Error] ${title}: ${m || ''}`),
-      info: (title: string, m?: string) => console.log(`[Toast Info] ${title}: ${m || ''}`),
+      showToast: (t: ToastType, title: string, m?: string, p?: () => void) => console.log(`[Toast ${t}] ${title}: ${m || ''}`),
+      success: (title: string, m?: string, p?: () => void) => console.log(`[Toast Success] ${title}: ${m || ''}`),
+      error: (title: string, m?: string, p?: () => void) => console.error(`[Toast Error] ${title}: ${m || ''}`),
+      info: (title: string, m?: string, p?: () => void) => console.log(`[Toast Info] ${title}: ${m || ''}`),
     };
   }
   return context;
@@ -144,6 +159,15 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     marginRight: spacing.sm,
+  },
+  innerTouchable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  closeBtn: {
+    marginLeft: spacing.sm,
+    padding: 4,
   },
   textContainer: {
     flex: 1,

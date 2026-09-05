@@ -33,15 +33,14 @@ import {
   NUDGE_COOLDOWNS,
 } from './notificationLogic';
 
-// Configure foreground notifications presentation (safe guard for uncompiled native client)
+// Configure foreground notifications presentation (suppress OS banners/alerts while app is open to show exclusively in-app toasts)
 try {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
+      shouldPlaySound: false,
       shouldSetBadge: false,
-      shouldShowBanner: true,
-      shouldShowList: true,
+      shouldShowBanner: false,
+      shouldShowList: false,
     }),
   });
 } catch (e) {
@@ -68,6 +67,13 @@ export async function setupNotificationChannels(): Promise<void> {
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 150, 150, 150, 150, 150],
       lightColor: '#FF6F61',
+    });
+
+    await Notifications.setNotificationChannelAsync('game-alerts', {
+      name: 'Game Turns & Challenges',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 200, 200, 200],
+      lightColor: '#6B4EFF',
     });
 
     await Notifications.setNotificationChannelAsync('daily-habits', {
@@ -140,9 +146,12 @@ export async function sendPushNotification(params: {
   body: string;
   channelId?: string;
   data?: Record<string, any>;
+  tag?: string;
+  collapseId?: string;
+  threadId?: string;
 }): Promise<boolean> {
   try {
-    const message = {
+    const message: Record<string, any> = {
       to: params.toToken,
       sound: 'default',
       title: params.title,
@@ -150,6 +159,10 @@ export async function sendPushNotification(params: {
       channelId: params.channelId || 'partner-activity',
       data: params.data || {},
     };
+
+    if (params.tag) message.tag = params.tag;
+    if (params.collapseId) message.collapseId = params.collapseId;
+    if (params.threadId) message.threadId = params.threadId;
 
     const res = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
@@ -188,6 +201,7 @@ export async function dispatchCoupleNotification(params: {
   const { coupleId, senderUid, recipientUid, recipientPushToken, type, data } = params;
 
   // Check quiet hours if recipient has quiet hours enabled
+  let suppressPush = false;
   if (params.preferences?.quietHoursEnabled) {
     const now = new Date();
     if (
@@ -198,8 +212,18 @@ export async function dispatchCoupleNotification(params: {
       )
     ) {
       console.log('[Notifications] Suppressed push during quiet hours');
-      // Still write to in-app notification center, but skip loud push
+      suppressPush = true;
     }
+  }
+
+  // Check category preferences
+  if (params.preferences) {
+    if (type === 'chat_message' && params.preferences.chatMessages === false) suppressPush = true;
+    if ((type === 'game_turn' || type === 'game_challenge') && params.preferences.gameAlerts === false) suppressPush = true;
+    if ((type === 'daily_answered' || type === 'daily_revealed') && params.preferences.dailyQuestions === false) suppressPush = true;
+    if (type === 'moment_new' && params.preferences.moments === false) suppressPush = true;
+    if (type.startsWith('note_') && params.preferences.coupleNotes === false) suppressPush = true;
+    if (type === 'calendar_reminder' && params.preferences.calendarReminders === false) suppressPush = true;
   }
 
   const copy = getNotificationCopy(type, params.partnerName || 'Partner', {
@@ -213,9 +237,18 @@ export async function dispatchCoupleNotification(params: {
     (type.startsWith('habit_') || type.startsWith('nudge_') ? 'app_nudge' : 'feature');
 
   try {
-    // 1. Write in-app notification document in Firestore
-    const notifsRef = collection(db, 'couples', coupleId, 'notifications');
-    await addDoc(notifsRef, {
+    // 1. Write or update in-app notification document in Firestore.
+    // For chat messages, collapse into a single document per recipient (chat_<recipientUid>)
+    // so incoming messages update the latest notification rather than accumulating duplicates.
+    // For game turns, collapse into game_<gameId>_<recipientUid> so active game turns update cleanly.
+    const notifDocId =
+      type === 'chat_message'
+        ? `chat_${recipientUid}`
+        : (type === 'game_turn' || type === 'game_challenge') && data?.gameId
+        ? `game_${data.gameId}_${recipientUid}`
+        : undefined;
+
+    const notifPayload = {
       category,
       type,
       title: copy.title,
@@ -225,9 +258,19 @@ export async function dispatchCoupleNotification(params: {
       senderUid,
       read: false,
       createdAt: serverTimestamp(),
-    });
+    };
 
-    // 2. Send push notification if token available (with fallback query)
+    if (notifDocId) {
+      const notifRef = doc(db, 'couples', coupleId, 'notifications', notifDocId);
+      await setDoc(notifRef, notifPayload, { merge: true });
+    } else {
+      const notifsRef = collection(db, 'couples', coupleId, 'notifications');
+      await addDoc(notifsRef, notifPayload);
+    }
+
+    // 2. Send push notification if token available and not suppressed
+    if (suppressPush) return;
+
     let token = recipientPushToken;
     if (!token && recipientUid) {
       try {
@@ -241,13 +284,32 @@ export async function dispatchCoupleNotification(params: {
     }
 
     if (token) {
-      const channelId =
-        type.startsWith('nudge_') ? 'partner-nudges' : 'partner-activity';
+      let channelId = 'partner-activity';
+      let tag: string | undefined;
+      let collapseId: string | undefined;
+      let threadId: string | undefined;
+
+      if (type.startsWith('nudge_')) {
+        channelId = 'partner-nudges';
+      } else if (type === 'game_turn' || type === 'game_challenge') {
+        channelId = 'game-alerts';
+        tag = `game_${data?.gameId || 'turn'}`;
+        collapseId = `game_${data?.gameId || 'turn'}`;
+        threadId = `game_${data?.gameId || 'turn'}`;
+      } else if (type === 'chat_message') {
+        tag = `chat_${coupleId}`;
+        collapseId = `chat_${coupleId}`;
+        threadId = `chat_${coupleId}`;
+      }
+
       await sendPushNotification({
         toToken: token,
         title: copy.title,
         body: copy.body,
         channelId,
+        tag,
+        collapseId,
+        threadId,
         data: {
           type,
           category,
@@ -259,6 +321,32 @@ export async function dispatchCoupleNotification(params: {
   } catch (err) {
     console.warn('[Notifications] Error dispatching notification:', err);
   }
+}
+
+/**
+ * Convenience helper to notify partner when it is their turn in a game
+ */
+export async function notifyGameTurn(params: {
+  coupleId: string;
+  senderUid: string;
+  recipientUid: string;
+  gameId: string;
+  gameName: string;
+  partnerName?: string;
+  recipientPushToken?: string | null;
+  preferences?: NotificationPreferences;
+}): Promise<void> {
+  return dispatchCoupleNotification({
+    coupleId: params.coupleId,
+    senderUid: params.senderUid,
+    recipientUid: params.recipientUid,
+    recipientPushToken: params.recipientPushToken,
+    type: 'game_turn',
+    partnerName: params.partnerName,
+    gameName: params.gameName,
+    data: { route: 'GamesTab', gameId: params.gameId },
+    preferences: params.preferences,
+  });
 }
 
 const HABIT_NOTIFICATION_IDS = {

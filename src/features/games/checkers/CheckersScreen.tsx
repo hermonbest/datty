@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, ScrollView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import { doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { useCouple } from '../../../services/coupleContext';
+import { notifyGameTurn } from '../../../services/notificationService';
 import { colors, radii, spacing, typography } from '../../../theme';
 
 interface CheckersScreenProps {
@@ -31,7 +32,7 @@ const getInitialBoard = () => {
 
 export const CheckersScreen: React.FC<CheckersScreenProps> = ({ onBack }) => {
   const insets = useSafeAreaInsets();
-  const { coupleId, myUid, partnerUid } = useCouple();
+  const { coupleId, myUid, partnerUid, userProfile, partnerProfile } = useCouple();
   const [session, setSession] = useState<any>(null);
   
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
@@ -135,6 +136,19 @@ export const CheckersScreen: React.FC<CheckersScreenProps> = ({ onBack }) => {
             turn: enemyColor,
             winner: hasEnemy ? null : myUid
           }, { merge: true });
+
+          if (hasEnemy && coupleId && myUid && partnerUid) {
+            notifyGameTurn({
+              coupleId,
+              senderUid: myUid,
+              recipientUid: partnerUid,
+              partnerName: userProfile?.displayName || 'Partner',
+              gameId: 'checkers',
+              gameName: 'Checkers',
+              recipientPushToken: partnerProfile?.expoPushToken,
+              preferences: partnerProfile?.notificationPreferences,
+            }).catch(() => {});
+          }
           
           setSelectedIdx(null);
         }

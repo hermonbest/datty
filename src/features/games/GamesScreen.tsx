@@ -5,12 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   ImageBackground,
   Animated,
   Dimensions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Flame, Brain, Camera, PenTool, ArrowRight, Grid, Gamepad2 } from 'lucide-react-native';
 import { colors, radii, spacing, typography } from '../../theme';
 import { GameId } from '../../types/games';

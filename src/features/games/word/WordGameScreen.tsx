@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   Modal,
   TextInput,
@@ -12,7 +11,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
   RotateCcw,
@@ -28,6 +27,7 @@ import {
 import { doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { useCouple } from '../../../services/coupleContext';
+import { notifyGameTurn } from '../../../services/notificationService';
 import { colors, radii, shadows, spacing, typography } from '../../../theme';
 import {
   evaluateGuess,
@@ -51,7 +51,7 @@ const KEYBOARD_ROWS = [
 
 export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareToChat }) => {
   const insets = useSafeAreaInsets();
-  const { coupleId, myUid } = useCouple();
+  const { coupleId, myUid, partnerUid, userProfile, partnerProfile } = useCouple();
 
   // Challenge mode Firestore state
   const [challengeDoc, setChallengeDoc] = useState<any>(null);
@@ -193,6 +193,18 @@ export const WordGameScreen: React.FC<WordGameScreenProps> = ({ onBack, onShareT
       won: null,
       attempts: null,
     });
+    if (coupleId && myUid && partnerUid) {
+      notifyGameTurn({
+        coupleId,
+        senderUid: myUid,
+        recipientUid: partnerUid,
+        partnerName: userProfile?.displayName || 'Partner',
+        gameId: 'word_guess',
+        gameName: 'Word Guess',
+        recipientPushToken: partnerProfile?.expoPushToken,
+        preferences: partnerProfile?.notificationPreferences,
+      }).catch(() => {});
+    }
     setCustomWordModalVisible(false);
     setCustomInput('');
     setMode('custom'); // switch UI to challenge mode for setter
