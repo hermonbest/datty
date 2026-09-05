@@ -23,6 +23,17 @@ export function openNotesGlobally(tab?: 'gratitude' | 'list' | 'partner') {
   return false;
 }
 
+// Active multiplayer game tracking (so notifications for the currently active game can be auto-read and toasts suppressed)
+let currentActiveGameId: string | null = null;
+
+export function setActiveGameId(gameId: string | null) {
+  currentActiveGameId = gameId;
+}
+
+export function getActiveGameId(): string | null {
+  return currentActiveGameId;
+}
+
 /**
  * Resolves any notification (in-app notification or remote push payload)
  * into a concrete tab name and navigation parameters.

@@ -5,14 +5,14 @@ import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/b
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Notifications from 'expo-notifications';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useCouple } from '../services/coupleContext';
 import { usePasscode } from '../services/passcodeContext';
 import { useToast } from '../components';
 import { PasscodeScreen } from '../features/passcode/PasscodeScreen';
 import { colors, radii, shadows, spacing, typography } from '../theme';
-import { navigationRef, resolveNotificationTarget, navigateFromNotification } from '../services/notificationNavigation';
+import { navigationRef, resolveNotificationTarget, navigateFromNotification, getActiveGameId } from '../services/notificationNavigation';
 
 // Auth screens
 import { SignInScreen } from '../features/auth/SignInScreen';
@@ -257,6 +257,24 @@ export const RootNavigator: React.FC = () => {
                 type: data.type as any,
                 data: data.data,
               });
+
+              // Context-aware auto-read & toast suppression:
+              // If user is already on the matching active screen, automatically mark as read
+              // so it immediately clears from the notification menu/badge, and skip the toast.
+              const currentRoute = navigationRef.isReady() ? navigationRef.getCurrentRoute()?.name : null;
+              const activeGameId = getActiveGameId();
+
+              const isAlreadyOnScreen =
+                (currentRoute === 'ChatTab' && target.tabName === 'ChatTab') ||
+                (currentRoute === 'GamesTab' && target.tabName === 'GamesTab' && Boolean(data.data?.gameId && data.data?.gameId === activeGameId)) ||
+                (currentRoute === 'MomentsTab' && target.tabName === 'MomentsTab') ||
+                (currentRoute === 'TodayTab' && target.tabName === 'TodayTab' && typeof data.type === 'string' && data.type.startsWith('daily_'));
+
+              if (isAlreadyOnScreen) {
+                const notifRef = doc(db, 'couples', coupleId, 'notifications', change.doc.id);
+                updateDoc(notifRef, { read: true }).catch(() => {});
+                return;
+              }
 
               // In-app interactive toast banner on top of screen
               toast.info(data.title || 'Us', data.body, () => {

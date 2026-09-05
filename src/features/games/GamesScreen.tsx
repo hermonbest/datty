@@ -25,6 +25,10 @@ import { TwoTruthsScreen } from './twoTruths/TwoTruthsScreen';
 import { HotTakesScreen } from './hotTakes/HotTakesScreen';
 import { SeaBattleScreen } from './seaBattle/SeaBattleScreen';
 import { CheckersScreen } from './checkers/CheckersScreen';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import { useCouple } from '../../services/coupleContext';
+import { setActiveGameId } from '../../services/notificationNavigation';
 
 interface GamesScreenProps {
   onNavigateToChat?: (replyTo?: any) => void;
@@ -207,12 +211,27 @@ const AnimatedCard = ({ children, style, onPress }: any) => {
 export const GamesScreen: React.FC<GamesScreenProps> = ({ onNavigateToChat, route }) => {
   const [activeGame, setActiveGame] = useState<GameId | null>(route?.params?.gameId || null);
   const insets = useSafeAreaInsets();
+  const { coupleId, myUid } = useCouple();
 
   React.useEffect(() => {
     if (route?.params?.gameId) {
       setActiveGame(route.params.gameId);
     }
   }, [route?.params?.gameId]);
+
+  // Sync active game ID globally and mark game notification as read when opening game
+  React.useEffect(() => {
+    setActiveGameId(activeGame);
+
+    if (activeGame && coupleId && myUid) {
+      const notifRef = doc(db, 'couples', coupleId, 'notifications', `game_${activeGame}_${myUid}`);
+      updateDoc(notifRef, { read: true }).catch(() => {});
+    }
+
+    return () => {
+      setActiveGameId(null);
+    };
+  }, [activeGame, coupleId, myUid]);
 
   const handleShareToChat = (text: string) => {
     if (onNavigateToChat) {

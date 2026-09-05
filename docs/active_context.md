@@ -65,8 +65,14 @@
   - All 13 test suites passing (83/83 tests).
   - TypeScript check (`tsc --noEmit`) passes with 0 errors.
 
-- **In-App Foreground Presentation (OS System Notification Suppression)**:
+- **In-App Foreground Presentation & Context-Aware Auto-Read**:
   - Configured `Notifications.setNotificationHandler` with `shouldShowBanner: false`, `shouldShowList: false`, and `shouldPlaySound: false` so that while the app is active in the foreground, Android/iOS system drawers and sounds do not duplicate alerts.
-  - In `RootNavigator.tsx`, displays solely the custom in-app interactive toast message when the app is open, reserving OS notifications for when the app is backgrounded or closed.
+  - In `RootNavigator.tsx`, displays solely the custom in-app interactive toast message when the app is open, eliminating redundant foreground system notification scheduling.
+  - `src/services/notificationNavigation.ts`: Added `setActiveGameId` / `getActiveGameId` to track active multiplayer game context globally.
+  - `src/features/games/GamesScreen.tsx`: Syncs `activeGame` with `setActiveGameId` and automatically marks pending game notification (`game_${activeGame}_${myUid}`) as read on launch.
+  - `src/navigation/RootNavigator.tsx`: Auto-marks incoming notifications as read in Firestore and suppresses toasts when the user is already on the target screen (active `ChatTab`, active game matching `activeGameId` in `GamesTab`, `MomentsTab`, or `TodayTab` daily question).
+- **Verification**:
+  - All 13 test suites passing (84/84 tests).
+  - TypeScript check (`tsc --noEmit`) verified with 0 errors.
 
 

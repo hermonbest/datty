@@ -87,4 +87,13 @@ describe('resolveNotificationTarget', () => {
       params: {},
     });
   });
+
+  it('tracks active game ID for context-aware notifications', () => {
+    const { setActiveGameId, getActiveGameId } = require('../src/services/notificationNavigation');
+    expect(getActiveGameId()).toBeNull();
+    setActiveGameId('chess');
+    expect(getActiveGameId()).toBe('chess');
+    setActiveGameId(null);
+    expect(getActiveGameId()).toBeNull();
+  });
 });
