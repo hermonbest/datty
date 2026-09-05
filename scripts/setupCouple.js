@@ -1,12 +1,15 @@
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
+process.env.GRPC_DNS_RESOLVER = process.env.GRPC_DNS_RESOLVER || 'native';
+const { syncTime } = require('./timeSync');
 
 /**
  * Setup couple script to link two user accounts in Firestore
  * Usage: node scripts/setupCouple.js user1@example.com user2@example.com [timezone]
  */
 async function setupCouple(admin, email1, email2, timezone = 'UTC') {
+  await syncTime();
   const auth = admin.auth();
   const db = admin.firestore();
 
@@ -16,13 +19,13 @@ async function setupCouple(admin, email1, email2, timezone = 'UTC') {
   try {
     user1 = await auth.getUserByEmail(email1);
   } catch (e) {
-    throw new Error(`Could not find user with email: ${email1}. Ensure the user has registered.`);
+    throw new Error(`Could not find user with email: ${email1}. Details: ${e?.message || e}`);
   }
 
   try {
     user2 = await auth.getUserByEmail(email2);
   } catch (e) {
-    throw new Error(`Could not find user with email: ${email2}. Ensure the user has registered.`);
+    throw new Error(`Could not find user with email: ${email2}. Details: ${e?.message || e}`);
   }
 
   console.log(`Found user 1: ${user1.uid} (${user1.email})`);
