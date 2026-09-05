@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, onAuthStateChanged, signOut as fbSignOut } from 'firebase/auth';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { Couple, UserProfile } from '../types';
 import { cache, CacheKeys } from './cache';
@@ -25,6 +25,7 @@ export interface CoupleContextValue {
   loading: boolean;
   error: string | null;
   refreshCouple: () => Promise<void>;
+  updateProfile: (patch: Partial<Pick<UserProfile, 'displayName' | 'photoURL'>>) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -40,6 +41,7 @@ const CoupleContext = createContext<CoupleContextValue>({
   loading: true,
   error: null,
   refreshCouple: async () => {},
+  updateProfile: async () => {},
   signOut: async () => {},
 });
 
@@ -301,6 +303,16 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [user, fetchPartnerProfile]);
 
+  // Update the current user's profile document (e.g. displayName, photoURL).
+  // Firestore onSnapshot above keeps userProfile in sync automatically.
+  const updateProfile = useCallback(
+    async (patch: Partial<Pick<UserProfile, 'displayName' | 'photoURL'>>) => {
+      if (!user) throw new Error('Not authenticated');
+      await updateDoc(doc(db, 'users', user.uid), patch);
+    },
+    [user]
+  );
+
   const isLinked = Boolean(coupleId && partnerUid);
 
   return (
@@ -317,6 +329,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         loading,
         error,
         refreshCouple,
+        updateProfile,
         signOut: handleSignOut,
       }}
     >

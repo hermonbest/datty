@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useCouple } from '../services/coupleContext';
 import { usePasscode } from '../services/passcodeContext';
 import { colors, radii, shadows, spacing, typography } from '../theme';
@@ -15,6 +16,7 @@ import { Avatar } from './Avatar';
 import { Button } from './Button';
 import { PasscodeScreen } from '../features/passcode/PasscodeScreen';
 import { useToast } from './Toast';
+import { uploadFileToCloudinary, getFileSizeBytes } from '../services/fileToBytes';
 import {
   X,
   LogOut,
@@ -25,6 +27,8 @@ import {
   KeyRound,
 } from 'lucide-react-native';
 
+const MAX_AVATAR_BYTES = 10 * 1024 * 1024;
+
 interface ProfileSettingsModalProps {
   visible: boolean;
   onClose: () => void;
@@ -34,10 +38,122 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
   visible,
   onClose,
 }) => {
-  const { userProfile, partnerProfile, coupleId, signOut } = useCouple();
+  const { userProfile, partnerProfile, coupleId, myUid, updateProfile, signOut } = useCouple();
   const { lockApp, isConfigured } = usePasscode();
-  const { success: showSuccessToast } = useToast();
+  const { success: showSuccessToast, error: showErrorToast } = useToast();
   const [isChangingPasscode, setIsChangingPasscode] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const pickAvatar = async () => {
+    const source = await new Promise<string | null>((resolve) => {
+      const options: any[] = [
+        { text: 'Take Photo', onPress: () => resolve('camera') },
+        { text: 'Choose from Library', onPress: () => resolve('library') },
+      ];
+      if (userProfile?.photoURL) {
+        options.push({
+          text: 'Remove Photo',
+          style: 'destructive',
+          onPress: () => resolve('remove'),
+        });
+      }
+      options.push({ text: 'Cancel', style: 'cancel', onPress: () => resolve(null) });
+
+      Alert.alert(
+        'Profile Photo',
+        userProfile?.photoURL ? 'Change your profile photo.' : 'Choose a profile photo.',
+        options
+      );
+    });
+
+    if (!source) return;
+    if (source === 'remove') {
+      removeAvatar();
+      return;
+    }
+
+    try {
+      const permission =
+        source === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        showErrorToast(
+          'Permission required',
+          source === 'camera'
+            ? 'Please grant camera access to take a photo.'
+            : 'Please grant access to your photo library.'
+        );
+        return;
+      }
+
+      const result =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            })
+          : await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      const uri = result.assets[0].uri;
+      await saveAvatar(uri);
+    } catch (e: any) {
+      showErrorToast('Error selecting photo', e.message || 'Please try again.');
+    }
+  };
+
+  const saveAvatar = async (uri: string) => {
+    if (!myUid) {
+      showErrorToast('Not signed in', 'Please log in and try again.');
+      return;
+    }
+
+    try {
+      const size = await getFileSizeBytes(uri);
+      if (size !== null && size > MAX_AVATAR_BYTES) {
+        showErrorToast('Photo too large', 'Please choose a photo under 10MB.');
+        return;
+      }
+
+      setUploadingPhoto(true);
+      const folder = `avatars/${myUid}`;
+      const downloadURL = await uploadFileToCloudinary(uri, 'image', folder);
+      await updateProfile({ photoURL: downloadURL });
+      showSuccessToast('Photo updated', 'Your profile photo has been updated.');
+    } catch (e: any) {
+      showErrorToast('Upload failed', e.message || 'Please try again.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const removeAvatar = () => {
+    Alert.alert('Remove Photo', 'Remove your profile photo?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await updateProfile({ photoURL: null });
+            showSuccessToast('Photo removed', 'Your profile photo has been removed.');
+          } catch (e: any) {
+            showErrorToast('Failed to remove photo', e.message || 'Please try again.');
+          }
+        },
+      },
+    ]);
+  };
 
   const handleLogout = () => {
     Alert.alert('Log Out', 'Are you sure you want to log out of your account?', [
@@ -99,11 +215,13 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                 <View style={styles.sectionCard}>
                   <Text style={styles.sectionLabel}>YOUR PROFILE</Text>
                   <View style={styles.profileRow}>
-                    <Avatar
-                      name={userProfile?.displayName || 'You'}
-                      photoURL={userProfile?.photoURL}
-                      size="lg"
-                    />
+                    <TouchableOpacity onPress={pickAvatar} activeOpacity={0.8}>
+                      <Avatar
+                        name={userProfile?.displayName || 'You'}
+                        photoURL={userProfile?.photoURL}
+                        size="lg"
+                      />
+                    </TouchableOpacity>
                     <View style={styles.profileMeta}>
                       <Text style={styles.profileName}>
                         {userProfile?.displayName || 'You'}
@@ -114,6 +232,15 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                           {userProfile?.email}
                         </Text>
                       </View>
+                      <TouchableOpacity onPress={pickAvatar} activeOpacity={0.7}>
+                        <Text style={styles.avatarHint}>
+                          {uploadingPhoto
+                            ? 'Uploading...'
+                            : userProfile?.photoURL
+                            ? 'Tap avatar to change photo'
+                            : 'Tap avatar to add a photo'}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 </View>
@@ -281,6 +408,12 @@ const styles = StyleSheet.create({
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  avatarHint: {
+    fontSize: typography.sizes.xs,
+    color: colors.primary,
+    fontWeight: typography.weights.semiBold,
+    marginTop: spacing.sm,
   },
   profileMeta: {
     marginLeft: spacing.md,

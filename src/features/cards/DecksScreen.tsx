@@ -36,6 +36,7 @@ export const DecksScreen: React.FC<DecksScreenProps> = ({ onNavigateToChat }) =>
   const { partnerProfile } = useCouple();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeDeck, setActiveDeck] = useState<CardDeck | null>(null);
+  const [profileSettingsVisible, setProfileSettingsVisible] = useState(false);
 
   // Fast filtered decks using pre-computed search index
   const filteredDecks = useMemo(() => {
@@ -59,12 +60,17 @@ export const DecksScreen: React.FC<DecksScreenProps> = ({ onNavigateToChat }) =>
   const renderHeader = () => (
     <View style={styles.topAppBar}>
       <View style={styles.headerLeft}>
-        <Avatar
-          name={partnerProfile?.displayName || 'Partner'}
-          photoURL={partnerProfile?.photoURL}
-          size="sm"
-          style={styles.headerAvatar}
-        />
+        <TouchableOpacity
+          onPress={() => setProfileSettingsVisible(true)}
+          accessibilityLabel="Open Profile & Settings"
+        >
+          <Avatar
+            name={partnerProfile?.displayName || 'Partner'}
+            photoURL={partnerProfile?.photoURL}
+            size="sm"
+            style={styles.headerAvatar}
+          />
+        </TouchableOpacity>
       </View>
       <Text style={styles.headerTitle}>Datty</Text>
       <TouchableOpacity style={styles.heartBtn} activeOpacity={0.7}>
@@ -194,6 +200,11 @@ export const DecksScreen: React.FC<DecksScreenProps> = ({ onNavigateToChat }) =>
           )}
         </View>
       </ScrollView>
+
+      <ProfileSettingsModal
+        visible={profileSettingsVisible}
+        onClose={() => setProfileSettingsVisible(false)}
+      />
     </View>
   );
 };

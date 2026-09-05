@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Heart, BookOpen, Bell } from 'lucide-react-native';
 import { colors, typography, spacing, radii } from '../theme';
 import { Avatar } from './Avatar';
+import { ProfileSettingsModal } from './ProfileSettingsModal';
 import { useCouple } from '../services/coupleContext';
 import { useNotifications } from '../services/useNotifications';
 import { useNotesModal } from '../services/notesModalContext';
@@ -17,6 +18,7 @@ export const TopAppBar: React.FC = () => {
   const { openNotes } = useNotesModal();
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [sendingHeart, setSendingHeart] = useState(false);
+  const [profileSettingsVisible, setProfileSettingsVisible] = useState(false);
 
   const handleHeartPress = async () => {
     if (sendingHeart) return;
@@ -48,11 +50,16 @@ export const TopAppBar: React.FC = () => {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.content}>
           <View style={styles.avatarWrapper}>
-            <Avatar 
-              name={partnerProfile?.displayName || 'Partner'} 
-              photoURL={partnerProfile?.photoURL} 
-              size="md" 
-            />
+            <TouchableOpacity
+              onPress={() => setProfileSettingsVisible(true)}
+              accessibilityLabel="Open Profile & Settings"
+            >
+              <Avatar 
+                name={partnerProfile?.displayName || 'Partner'} 
+                photoURL={partnerProfile?.photoURL} 
+                size="md" 
+              />
+            </TouchableOpacity>
           </View>
           
           <Text style={styles.title}>Datty</Text>
@@ -99,6 +106,11 @@ export const TopAppBar: React.FC = () => {
           onNavigateTab={handleNavigateFromNotifications}
         />
       )}
+
+      <ProfileSettingsModal
+        visible={profileSettingsVisible}
+        onClose={() => setProfileSettingsVisible(false)}
+      />
     </>
   );
 };
