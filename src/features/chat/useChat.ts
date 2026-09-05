@@ -8,6 +8,7 @@ import {
   query,
   orderByKey,
   limitToLast,
+  remove,
   serverTimestamp,
 } from 'firebase/database';
 import { rtdb } from '../../services/firebase';
@@ -277,12 +278,37 @@ export const useChat = () => {
     [coupleId, chatPath]
   );
 
+  // Delete a message (author only)
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      if (!coupleId || !chatPath || !messageId) return;
+
+      const targetMsg = messages.find((m) => m.id === messageId);
+      if (!targetMsg || targetMsg.senderUid !== myUid) return;
+
+      // Optimistic delete
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+
+      try {
+        await remove(dbRef(rtdb, `${chatPath}/${messageId}`));
+      } catch (err) {
+        console.error('[useChat] Delete message error:', err);
+        // Rollback on failure
+        setMessages((prev) => [targetMsg, ...prev].sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt)));
+        throw err;
+      }
+    },
+    [coupleId, chatPath, messages, myUid]
+  );
+
   return {
     messages,
     loading,
     sending,
     error,
     sendMessage,
+    deleteMessage,
     toggleReaction,
   };
 };
+

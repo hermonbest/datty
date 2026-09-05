@@ -17,7 +17,7 @@
         "chat": {
           ".read": "auth != null && root.child('couples/' + $coupleId + '/members/' + auth.uid).exists()",
           "$messageId": {
-            ".write": "auth != null && root.child('couples/' + $coupleId + '/members/' + auth.uid).exists() && (newData.child('senderUid').val() == auth.uid || (data.exists() && newData.exists() && newData.child('senderUid').val() == data.child('senderUid').val()))"
+            ".write": "auth != null && root.child('couples/' + $coupleId + '/members/' + auth.uid).exists() && ((newData.exists() && newData.child('senderUid').val() == auth.uid) || (!newData.exists() && data.child('senderUid').val() == auth.uid) || (data.exists() && newData.exists() && newData.child('senderUid').val() == data.child('senderUid').val()))"
           }
         },
         "games": {

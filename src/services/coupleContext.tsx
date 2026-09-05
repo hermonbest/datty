@@ -88,6 +88,8 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           email: data.email || '',
           photoURL: data.photoURL || null,
           coupleId: data.coupleId || null,
+          expoPushToken: data.expoPushToken || null,
+          notificationPreferences: data.notificationPreferences || undefined,
           createdAt: data.createdAt,
         };
         setPartnerProfile(prof);
@@ -175,6 +177,8 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             email: userData.email || currentUser.email || '',
             photoURL: userData.photoURL || currentUser.photoURL || null,
             coupleId: currentCoupleId,
+            expoPushToken: userData.expoPushToken || null,
+            notificationPreferences: userData.notificationPreferences || undefined,
             createdAt: userData.createdAt,
           };
 

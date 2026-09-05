@@ -16,6 +16,7 @@ import {
   Animated,
   PanResponder,
   Keyboard,
+  Alert,
 } from 'react-native';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
@@ -418,6 +419,7 @@ interface MessageRowProps {
   onOpenImage: (url: string) => void;
   onToggleAudio: (message: ChatMessage) => void;
   onReply: (item: ChatMessage) => void;
+  onDeleteMessage?: (item: ChatMessage) => void;
   isActive: boolean;
   player: AudioPlayer;
 }
@@ -431,6 +433,7 @@ const MessageRow = React.memo<MessageRowProps>(({
   onOpenImage,
   onToggleAudio,
   onReply,
+  onDeleteMessage,
   isActive,
   player,
 }) => {
@@ -471,6 +474,12 @@ const MessageRow = React.memo<MessageRowProps>(({
 
           <Pressable
             onPress={handleBubblePress}
+            onLongPress={() => {
+              if (isMe && onDeleteMessage) {
+                onDeleteMessage(item);
+              }
+            }}
+            delayLongPress={350}
             style={[
               styles.bubble,
               isMe ? styles.myBubble : styles.partnerBubble,
@@ -708,7 +717,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { userProfile, partnerProfile, myUid, coupleId, partnerUid } = useCouple();
-  const { messages, loading, sending, sendMessage, toggleReaction } = useChat();
+  const { messages, loading, sending, sendMessage, deleteMessage, toggleReaction } = useChat();
   const { partnerPresence, writePresence } = usePresence(coupleId, myUid, partnerUid);
 
   const [inputText, setInputText] = useState('');
@@ -843,9 +852,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   const cancelRecording = useCallback(async () => {
     console.log('[voice] cancelRecording called');
     try {
-      if (audioRecorder.isRecording) {
-        await audioRecorder.stop();
-      }
+      await audioRecorder.stop();
     } catch (e: any) {
       console.warn('[voice] cancelRecording error:', e?.message);
     }
@@ -1024,6 +1031,39 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   const partnerTyping = partnerPresence?.typing === 'chat';
   const partnerOnline = partnerPresence ? Boolean(partnerPresence.online) : true;
 
+  const handleDeleteMessage = useCallback(
+    (msg: ChatMessage) => {
+      const isVoice = !!msg.audioURL;
+      const isPhoto = !!msg.imageURL;
+      const typeLabel = isVoice ? 'voice message' : isPhoto ? 'photo' : 'message';
+
+      Alert.alert(
+        `Delete ${typeLabel}?`,
+        'This will remove it for both of you.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                if (activeAudio?.id === msg.id) {
+                  player.pause();
+                  setActiveAudio(null);
+                }
+                await deleteMessage(msg.id);
+                toast.success('Message deleted', 'Removed for both of you.');
+              } catch (e: any) {
+                toast.error('Could not delete', 'Please check your connection and retry.');
+              }
+            },
+          },
+        ]
+      );
+    },
+    [deleteMessage, activeAudio?.id, player, toast]
+  );
+
   const handleReply = useCallback(
     (msg: ChatMessage) => {
       const isMe = msg.senderUid === myUid;
@@ -1058,6 +1098,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
           onOpenImage={setViewingImage}
           onToggleAudio={handleToggleAudio}
           onReply={handleReply}
+          onDeleteMessage={handleDeleteMessage}
           isActive={activeAudio?.id === item.id}
           player={player}
         />
@@ -1070,6 +1111,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
       toggleReaction,
       handleToggleAudio,
       handleReply,
+      handleDeleteMessage,
       activeAudio?.id,
       player,
     ]

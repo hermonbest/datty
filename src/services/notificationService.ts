@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import {
   collection,
@@ -14,6 +15,7 @@ import {
   serverTimestamp,
   writeBatch,
   getDocs,
+  getDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import {
@@ -91,6 +93,10 @@ export async function registerForPushNotificationsAsync(uid: string): Promise<st
         '[Notifications] Running in Expo Go on Android: remote push notifications require a development build (npx expo run:android). In-app notifications and local reminders remain active.'
       );
       return null;
+    }
+
+    if (!Device.isDevice) {
+      console.info('[Notifications] Remote push notifications require a physical device');
     }
 
     if (!Notifications.getPermissionsAsync || !Notifications.getExpoPushTokenAsync) {
@@ -221,12 +227,24 @@ export async function dispatchCoupleNotification(params: {
       createdAt: serverTimestamp(),
     });
 
-    // 2. Send push notification if token available
-    if (recipientPushToken) {
+    // 2. Send push notification if token available (with fallback query)
+    let token = recipientPushToken;
+    if (!token && recipientUid) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', recipientUid));
+        if (userDoc.exists()) {
+          token = userDoc.data()?.expoPushToken || null;
+        }
+      } catch (tokenErr) {
+        console.warn('[Notifications] Fallback token fetch error:', tokenErr);
+      }
+    }
+
+    if (token) {
       const channelId =
         type.startsWith('nudge_') ? 'partner-nudges' : 'partner-activity';
       await sendPushNotification({
-        toToken: recipientPushToken,
+        toToken: token,
         title: copy.title,
         body: copy.body,
         channelId,
