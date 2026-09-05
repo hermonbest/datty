@@ -497,12 +497,13 @@ const MessageRow = React.memo<MessageRowProps>(({
                 <View
                   style={[
                     styles.quoteContainer,
+                    reply.deckTitle ? styles.quoteCardContainer : null,
                     isMe ? styles.myQuoteContainer : styles.partnerQuoteContainer,
                     !isMe && { borderColor: replyTheme.border, backgroundColor: replyTheme.bgLight },
                   ]}
                 >
                   <View style={[styles.quoteAccentBar, { backgroundColor: accentColor }]} />
-                  <View style={styles.quoteBody}>
+                  <View style={[styles.quoteBody, reply.deckTitle ? styles.quoteCardBody : null]}>
                     {reply.deckTitle ? (
                       <View style={styles.quoteDeckHeader}>
                         <Layers size={11} color={accentColor} />
@@ -512,7 +513,7 @@ const MessageRow = React.memo<MessageRowProps>(({
                       </View>
                     ) : (
                       <Text style={[styles.quoteAuthorText, { color: accentColor }]}>
-                        Replying to {reply.authorName || 'Answer'}
+                        Replying to {reply.authorName || 'Partner'}
                       </Text>
                     )}
 
@@ -524,7 +525,7 @@ const MessageRow = React.memo<MessageRowProps>(({
 
                     {reply.answerText ? (
                       <Text style={[styles.quoteAnswerText, isMe ? styles.myQuoteText : styles.partnerQuoteText]}>
-                        ↳ {reply.authorName ? `${reply.authorName}: ` : ''}{reply.answerText}
+                        {reply.deckTitle && reply.authorName ? `↳ ${reply.authorName}: ` : ''}{reply.answerText}
                       </Text>
                     ) : null}
                   </View>
@@ -1538,12 +1539,15 @@ const styles = StyleSheet.create({
   quoteContainer: {
     flexDirection: 'row',
     borderRadius: radii.md,
-    padding: spacing.sm,
+    padding: spacing.xs + 2,
     marginBottom: spacing.xs + 2,
     overflow: 'hidden',
-    // Fixed card-like dimensions so background is always fully visible
+    minWidth: 140,
+  },
+  quoteCardContainer: {
     minHeight: 90,
     minWidth: 220,
+    padding: spacing.sm,
   },
   myQuoteContainer: {
     backgroundColor: 'rgba(0, 0, 0, 0.15)',
@@ -1561,6 +1565,10 @@ const styles = StyleSheet.create({
   },
   quoteBody: {
     flex: 1,
+    justifyContent: 'center',
+    gap: 2,
+  },
+  quoteCardBody: {
     justifyContent: 'space-between',
   },
   quoteDeckHeader: {
