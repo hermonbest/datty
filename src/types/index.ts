@@ -48,6 +48,7 @@ export interface Moment {
   imageURL: string;
   caption: string;
   createdAt: any;
+  likedBy?: string[]; // UIDs of users who liked this moment (max 2 in a couple app)
 }
 
 export interface ChatReplyReference {

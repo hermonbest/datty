@@ -8,6 +8,7 @@ import {
   Animated,
   Easing,
   StatusBar,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -61,9 +62,11 @@ export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, on
     isLinked,
     userName,
     partnerName,
+    currentAnswer,
     spinBottle,
     onSpinAnimationComplete,
     pickPrompt,
+    submitAnswer,
     completeChallenge,
     resetGame,
   } = useTruthOrDare();
@@ -506,6 +509,30 @@ export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, on
                 🎯 {activePlayerName}'s Challenge:
               </Text>
               <Text style={styles.revealedPromptText}>{selectedPrompt.text}</Text>
+
+              {/* Answer field — only for truth prompts */}
+              {selectedPrompt.type === 'truth' && (
+                <View style={styles.answerSection}>
+                  {isMyTurn ? (
+                    <TextInput
+                      style={styles.answerInput}
+                      placeholder="Type your answer here..."
+                      placeholderTextColor={colors.textMuted}
+                      value={currentAnswer}
+                      onChangeText={submitAnswer}
+                      multiline
+                      maxLength={300}
+                    />
+                  ) : currentAnswer ? (
+                    <View style={styles.answerReadOnly}>
+                      <Text style={styles.answerReadOnlyLabel}>✍️ {activePlayerName}'s answer:</Text>
+                      <Text style={styles.answerReadOnlyText}>{currentAnswer}</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.answerWaiting}>⏳ Waiting for {activePlayerName} to answer...</Text>
+                  )}
+                </View>
+              )}
             </View>
 
             <View style={styles.cardActionsRow}>
@@ -1018,5 +1045,45 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.bold,
+  },
+  answerSection: {
+    marginTop: spacing.sm,
+    width: '100%',
+  },
+  answerInput: {
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    padding: spacing.sm,
+    fontSize: typography.sizes.sm,
+    color: colors.textPrimary,
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  answerReadOnly: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    padding: spacing.sm,
+  },
+  answerReadOnlyLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: '#2563EB',
+    marginBottom: 4,
+  },
+  answerReadOnlyText: {
+    fontSize: typography.sizes.sm,
+    color: colors.textPrimary,
+    lineHeight: 20,
+  },
+  answerWaiting: {
+    fontSize: typography.sizes.xs,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: spacing.xs,
   },
 });

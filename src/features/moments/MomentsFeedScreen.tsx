@@ -43,7 +43,7 @@ const MomentImage: React.FC<{ uri: string }> = ({ uri }) => {
 
 export const MomentsFeedScreen: React.FC<{ route?: any }> = ({ route }) => {
   const { userProfile, partnerProfile, myUid } = useCouple();
-  const { moments, loading, deleteMoment, refreshMoments } = useMoments();
+  const { moments, loading, deleteMoment, refreshMoments, toggleLike } = useMoments();
   const [modalVisible, setModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const toast = useToast();
@@ -162,8 +162,11 @@ export const MomentsFeedScreen: React.FC<{ route?: any }> = ({ route }) => {
                         <Trash2 size={20} color={colors.outline} />
                       </TouchableOpacity>
                     )}
-                    <TouchableOpacity style={styles.actionBtn}>
-                      <Heart size={24} color={colors.primary} fill={colors.primary} />
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => toggleLike(item.id)}>
+                      {(myUid && item.likedBy?.includes(myUid))
+                        ? <Heart size={24} color={colors.primary} fill={colors.primary} />
+                        : <Heart size={24} color={colors.outline} />
+                      }
                     </TouchableOpacity>
                   </View>
                 </View>

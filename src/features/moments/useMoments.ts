@@ -8,8 +8,11 @@ import {
   addDoc,
   deleteDoc,
   doc,
+  updateDoc,
   serverTimestamp,
   limit,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { uploadFileToCloudinary, getFileSizeBytes } from '../../services/fileToBytes';
@@ -63,6 +66,7 @@ export const useMoments = () => {
             imageURL: data.imageURL,
             caption: data.caption || '',
             createdAt: data.createdAt,
+            likedBy: data.likedBy || [],
           };
         });
         setMoments(items);
@@ -94,6 +98,7 @@ export const useMoments = () => {
           imageURL: data.imageURL,
           caption: data.caption || '',
           createdAt: data.createdAt,
+          likedBy: data.likedBy || [],
         };
       });
       setMoments(items);
@@ -164,6 +169,37 @@ export const useMoments = () => {
     [coupleId, myUid, uploadImage]
   );
 
+  // Toggle like on a moment (arrayUnion/arrayRemove — max 2 UIDs in a couple app)
+  const toggleLike = useCallback(
+    async (momentId: string) => {
+      if (!coupleId || !myUid) return;
+      const momentRef = doc(db, 'couples', coupleId, 'moments', momentId);
+      const isLiked = moments.find((m) => m.id === momentId)?.likedBy?.includes(myUid);
+      // Optimistic update
+      setMoments((prev) =>
+        prev.map((m) =>
+          m.id === momentId
+            ? { ...m, likedBy: isLiked ? (m.likedBy || []).filter((u) => u !== myUid) : [...(m.likedBy || []), myUid] }
+            : m
+        )
+      );
+      try {
+        await updateDoc(momentRef, { likedBy: isLiked ? arrayRemove(myUid) : arrayUnion(myUid) });
+      } catch (err) {
+        console.error('[useMoments] Like error:', err);
+        // Rollback on failure
+        setMoments((prev) =>
+          prev.map((m) =>
+            m.id === momentId
+              ? { ...m, likedBy: isLiked ? [...(m.likedBy || []), myUid] : (m.likedBy || []).filter((u) => u !== myUid) }
+              : m
+          )
+        );
+      }
+    },
+    [coupleId, myUid, moments]
+  );
+
   // Delete own moment
   const deleteMoment = useCallback(
     async (momentId: string) => {
@@ -188,6 +224,7 @@ export const useMoments = () => {
     uploadImage,
     createMoment,
     deleteMoment,
+    toggleLike,
     refreshMoments,
   };
 };

@@ -1181,6 +1181,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
           renderItem={renderMessage}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
+          ListHeaderComponent={partnerTyping ? <TypingIndicator partnerName={partnerProfile?.displayName || 'Partner'} /> : null}
         />
       )}
 
@@ -1840,4 +1841,59 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     paddingVertical: spacing.xs,
   },
+  typingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.card,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+    marginLeft: spacing.xs,
+    marginBottom: spacing.xs,
+    gap: 4,
+  },
+  typingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+  },
 });
+
+// ---------------------------------------------------------------------------
+// TypingIndicator — shown at the bottom of the inverted FlatList (= near composer)
+// ---------------------------------------------------------------------------
+const TypingIndicator: React.FC<{ partnerName: string }> = ({ partnerName }) => {
+  const dot1 = useRef(new Animated.Value(0.3)).current;
+  const dot2 = useRef(new Animated.Value(0.3)).current;
+  const dot3 = useRef(new Animated.Value(0.3)).current;
+
+  React.useEffect(() => {
+    const makePulse = (anim: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(anim, { toValue: 0.3, duration: 300, useNativeDriver: true }),
+          Animated.delay(400),
+        ])
+      );
+    const a1 = makePulse(dot1, 0);
+    const a2 = makePulse(dot2, 200);
+    const a3 = makePulse(dot3, 400);
+    a1.start(); a2.start(); a3.start();
+    return () => { a1.stop(); a2.stop(); a3.stop(); };
+  }, []);
+
+  return (
+    <View style={styles.typingBubble}>
+      <Animated.View style={[styles.typingDot, { opacity: dot1 }]} />
+      <Animated.View style={[styles.typingDot, { opacity: dot2 }]} />
+      <Animated.View style={[styles.typingDot, { opacity: dot3 }]} />
+    </View>
+  );
+};
+

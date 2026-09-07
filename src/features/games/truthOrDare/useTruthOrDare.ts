@@ -18,6 +18,7 @@ export interface TruthOrDareFirestoreDoc {
   phase: TruthOrDarePhase;
   selectedPrompt: TruthOrDareItem | null;
   completedCount: number;
+  answer?: string; // typed answer for truth prompts; visible to both players via snapshot
   updatedAt?: any;
 }
 
@@ -37,9 +38,11 @@ export interface UseTruthOrDareReturn {
   isLinked: boolean;
   userName: string;
   partnerName: string;
+  currentAnswer: string;
   spinBottle: () => void;
   onSpinAnimationComplete: () => void;
   pickPrompt: (type: PromptType) => void;
+  submitAnswer: (text: string) => void;
   completeChallenge: () => void;
   resetGame: () => void;
 }
@@ -59,6 +62,7 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
   const [phase, setPhase] = useState<TruthOrDarePhase>('need_spin');
   const [completedCount, setCompletedCount] = useState<number>(0);
   const [targetAngle, setTargetAngle] = useState<number>(0);
+  const [currentAnswer, setCurrentAnswer] = useState<string>('');
   const currentAngleRef = useRef<number>(0);
   const isSpinnerRef = useRef<boolean>(false);
 
@@ -107,6 +111,7 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
           setPhase(data.phase || 'need_spin');
           setSelectedPrompt(data.selectedPrompt || null);
           setCompletedCount(data.completedCount || 0);
+          setCurrentAnswer(data.answer || '');
         } else {
           // Initialize remote state
           const initialData: TruthOrDareFirestoreDoc = {
@@ -259,6 +264,7 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
     setCompletedCount(nextCount);
     setSelectedPrompt(null);
     setPhase('need_spin');
+    setCurrentAnswer('');
 
     // Switch active player for next turn
     const nextUid = activeUid === myUid ? (partnerUid || 'partner') : (myUid || 'me');
@@ -272,6 +278,7 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
       phase: 'need_spin',
       activeUid: nextUid,
       activePlayerName: nextName,
+      answer: '',
     }, 'SyncCompleteChallenge');
 
     timer.stop({ nextCount, nextPlayer: nextName });
@@ -283,14 +290,25 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
     setSelectedPrompt(null);
     setPhase('need_spin');
     setUsedIds([]);
+    setCurrentAnswer('');
     updateRemote({
       completedCount: 0,
       selectedPrompt: null,
       phase: 'need_spin',
       targetAngle: 0,
+      answer: '',
     }, 'SyncResetGame');
     timer.stop();
   }, [updateRemote]);
+
+  // Submit truth answer — debounce not needed; only the active player writes
+  const submitAnswer = useCallback(
+    (text: string) => {
+      setCurrentAnswer(text);
+      updateRemote({ answer: text }, 'SyncTruthAnswer');
+    },
+    [updateRemote]
+  );
 
   return {
     category,
@@ -308,9 +326,11 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
     isLinked,
     userName,
     partnerName,
+    currentAnswer,
     spinBottle,
     onSpinAnimationComplete,
     pickPrompt,
+    submitAnswer,
     completeChallenge,
     resetGame,
   };
