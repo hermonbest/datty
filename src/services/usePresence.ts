@@ -102,7 +102,9 @@ export function usePresence(
     return () => {
       unsubConnected();
       appStateSub.remove();
-      update(presenceRef, { online: false, typing: null }).catch(() => {});
+      if (auth.currentUser?.uid === myUid) {
+        update(presenceRef, { online: false, typing: null }).catch(() => {});
+      }
     };
   }, [myPath]);
 
