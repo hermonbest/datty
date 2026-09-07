@@ -1181,8 +1181,14 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
           renderItem={renderMessage}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          ListHeaderComponent={partnerTyping ? <TypingIndicator partnerName={partnerProfile?.displayName || 'Partner'} /> : null}
         />
+      )}
+
+      {/* Partner Typing Indicator */}
+      {partnerTyping && (
+        <View style={styles.typingContainer}>
+          <TypingIndicator partnerName={partnerProfile?.displayName || 'Partner'} />
+        </View>
       )}
 
       {/* Instagram-Style Active Reply Header Bar */}
@@ -1841,6 +1847,11 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     paddingVertical: spacing.xs,
   },
+  typingContainer: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    alignSelf: 'flex-start',
+  },
   typingBubble: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1851,8 +1862,6 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
     paddingHorizontal: spacing.sm,
     paddingVertical: 8,
-    marginLeft: spacing.xs,
-    marginBottom: spacing.xs,
     gap: 4,
   },
   typingDot: {
