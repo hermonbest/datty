@@ -114,7 +114,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ visible = true, initia
   // Partner note state
   const [partnerTitle, setPartnerTitle] = useState('');
   const [partnerContent, setPartnerContent] = useState('');
-  const [partnerCategory, setPartnerCategory] = useState<string>('Favorites');
+  const [partnerCategory, setPartnerCategory] = useState<string>('General');
   const [editingPartnerNoteId, setEditingPartnerNoteId] = useState<string | null>(null);
   const [showPartnerComposer, setShowPartnerComposer] = useState(false);
   const [partnerCategoryFilter, setPartnerCategoryFilter] = useState<string>('all');
@@ -663,7 +663,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ visible = true, initia
               <EmptyState
                 icon={<Bookmark size={32} color={colors.primary} />}
                 title={`Notes About ${partnerName}`}
-                description="Keep track of favorites, gift ideas, sizes, and little preferences in one private place."
+                description="Keep track of gift ideas and little notes in one private place."
               />
             }
             renderItem={({ item }) => (

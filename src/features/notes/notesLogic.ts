@@ -3,21 +3,15 @@ import { CoupleNote, CoupleNoteType, PartnerNote } from '../../types';
 export type ListFilter = 'all' | 'todo' | 'done';
 
 export const DEFAULT_PARTNER_CATEGORIES = [
-  'Favorites',
-  'Sizes',
-  'Preferences',
   'Gifts',
-  'Quirks',
   'General',
 ] as const;
 
 export const SUGGESTED_PARTNER_PROMPTS = [
-  { title: '☕ Coffee Order', category: 'Preferences' },
-  { title: '🌸 Favorite Flowers', category: 'Favorites' },
+  { title: '🌸 Favorite Flowers', category: 'General' },
   { title: '🎁 Gift Ideas', category: 'Gifts' },
-  { title: '👗 Sizes (Clothes / Shoes / Ring)', category: 'Sizes' },
-  { title: '🍕 Comfort Food', category: 'Favorites' },
-  { title: '💖 Love Language', category: 'Preferences' },
+  { title: '🍕 Comfort Food', category: 'General' },
+  { title: '💖 Love Language', category: 'General' },
 ];
 
 export function validateNoteContent(content: string): { valid: boolean; error?: string } {

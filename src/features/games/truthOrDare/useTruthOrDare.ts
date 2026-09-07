@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { useCouple } from '../../../services/coupleContext';
@@ -6,19 +6,17 @@ import { TruthOrDareCategory, PromptType, TruthOrDareItem } from '../../../types
 import { getRandomPrompt } from './truthOrDareData';
 import { gameLog, startGameTimer, measureGameAsync } from '../gameLogger';
 
-export type TruthOrDarePhase = 'need_spin' | 'spinning' | 'choose_card' | 'prompt_revealed';
+export type TruthOrDarePhase = 'choose_card' | 'prompt_revealed';
 export type GameMode = 'couple' | 'pass_and_play';
 
 export interface TruthOrDareFirestoreDoc {
   category: TruthOrDareCategory;
   activeUid: string;
   activePlayerName: string;
-  spinnerUid?: string;
-  targetAngle: number;
   phase: TruthOrDarePhase;
   selectedPrompt: TruthOrDareItem | null;
   completedCount: number;
-  answer?: string; // typed answer for truth prompts; visible to both players via snapshot
+  answer?: string;
   updatedAt?: any;
 }
 
@@ -28,20 +26,17 @@ export interface UseTruthOrDareReturn {
   selectedPrompt: TruthOrDareItem | null;
   activePlayerName: string;
   isMyTurn: boolean;
-  canSpin: boolean;
   canPickCard: boolean;
   phase: TruthOrDarePhase;
   completedCount: number;
-  targetAngle: number;
   gameMode: GameMode;
   setGameMode: (mode: GameMode) => void;
   isLinked: boolean;
   userName: string;
   partnerName: string;
   currentAnswer: string;
-  spinBottle: () => void;
-  onSpinAnimationComplete: () => void;
   pickPrompt: (type: PromptType) => void;
+  rerollPrompt: () => void;
   submitAnswer: (text: string) => void;
   completeChallenge: () => void;
   resetGame: () => void;
@@ -59,30 +54,15 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
   const [usedIds, setUsedIds] = useState<string[]>([]);
   const [activeUid, setActiveUid] = useState<string>(myUid || 'me');
   const [activePlayerName, setActivePlayerName] = useState<string>(userName);
-  const [phase, setPhase] = useState<TruthOrDarePhase>('need_spin');
+  const [phase, setPhase] = useState<TruthOrDarePhase>('choose_card');
   const [completedCount, setCompletedCount] = useState<number>(0);
-  const [targetAngle, setTargetAngle] = useState<number>(0);
   const [currentAnswer, setCurrentAnswer] = useState<string>('');
-  const currentAngleRef = useRef<number>(0);
-  const isSpinnerRef = useRef<boolean>(false);
 
-  // Is it my turn to choose a card?
-  const isMyTurn =
-    gameMode === 'pass_and_play'
-      ? true
-      : activeUid === myUid;
-
-  // In couple mode: only the active player can spin (and only between turns, not mid-card).
-  // pass_and_play: whoever holds the phone can always spin.
-  const canSpin = phase === 'need_spin' && (gameMode !== 'couple' || isMyTurn);
+  const isMyTurn = gameMode === 'pass_and_play' ? true : activeUid === myUid;
   const canPickCard = phase === 'choose_card' && isMyTurn;
 
-  // Realtime Firestore Subscription for Couple Mode
   useEffect(() => {
-    if (!isLinked || !coupleId || gameMode !== 'couple') {
-      gameLog('TruthOrDare', 'LocalModeActive', { gameMode, isLinked, coupleId });
-      return;
-    }
+    if (!isLinked || !coupleId || gameMode !== 'couple') return;
 
     const timer = startGameTimer('TruthOrDare', 'SubscribeRemoteGame', { coupleId });
     const gameDocRef = doc(db, 'couples', coupleId, 'games', 'truth_or_dare');
@@ -92,36 +72,22 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
       (snap) => {
         if (snap.exists()) {
           const data = snap.data() as TruthOrDareFirestoreDoc;
-          gameLog('TruthOrDare', 'RemoteSnapshotReceived', {
-            phase: data.phase,
-            activeUid: data.activeUid,
-            targetAngle: data.targetAngle,
-            hasPrompt: !!data.selectedPrompt,
-            promptId: data.selectedPrompt?.id,
-            completedCount: data.completedCount,
-          });
-
           setCategoryState(data.category || 'romantic');
           setActiveUid(data.activeUid || myUid || 'me');
-          setActivePlayerName(
-            data.activeUid === myUid
-              ? userName
-              : partnerName
-          );
-          setTargetAngle(data.targetAngle || 0);
-          currentAngleRef.current = data.targetAngle || 0;
-          setPhase(data.phase || 'need_spin');
+          setActivePlayerName(data.activeUid === myUid ? userName : partnerName);
+          // Legacy phase migration to choose_card if snapshot has old spin phases
+          const normalizedPhase: TruthOrDarePhase =
+            data.phase === 'prompt_revealed' ? 'prompt_revealed' : 'choose_card';
+          setPhase(normalizedPhase);
           setSelectedPrompt(data.selectedPrompt || null);
           setCompletedCount(data.completedCount || 0);
           setCurrentAnswer(data.answer || '');
         } else {
-          // Initialize remote state
           const initialData: TruthOrDareFirestoreDoc = {
             category: 'romantic',
             activeUid: myUid || 'me',
             activePlayerName: userName,
-            targetAngle: 0,
-            phase: 'need_spin',
+            phase: 'choose_card',
             selectedPrompt: null,
             completedCount: 0,
             updatedAt: serverTimestamp(),
@@ -133,17 +99,13 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
         timer.stop({ success: true });
       },
       (err) => {
-        console.warn('[useTruthOrDare] Remote sync unavailable, using local mode:', err?.message);
-        gameLog('TruthOrDare', 'RemoteSyncError', { error: err?.message });
+        console.warn('[useTruthOrDare] Remote sync unavailable:', err?.message);
         setGameMode('pass_and_play');
       }
     );
 
-    return () => {
-      gameLog('TruthOrDare', 'UnsubscribeRemoteGame');
-      unsubscribe();
-    };
-  }, [coupleId, isLinked, gameMode, myUid, userName, partnerName, partnerUid]);
+    return () => unsubscribe();
+  }, [coupleId, isLinked, gameMode, myUid, userName, partnerName]);
 
   const updateRemote = useCallback(
     async (payload: Partial<TruthOrDareFirestoreDoc>, actionName: string = 'UpdateRemote') => {
@@ -158,159 +120,100 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
 
   const setCategory = useCallback(
     (cat: TruthOrDareCategory) => {
-      const timer = startGameTimer('TruthOrDare', 'ChangeCategory', { from: category, to: cat });
       setCategoryState(cat);
       if (phase === 'prompt_revealed') {
         setPhase('choose_card');
         setSelectedPrompt(null);
       }
       updateRemote({ category: cat }, 'SyncCategoryChange');
-      timer.stop();
     },
-    [category, phase, updateRemote]
+    [phase, updateRemote]
   );
-
-  const spinBottle = useCallback(() => {
-    if (phase === 'spinning') return;
-    // In couple mode, only the active player (whose turn it is) may spin
-    if (gameMode === 'couple' && !isMyTurn) return;
-
-    const timer = startGameTimer('TruthOrDare', 'SpinBottle');
-    isSpinnerRef.current = true;
-
-    // Random rotations between 4 to 8 full spins + random offset
-    const randomExtra = Math.random() * 360;
-    const spins = 4 + Math.floor(Math.random() * 4);
-    const newAngle = currentAngleRef.current + spins * 360 + randomExtra;
-    currentAngleRef.current = newAngle;
-
-    // Pre-calculate target player from landing angle so both devices are immediately synced
-    const normalized = ((newAngle % 360) + 360) % 360;
-    const isPartner = normalized >= 90 && normalized < 270;
-    const chosenUid = isPartner ? (partnerUid || 'partner') : (myUid || 'me');
-    const chosenName = isPartner ? partnerName : userName;
-
-    setTargetAngle(newAngle);
-    setPhase('spinning');
-    setSelectedPrompt(null);
-    setActiveUid(chosenUid);
-    setActivePlayerName(chosenName);
-
-    updateRemote({
-      targetAngle: newAngle,
-      phase: 'spinning',
-      selectedPrompt: null,
-      spinnerUid: myUid || 'me',
-      activeUid: chosenUid,
-      activePlayerName: chosenName,
-    }, 'SyncSpinBottle');
-
-    timer.stop({ newAngle, targetPlayer: chosenName, isPartner });
-  }, [phase, myUid, partnerUid, partnerName, userName, updateRemote]);
-
-  const onSpinAnimationComplete = useCallback(() => {
-    const timer = startGameTimer('TruthOrDare', 'SpinAnimationComplete', {
-      targetAngle,
-      activePlayerName,
-    });
-
-    setPhase('choose_card');
-
-    // Spinner client confirms phase transition in Firestore if in couple mode
-    if (isSpinnerRef.current) {
-      isSpinnerRef.current = false;
-      updateRemote({
-        phase: 'choose_card',
-      }, 'SyncSpinAnimationComplete');
-    }
-
-    timer.stop();
-  }, [targetAngle, activePlayerName, updateRemote]);
 
   const pickPrompt = useCallback(
     (type: PromptType) => {
-      const timer = startGameTimer('TruthOrDare', 'PickPrompt', {
-        type,
-        category,
-        activePlayer: activePlayerName,
-      });
-
-      if (phase !== 'choose_card') {
-        timer.stop({ rejected: 'Not in choose_card phase' });
-        return;
-      }
-      if (gameMode === 'couple' && !isMyTurn) {
-        timer.stop({ rejected: 'Not your turn' });
-        return;
-      }
+      if (phase !== 'choose_card' || (gameMode === 'couple' && !isMyTurn)) return;
 
       const prompt = getRandomPrompt(category, type, usedIds);
       setUsedIds((prev) => [...prev, prompt.id]);
       setSelectedPrompt(prompt);
       setPhase('prompt_revealed');
+      setCurrentAnswer('');
 
-      updateRemote({
-        selectedPrompt: prompt,
-        phase: 'prompt_revealed',
-      }, 'SyncPickPrompt');
-
-      timer.stop({ promptId: prompt.id, promptText: prompt.text });
+      updateRemote(
+        {
+          selectedPrompt: prompt,
+          phase: 'prompt_revealed',
+          answer: '',
+        },
+        'SyncPickPrompt'
+      );
     },
-    [phase, gameMode, isMyTurn, category, usedIds, activePlayerName, updateRemote]
+    [phase, gameMode, isMyTurn, category, usedIds, updateRemote]
   );
 
-  const completeChallenge = useCallback(() => {
-    const timer = startGameTimer('TruthOrDare', 'CompleteChallenge', {
-      currentCount: completedCount,
-    });
-    // In couple mode, only the active player (who did the challenge) may mark it done
-    if (gameMode === 'couple' && !isMyTurn) {
-      timer.stop({ rejected: 'Not active player' });
-      return;
-    }
+  const rerollPrompt = useCallback(() => {
+    if (!selectedPrompt || phase !== 'prompt_revealed') return;
+    if (gameMode === 'couple' && !isMyTurn) return;
 
-    const nextCount = completedCount + 1;
-    setCompletedCount(nextCount);
-    setSelectedPrompt(null);
-    setPhase('need_spin');
+    const nextPrompt = getRandomPrompt(category, selectedPrompt.type, [...usedIds, selectedPrompt.id]);
+    setUsedIds((prev) => [...prev, nextPrompt.id]);
+    setSelectedPrompt(nextPrompt);
     setCurrentAnswer('');
 
-    // Switch active player for next turn
+    updateRemote(
+      {
+        selectedPrompt: nextPrompt,
+        answer: '',
+      },
+      'SyncRerollPrompt'
+    );
+  }, [selectedPrompt, phase, gameMode, isMyTurn, category, usedIds, updateRemote]);
+
+  const completeChallenge = useCallback(() => {
+    if (gameMode === 'couple' && !isMyTurn) return;
+
+    const nextCount = completedCount + 1;
     const nextUid = activeUid === myUid ? (partnerUid || 'partner') : (myUid || 'me');
     const nextName = activeUid === myUid ? partnerName : userName;
+
+    setCompletedCount(nextCount);
+    setSelectedPrompt(null);
+    setPhase('choose_card');
+    setCurrentAnswer('');
     setActiveUid(nextUid);
     setActivePlayerName(nextName);
 
-    updateRemote({
-      completedCount: nextCount,
-      selectedPrompt: null,
-      phase: 'need_spin',
-      activeUid: nextUid,
-      activePlayerName: nextName,
-      answer: '',
-    }, 'SyncCompleteChallenge');
-
-    timer.stop({ nextCount, nextPlayer: nextName });
-  }, [completedCount, activeUid, myUid, partnerUid, partnerName, userName, updateRemote]);
+    updateRemote(
+      {
+        completedCount: nextCount,
+        selectedPrompt: null,
+        phase: 'choose_card',
+        activeUid: nextUid,
+        activePlayerName: nextName,
+        answer: '',
+      },
+      'SyncCompleteChallenge'
+    );
+  }, [completedCount, activeUid, myUid, partnerUid, partnerName, userName, gameMode, isMyTurn, updateRemote]);
 
   const resetGame = useCallback(() => {
-    const timer = startGameTimer('TruthOrDare', 'ResetGame');
     setCompletedCount(0);
     setSelectedPrompt(null);
-    setPhase('need_spin');
+    setPhase('choose_card');
     setUsedIds([]);
     setCurrentAnswer('');
-    updateRemote({
-      completedCount: 0,
-      selectedPrompt: null,
-      phase: 'need_spin',
-      targetAngle: 0,
-      answer: '',
-    }, 'SyncResetGame');
-    timer.stop();
+    updateRemote(
+      {
+        completedCount: 0,
+        selectedPrompt: null,
+        phase: 'choose_card',
+        answer: '',
+      },
+      'SyncResetGame'
+    );
   }, [updateRemote]);
 
-  // Submit truth answer — debounce not needed; only the active player writes
   const submitAnswer = useCallback(
     (text: string) => {
       setCurrentAnswer(text);
@@ -325,20 +228,17 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
     selectedPrompt,
     activePlayerName,
     isMyTurn,
-    canSpin,
     canPickCard,
     phase,
     completedCount,
-    targetAngle,
     gameMode,
     setGameMode,
     isLinked,
     userName,
     partnerName,
     currentAnswer,
-    spinBottle,
-    onSpinAnimationComplete,
     pickPrompt,
+    rerollPrompt,
     submitAnswer,
     completeChallenge,
     resetGame,

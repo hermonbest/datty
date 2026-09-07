@@ -126,7 +126,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           >
             {options.tabBarIcon?.({ 
                focused: isFocused, 
-               color: isFocused ? colors.onPrimaryFixedVariant : colors.onSecondaryFixedVariant, 
+               color: isFocused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.65)', 
                size: 24 
             })}
             <Text style={[styles.tabLabel, isFocused ? styles.tabLabelFocused : styles.tabLabelInactive]}>
@@ -420,36 +420,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primary, // dark red (#60162e)
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     paddingTop: spacing.sm,
-    shadowColor: colors.surfaceTint,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
     elevation: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: radii.full,
   },
   tabItemFocused: {
-    backgroundColor: colors.primaryFixed,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
   },
   tabLabel: {
     ...typography.labelSm,
     marginTop: 4,
   },
   tabLabelFocused: {
-    color: colors.onPrimaryFixedVariant,
+    color: '#FFFFFF',
+    fontWeight: typography.weights.bold,
   },
   tabLabelInactive: {
-    color: colors.onSecondaryFixedVariant,
+    color: 'rgba(255, 255, 255, 0.65)',
   },
 });
