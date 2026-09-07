@@ -762,17 +762,25 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   // cleared after 2.5s of inactivity.
   const handleChangeText = (text: string) => {
     setInputText(text);
-    if (!coupleId || !myUid) return;
+    if (!coupleId || !myUid) {
+      console.warn('[ChatScreen] handleChangeText skipped — missing coupleId/myUid:', { coupleId, myUid });
+      return;
+    }
     if (text.trim()) {
       const now = Date.now();
       if (now - lastTypingSentRef.current > 3000) {
         lastTypingSentRef.current = now;
+        console.log('[ChatScreen] emitting typing: chat');
         writePresence({ typing: 'chat', online: true });
       }
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-      typingTimerRef.current = setTimeout(() => writePresence({ typing: null }), 2500);
+      typingTimerRef.current = setTimeout(() => {
+        console.log('[ChatScreen] typing inactivity timeout — clearing typing');
+        writePresence({ typing: null });
+      }, 2500);
     } else {
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      console.log('[ChatScreen] text cleared — emitting typing: null');
       writePresence({ typing: null });
     }
   };
@@ -1042,6 +1050,10 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   const partnerTyping = partnerPresence?.typing === 'chat';
   const partnerOnline = partnerPresence ? Boolean(partnerPresence.online) : true;
 
+  useEffect(() => {
+    console.log('[ChatScreen] partnerTyping state:', partnerTyping, 'partnerPresence:', partnerPresence);
+  }, [partnerTyping, partnerPresence]);
+
   const handleDeleteMessage = useCallback(
     (msg: ChatMessage) => {
       const isVoice = !!msg.audioURL;
@@ -1248,7 +1260,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
           {
             paddingBottom: isKeyboardVisible
               ? (Platform.OS === 'android' ? 8 : 6)
-              : (80 + insets.bottom),
+              : (58 + insets.bottom),
           },
         ]}
         pointerEvents="box-none"

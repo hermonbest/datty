@@ -43,15 +43,24 @@ export function usePresence(
     [coupleId, partnerUid]
   );
 
+  // Diagnostic log for hook initialization
+  useEffect(() => {
+    console.log('[usePresence] Init:', { coupleId, myUid, partnerUid, myPath, partnerPath });
+  }, [coupleId, myUid, partnerUid, myPath, partnerPath]);
+
   // Stable writer for my own presence node (partial update preserves other fields).
   const writePresence = useCallback(
     (patch: PresenceWritePatch) => {
-      if (!myPath) return;
+      if (!myPath) {
+        console.warn('[usePresence] writePresence skipped: myPath is null', { coupleId, myUid });
+        return;
+      }
+      console.log('[usePresence] writePresence ->', myPath, patch);
       update(ref(rtdb, myPath), patch).catch((err) => {
-        console.warn('[usePresence] Write error:', err);
+        console.warn('[usePresence] writePresence error:', err);
       });
     },
-    [myPath]
+    [myPath, coupleId, myUid]
   );
 
   // Presence lifecycle: mark offline on socket disconnect via onDisconnect(),
@@ -63,13 +72,17 @@ export function usePresence(
     const connectedRef = ref(rtdb, '.info/connected');
 
     const unsubConnected = onValue(connectedRef, (snap) => {
-      if (snap.val() === true) {
+      const isConnected = snap.val() === true;
+      console.log('[usePresence] RTDB .info/connected:', isConnected);
+      if (isConnected) {
         // Classic presence pattern: this runs when the socket drops,
         // no matter what state the app is in.
         onDisconnect(presenceRef)
           .set({ online: false, lastSeen: serverTimestamp() })
           .then(() => {
-            update(presenceRef, { online: true, lastSeen: serverTimestamp() }).catch(() => {});
+            update(presenceRef, { online: true, lastSeen: serverTimestamp() }).catch((err) => {
+              console.warn('[usePresence] Initial online write error:', err);
+            });
           })
           .catch((err) => {
             console.warn('[usePresence] onDisconnect setup error:', err);
@@ -78,6 +91,7 @@ export function usePresence(
     });
 
     const appStateSub = AppState.addEventListener('change', (state) => {
+      console.log('[usePresence] AppState changed:', state);
       if (state === 'active') {
         update(presenceRef, { online: true, typing: null }).catch(() => {});
       } else {
@@ -95,12 +109,15 @@ export function usePresence(
   // Subscribe to partner presence.
   useEffect(() => {
     if (!partnerPath) {
+      console.log('[usePresence] partnerPath is null, not subscribing to partner presence.');
       return;
     }
+    console.log('[usePresence] Subscribing to partner path:', partnerPath);
     const partnerRef = ref(rtdb, partnerPath);
     const unsubscribe = onValue(
       partnerRef,
       (snap) => {
+        console.log('[usePresence] Partner snapshot exists:', snap.exists(), 'val:', snap.val());
         if (snap.exists()) {
           const d = snap.val();
           setPartnerPresence({
@@ -113,9 +130,15 @@ export function usePresence(
           setPartnerPresence(null);
         }
       },
-      () => setPartnerPresence(null)
+      (error) => {
+        console.warn('[usePresence] Partner subscription error:', error);
+        setPartnerPresence(null);
+      }
     );
-    return unsubscribe;
+    return () => {
+      console.log('[usePresence] Unsubscribing from partner path:', partnerPath);
+      unsubscribe();
+    };
   }, [partnerPath]);
 
   return { partnerPresence, writePresence };
