@@ -22,6 +22,5 @@ npm-debug.*
 
 # Firebase Service Account
 serviceAccountKey.json
-google-services.json
 GoogleService-Info.plist
 docs/superpowers

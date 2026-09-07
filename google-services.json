@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "85103143542",
+    "firebase_url": "https://datty-40e3b-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "datty-40e3b",
+    "storage_bucket": "datty-40e3b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:85103143542:android:dcf6f082d735cce2250d57",
+        "android_client_info": {
+          "package_name": "com.usapp.couple"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBZ7bFj7qQkIy9iX4yoReUM3tOeAr2lhl0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
