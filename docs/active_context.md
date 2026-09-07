@@ -77,4 +77,18 @@
   - All 13 test suites passing (84/84 tests).
   - TypeScript check (`tsc --noEmit`) verified with 0 errors.
 
+### Completed Work (Current Session — Chat Typing Indicator, Moments Like, T&D Answer Field)
 
+- **Chat Typing Indicator**:
+  - `src/features/chat/ChatScreen.tsx`: `handleChangeText` already wrote `typing: 'chat'` to RTDB via `writePresence` (debounced, 3s throttle + 2.5s inactivity clear). Added `TypingIndicator` component (3 staggered animated dots using `Animated.loop`) rendered via `ListHeaderComponent` on the inverted FlatList — visually appears near the composer when `partnerPresence?.typing === 'chat'`.
+- **Moments Like Button**:
+  - `src/types/index.ts`: Added `likedBy?: string[]` to `Moment` interface.
+  - `src/features/moments/useMoments.ts`: Added `toggleLike(momentId)` using Firestore `arrayUnion`/`arrayRemove` with optimistic UI + rollback. Hydrates `likedBy` from snapshot in both realtime and manual refresh paths.
+  - `src/features/moments/MomentsFeedScreen.tsx`: Wired Heart button `onPress` to `toggleLike`. Heart fills pink when `myUid` is in `likedBy`, shows outline otherwise.
+- **Truth or Dare — Turn-by-Turn Answer Field for Truth**:
+  - `src/features/games/truthOrDare/useTruthOrDare.ts`: Added `answer?: string` to `TruthOrDareFirestoreDoc`. Added `currentAnswer` state (hydrated from snapshot). Added `submitAnswer(text)` that writes directly to the existing Firestore game doc (same listener both players subscribe to). Clears `answer` on `completeChallenge` and `resetGame`.
+  - `src/features/games/truthOrDare/TruthOrDareScreen.tsx`: In truth `prompt_revealed` phase — active player sees an editable `TextInput` that calls `submitAnswer` on every keystroke (live sync). Partner sees the answer in a styled read-only bubble, or a "waiting..." label if not yet typed.
+- **Verification**:
+  - All 13 test suites passing (84/84 tests).
+  - `tsc --noEmit` exits with code 0 (0 errors).
+  - Committed: `feat: typing indicator, moments like button, T&D truth answer field`

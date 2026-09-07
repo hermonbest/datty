@@ -323,20 +323,20 @@ export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, on
           <TouchableOpacity
             style={[
               styles.spinButton,
-              phase === 'spinning' && styles.spinButtonDisabled,
-              phase === 'need_spin' && styles.spinButtonGlow,
+              (!canSpin || phase === 'spinning') && styles.spinButtonDisabled,
+              canSpin && phase === 'need_spin' && styles.spinButtonGlow,
             ]}
             onPress={spinBottle}
-            disabled={phase === 'spinning'}
+            disabled={!canSpin || phase === 'spinning'}
             activeOpacity={0.8}
           >
             <RotateCw size={18} color="#FFFFFF" />
             <Text style={styles.spinButtonText}>
               {phase === 'spinning'
                 ? 'Spinning Bottle...'
-                : phase === 'need_spin'
-                ? 'Spin the Bottle for Turn'
-                : 'Re-Spin Bottle'}
+                : canSpin
+                ? 'Spin the Bottle'
+                : `Waiting for ${activePlayerName} to spin...`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -344,10 +344,20 @@ export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, on
         {/* Dynamic Turn Guidance Callout */}
         <View style={styles.phaseGuidanceCard}>
           {phase === 'need_spin' ? (
-            <View style={styles.guidanceRow}>
-              <Sparkles size={16} color={colors.primary} />
-              <Text style={styles.guidanceText}>
-                Spin the bottle above to choose who takes the challenge!
+            <View style={[
+              styles.guidanceRow,
+              gameMode === 'couple' && !isMyTurn ? styles.guidanceRowWaiting : null,
+            ]}>
+              {gameMode === 'couple' && !isMyTurn
+                ? <Lock size={16} color={colors.textMuted} />
+                : <Sparkles size={16} color={colors.primary} />}
+              <Text style={[
+                styles.guidanceText,
+                gameMode === 'couple' && !isMyTurn ? styles.guidanceTextWaiting : null,
+              ]}>
+                {gameMode === 'couple' && !isMyTurn
+                  ? `⏳ It's ${activePlayerName}'s turn to spin!`
+                  : 'Spin the bottle to choose who takes the challenge!'}
               </Text>
             </View>
           ) : phase === 'spinning' ? (
@@ -554,12 +564,26 @@ export const TruthOrDareScreen: React.FC<TruthOrDareScreenProps> = ({ onBack, on
                 </TouchableOpacity>
               )}
               <TouchableOpacity
-                style={styles.actionDoneBtn}
+                style={[
+                  styles.actionDoneBtn,
+                  gameMode === 'couple' && !isMyTurn && styles.actionDoneBtnDisabled,
+                ]}
                 onPress={completeChallenge}
+                disabled={gameMode === 'couple' && !isMyTurn}
                 activeOpacity={0.85}
               >
-                <CheckCircle2 size={20} color="#FFFFFF" />
-                <Text style={styles.actionDoneBtnText}>Completed & Next Spin</Text>
+                <CheckCircle2
+                  size={20}
+                  color={gameMode === 'couple' && !isMyTurn ? colors.textMuted : '#FFFFFF'}
+                />
+                <Text style={[
+                  styles.actionDoneBtnText,
+                  gameMode === 'couple' && !isMyTurn && { color: colors.textMuted },
+                ]}>
+                  {gameMode === 'couple' && !isMyTurn
+                    ? `Waiting for ${activePlayerName}...`
+                    : 'Done — Next Spin'}
+                </Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -1045,6 +1069,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.bold,
+  },
+  actionDoneBtnDisabled: {
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   answerSection: {
     marginTop: spacing.sm,

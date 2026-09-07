@@ -72,7 +72,9 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
       ? true
       : activeUid === myUid;
 
-  const canSpin = phase === 'need_spin' || phase === 'choose_card';
+  // In couple mode: only the active player can spin (and only between turns, not mid-card).
+  // pass_and_play: whoever holds the phone can always spin.
+  const canSpin = phase === 'need_spin' && (gameMode !== 'couple' || isMyTurn);
   const canPickCard = phase === 'choose_card' && isMyTurn;
 
   // Realtime Firestore Subscription for Couple Mode
@@ -170,6 +172,8 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
 
   const spinBottle = useCallback(() => {
     if (phase === 'spinning') return;
+    // In couple mode, only the active player (whose turn it is) may spin
+    if (gameMode === 'couple' && !isMyTurn) return;
 
     const timer = startGameTimer('TruthOrDare', 'SpinBottle');
     isSpinnerRef.current = true;
@@ -259,6 +263,11 @@ export function useTruthOrDare(): UseTruthOrDareReturn {
     const timer = startGameTimer('TruthOrDare', 'CompleteChallenge', {
       currentCount: completedCount,
     });
+    // In couple mode, only the active player (who did the challenge) may mark it done
+    if (gameMode === 'couple' && !isMyTurn) {
+      timer.stop({ rejected: 'Not active player' });
+      return;
+    }
 
     const nextCount = completedCount + 1;
     setCompletedCount(nextCount);
