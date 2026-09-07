@@ -7,7 +7,7 @@ import {
   onDisconnect,
   serverTimestamp,
 } from 'firebase/database';
-import { rtdb } from './firebase';
+import { rtdb, auth } from './firebase';
 import { PresenceData } from '../types';
 
 export interface PresenceWritePatch {
