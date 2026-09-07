@@ -49,6 +49,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#FAF7F5',
     },
     package: 'com.usapp.couple',
+    googleServicesFile: './google-services.json',
   },
   web: {
     favicon: './assets/favicon.png',
